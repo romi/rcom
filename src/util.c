@@ -2,11 +2,11 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
-#include <sys/time.h>
-#include <sys/random.h>
-#include <time.h>
-#include <sys/types.h>
 #include <math.h>
+#include <time.h>
+#include <sys/time.h>
+#include <sys/types.h>
+#include <sys/syscall.h>
 
 #include "rcom/log.h"
 
@@ -106,11 +106,16 @@ char *encode_base64(const unsigned char *s)
         return t;
 }
 
+int rcom_getrandom(void *buf, size_t buflen, unsigned int flags)
+{
+    return (int)syscall(SYS_getrandom, buf, buflen, flags);
+}
+
 void generate_random_buffer(uint8_t *buffer, ssize_t len)
 {
         ssize_t n = 0;
         while (n < len) {
-                ssize_t m = getrandom((void *) &buffer[n], len - n, 0);
+                ssize_t m = rcom_getrandom((void *) &buffer[n], len - n, 0);
                 n += m;
         }
 }
