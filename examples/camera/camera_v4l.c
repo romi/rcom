@@ -69,7 +69,7 @@
 #include <linux/videodev2.h>
 #include <jpeglib.h>
 #include <malloc.h>
-#include <ltcom.h>
+#include <rcom.h>
 #include "camera_v4l.h"
 
 #define IO_READ
