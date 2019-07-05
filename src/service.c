@@ -73,6 +73,8 @@ service_t* new_service(const char *name, int port)
         log_info("Service listening at http://%s",
                  addr_string(service->addr, b, sizeof(b)));
 
+	service_run_in_thread(service);
+
         return service;
 }
 

@@ -381,6 +381,7 @@ void request_handle(request_t* r)
                 goto cleanup;
                 
         } else {
+	  log_debug("request_handle: sending response, mimetype '%s'", request_mimetype(r, export));
                 err = request_send_headers(r, 200, request_mimetype(r, export),
                                            membuf_len(r->out));
                 if (err != 0) {
@@ -404,6 +405,7 @@ cleanup:
 
 void request_set_mimetype(request_t *r, const char *mimetype)
 {
+  log_debug("request_set_mimetype: settings mimetype to '%s'", mimetype);
         if (r->mimetype)
                 mem_free(r->mimetype);
         r->mimetype = NULL;

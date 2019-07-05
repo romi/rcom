@@ -2,6 +2,8 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <errno.h>
+#include <limits.h>
+#include <stdlib.h>
 
 #include <rcom.h>
 
@@ -16,19 +18,19 @@ static rcregistry_t *rcregistry = NULL;
 static service_t *service = NULL;
 static char *_dir = "html/rcregistry";
 
-static int rcregistry_send_file(const char *filename,
+static int rcregistry_send_file(const char *path,
                                 const char *mimetype,
                                 request_t *request)
 {
-        char path[256];
-        snprintf(path, 256, "%s/%s", _dir, filename);
-        
+	log_debug("rcregistry_send_file");
+	
         FILE *fp = fopen(path, "r");
         if (fp == NULL) {
                 log_err("Failed to open %s", path);
                 return -1;
         }
-        
+
+	log_debug("rcregistry_send_file: settings mimetype to '%s'", mimetype);
         request_set_mimetype(request, mimetype);
         
         while (1) {
@@ -73,24 +75,24 @@ static int rcregistry_index(void *data, request_t *request)
 
 static int set_server_dir(const char *path)
 {
-        char initial_path[1024];
-        char resolved_path[1024];
+        char initial_path[PATH_MAX];
+        char resolved_path[PATH_MAX];
         struct stat statbuf;
         
         if (path[0] != '/') {
-                char cwd[1024];
-                char s[1024];
-                if (getcwd(cwd, 1024) == NULL) {
+                char cwd[PATH_MAX];
+                char s[PATH_MAX];
+                if (getcwd(cwd, PATH_MAX) == NULL) {
                         char reason[200];
                         strerror_r(errno, reason, 200);
                         log_err("getcwd failed: %s", reason);
                         return -1;
                 }
-                snprintf(initial_path, 1024, "%s/%s", cwd, path);
-                initial_path[1024-1] = 0;
+                snprintf(initial_path, PATH_MAX, "%s/%s", cwd, path);
+                initial_path[PATH_MAX-1] = 0;
         } else {
-                snprintf(initial_path, 1024, "%s", path);
-                initial_path[1024-1] = 0;
+                snprintf(initial_path, PATH_MAX, "%s", path);
+                initial_path[PATH_MAX-1] = 0;
         }
 
         if (realpath(initial_path, resolved_path) == NULL) {
@@ -117,12 +119,12 @@ static int set_server_dir(const char *path)
 
 static int check_path(const char *filename, char *path, int len)
 {
-        char requested_path[1024];
-        char resolved_path[1024];
+        char requested_path[PATH_MAX];
+        char resolved_path[PATH_MAX];
         struct stat statbuf;
         
-        snprintf(requested_path, 1024, "%s/%s", _dir, filename);
-        requested_path[1024-1] = 0;
+        snprintf(requested_path, PATH_MAX, "%s/%s", _dir, filename);
+        requested_path[PATH_MAX-1] = 0;
 
         if (realpath(requested_path, resolved_path) == NULL) {
                 char reason[200];
@@ -150,8 +152,9 @@ static int check_path(const char *filename, char *path, int len)
 
 static int rcregistry_localfile(void *data, request_t *request)
 {
-        char path[1024];
-        
+        char path[PATH_MAX];
+
+	log_debug("rcregistry_localfile");
         const char *filename = request_name(request);
 	
         if (filename[0] == '/')
@@ -161,7 +164,7 @@ static int rcregistry_localfile(void *data, request_t *request)
         if (mimetype == NULL)
                 return -1;
         
-        if (check_path(filename, path, 1024) != 0)
+        if (check_path(filename, path, PATH_MAX) != 0)
                 return -1;
         
         return rcregistry_send_file(path, mimetype, request);
@@ -171,42 +174,48 @@ static int rcregistry_localfile(void *data, request_t *request)
 int main(int argc, char **argv)
 {
         int err;
-        
+        const char *d = "html/rcregistry";
+	
         app_init(&argc, argv);
 
-        // FIXME: must check the path before blindly set the directory!
         if (argc >= 2)
-                set_server_dir(argv[1]);
+	        d = argv[1];
+
+	err = set_server_dir(d);
+	if (err != 0) {
+	        log_err("Invalid servir dir: '%s'", d);
+                return 1;
+	}
 
         rcregistry = new_rcregistry();
         if (rcregistry == NULL)
-                return 0;
+                return 1;
 
         service = new_service("rcregistry", 10100);
         if (service == NULL) {
                 log_err("Failed to create the HTML service. Quitting.");
                 delete_rcregistry(rcregistry);
-                return 0;
+                return 1;
         }
         
-        err = service_export(service, "registry.html", NULL, "text/html", NULL, rcregistry_index);
+        err = service_export(service, "registry.html", NULL, "text/html",
+			     NULL, rcregistry_index);
         if (err != 0) {
                 log_err("Failed to export the HTML page. Quitting.");
                 delete_rcregistry(rcregistry);
                 delete_service(service);
-                return 0;
+                return 1;
         }
         
-        err = service_export(service, "*", NULL, "text/html", NULL, rcregistry_localfile);
+        err = service_export(service, "*", NULL, "text/html",
+			     NULL, rcregistry_localfile);
         if (err != 0) {
                 log_err("Failed to export the HTML page. Quitting.");
                 delete_rcregistry(rcregistry);
                 delete_service(service);
-                return 0;
+                return 1;
         }
         
-        service_run_in_thread(service);
-
         while (!app_quit()) {
                 clock_sleep(1);
         }

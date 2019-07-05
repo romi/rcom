@@ -140,7 +140,8 @@ int app_parse_args(int *argc, char **argv)
 
 static int app_check_ip()
 {
-        _ip = mem_strdup("0.0.0.0");
+        if (_ip == NULL)
+                _ip = mem_strdup("0.0.0.0");
         return 0;
 }
 
