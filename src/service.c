@@ -151,7 +151,9 @@ static void service_index_html(service_t* service, request_t *request)
                 e = list_get(l, export_t);
                 const char* name = export_name(e);
 
-                if (name[0] == '/')
+                if (streq(name, "*"))
+                    ; // skip
+                else if (name[0] == '/')
                         request_reply_printf(request, 
                                              "    <a href=\"http://%s%s\">%s</a><br>\n",
                                              b, name, name);
@@ -186,9 +188,12 @@ static void service_index_json(service_t* service, request_t *request)
                 const char* name = export_name(e);
                 const char* s = (name[0] == '/')? name + 1 : name;
 
-                request_reply_printf(request, 
-                                     "{\"name\": \"%s\", \"uri\": \"http://%s/%s\"}",
-                                     name, b, s);
+                if (streq(name, "*"))
+                    ; // skip
+                else
+                        request_reply_printf(request, 
+                                             "{\"name\": \"%s\", \"uri\": \"http://%s/%s\"}",
+                                             name, b, s);
                 l = list_next(l);
                 if (l) request_reply_printf(request, ", ");
         }

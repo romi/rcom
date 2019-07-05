@@ -189,15 +189,7 @@ int main(int argc, char **argv)
                 return 0;
         }
         
-        err = service_export(service, "index.html", NULL, "text/html", NULL, rcregistry_index);
-        if (err != 0) {
-                log_err("Failed to export the HTML page. Quitting.");
-                delete_rcregistry(rcregistry);
-                delete_service(service);
-                return 0;
-        }
-        
-        err = service_export(service, "/", NULL, "text/html", NULL, rcregistry_index);
+        err = service_export(service, "registry.html", NULL, "text/html", NULL, rcregistry_index);
         if (err != 0) {
                 log_err("Failed to export the HTML page. Quitting.");
                 delete_rcregistry(rcregistry);
