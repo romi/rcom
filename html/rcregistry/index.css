@@ -1,0 +1,57 @@
+body {
+  font-family: sans-serif;
+}
+
+div.registry {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    align-items: flex-start;
+    align-content: flex-start;
+}
+
+div.topic {
+    border: 2px solid black; 
+    border-radius: 12px;
+    padding: 12px;
+}
+
+h1.topic-name {
+    font-size: 14pt;
+    font-weight: bold;
+    padding: 0px;
+    margin: 0px;
+    padding-bottom: 14px;
+}
+
+div.entry {
+    border: solid 1px black;
+    border-radius: 2px;
+    padding: 3px;
+    margin: 7px;
+}
+
+div.datahub {
+    color: white;
+    background-color: black;
+}
+
+div.datalink {
+    color: black;
+    background-color: white;
+}
+
+h2.entry-name {
+    font-size: 12pt;
+    font-weight: bold;
+    padding: 0px;
+    margin: 0px;
+}
+
+p.entry-addr {
+    font-size: 9pt;
+    padding: 0px;
+    margin: 0px;
+}
+
