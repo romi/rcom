@@ -199,6 +199,7 @@ static mime_map_t map[] = { {".html", "text/html"},
                             {".png", "image/png"},
                             {".glb", "application/octet-stream"},
                             {".bin", "application/octet-stream"},
+                            {".svg", "image/svg+xml"},
                             {NULL, NULL},
 };
 
