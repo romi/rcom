@@ -1520,7 +1520,7 @@ struct _json_parser_t {
 
 	json_parser_switch_t parser_switch;
         json_token_t token;
-        char unwind_char;
+        signed char unwind_char;
 };
 
 static inline int32 whitespace(int32 c)
