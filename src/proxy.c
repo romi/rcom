@@ -119,7 +119,7 @@ int get_registry_port()
 
 void proxy_init()
 {
-        set_registry_ip("127.0.0.1");
+  //set_registry_ip("127.0.0.1");
 }
 
 void proxy_cleanup()
@@ -138,7 +138,7 @@ static proxy_t *proxy_get()
                 return _proxy;
 
         if (!_standalone) {
-                _registry_addr = new_addr(_default_ip, _default_port);
+                _registry_addr = new_addr(get_registry_ip(), _default_port);
                 if (_registry_addr == NULL) {
                         log_err("proxy_create: failed to create the registry address!");
                         return NULL;
