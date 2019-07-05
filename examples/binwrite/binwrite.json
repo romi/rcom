@@ -1,0 +1,11 @@
+{
+        "name": "binwrite",
+        "com": [
+                {
+                        "type": "datahub",
+                        "name": "binwrite",
+                        "topic": "binwrite.data",
+                        "onbroadcast": "binwrite_broadcast"
+                }
+        ]
+}

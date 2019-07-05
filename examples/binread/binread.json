@@ -1,0 +1,11 @@
+{
+        "name": "binread",
+        "com": [
+                {
+                        "type": "datalink",
+                        "name": "binread",
+                        "topic": "binwrite.data",
+                        "ondata": "binread_ondata"
+                }
+        ]
+}

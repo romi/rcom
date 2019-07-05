@@ -1,0 +1,36 @@
+#ifndef _RCOM_EXPORT_H_
+#define _RCOM_EXPORT_H_
+
+#include "rcom/service.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+        
+typedef struct _export_t export_t;
+typedef struct _request_t request_t;
+
+export_t* new_export(const char* name,
+                     const char* mimetype_in,
+                     const char* mimetype_out);
+void delete_export(export_t* e);
+
+const char* export_name(export_t* e);
+const char* export_mimetype_in(export_t* e);
+const char* export_mimetype_out(export_t* e);
+int export_json_in(export_t* e);
+int export_json_out(export_t* e);
+        
+// Used by service
+export_t *export_clone(export_t* e);
+void export_set_onrequest(export_t* e, void *userdata, service_onrequest_t onrequest);
+int export_callback(export_t* e, request_t *request);
+        
+/* int export_registered(export_t* e); */
+/* void export_set_registered(export_t* e, int val); */
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif // _RCOM_EXPORT_H_

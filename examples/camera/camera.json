@@ -1,0 +1,14 @@
+{
+    "name": "camera",
+    "com": [
+        {
+            "type": "streamer",
+            "name": "camera",
+            "topic": "camera",
+            "onbroadcast": "camera_broadcast",
+            "userdata": "camera_instance()",
+            "resources": [{"name": "rgb",
+                           "mime": "multipart/x-mixed-replace; boundary=nextimage"}]
+        }
+    ]
+}

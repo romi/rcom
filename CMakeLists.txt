@@ -1,0 +1,143 @@
+
+cmake_minimum_required(VERSION 2.6)
+project(rcom)
+
+set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_BUILD_TYPE DEBUG)
+set(CMAKE_C_FLAGS "-O0 -ggdb")
+#set(CMAKE_C_FLAGS_DEBUG "-O0 -ggdb -DMEM_DIAGNOSTICS=1")
+set(CMAKE_C_FLAGS_DEBUG "-O0 -ggdb")
+set(CMAKE_C_FLAGS_RELEASE "-O0 -ggdb")
+
+# The version number.
+set(rcom_VERSION_MAJOR 0)
+set(rcom_VERSION_MINOR 1)
+
+#set(Python_ADDITIONAL_VERSIONS 3.6)
+#find_package(PythonLibs 3 REQUIRED)
+
+set(SOURCES
+  src/json.c 
+  src/addr.c 
+  src/net.c 
+  src/util.c 
+  src/clock.c 
+  src/http.c 
+  src/thread_pthread.c 
+  src/http_parser.c 
+  src/sha1.c
+  src/http.c
+  src/membuf.c 
+  src/app.c 
+  src/list.c 
+  src/log.c 
+  src/mem.c 
+  src/serial.c
+  src/circular.c 
+  src/data.c 
+  src/datalink.c 
+  src/datahub.c 
+  src/messagehub.c 
+  src/messagelink.c 
+  src/registry.c 
+  src/proxy.c 
+  src/rcregistry.c 
+  src/dump.c
+  src/export.c 
+  src/request.c 
+  src/service.c 
+  src/streamer.c 
+  src/streamerlink.c 
+  src/multipart_parser.c 
+  )
+
+include_directories(include)
+include_directories("${CMAKE_CURRENT_BINARY_DIR}")
+
+add_library(rcom SHARED ${SOURCES})
+target_link_libraries(rcom m)
+target_link_libraries(rcom pthread)
+##target_link_libraries(rcom debug sgc)
+
+# Main rcom apps
+add_executable(rcregistry src/rcregistry_main.c)
+target_link_libraries(rcregistry rcom)
+
+#add_executable(rcmonitor src/rcmonitor.c src/run.c)
+#target_link_libraries(rcmonitor rcom)
+
+add_executable(rcgen src/rcgen.c)
+target_link_libraries(rcgen rcom)
+
+#add_executable(rcquery src/rcquery.c)
+#target_link_libraries(rcquery rcom)
+
+#add_executable(rcmonitor src/rcmonitor.c src/run.c)
+#target_link_libraries(rcmonitor rcom)
+
+#add_executable(rcreplay src/rcreplay.c)
+#target_link_libraries(rcreplay rcom)
+
+#add_executable(rcconvert src/rcconvert.c)
+#target_link_libraries(rcconvert rcom)
+
+## Example apps
+
+# binread
+ADD_CUSTOM_COMMAND(
+  OUTPUT ${CMAKE_SOURCE_DIR}/examples/binread/binread_main.c
+  COMMAND rcgen ${CMAKE_SOURCE_DIR}/examples/binread/binread.json ${CMAKE_SOURCE_DIR}/examples/binread/binread_main.c
+  DEPENDS rcgen ${CMAKE_SOURCE_DIR}/examples/binread/binread.json
+  )
+
+add_executable(binread examples/binread/binread.c examples/binread/binread_main.c)
+target_link_libraries(binread rcom)
+
+
+# binwrite
+ADD_CUSTOM_COMMAND(
+  OUTPUT ${CMAKE_SOURCE_DIR}/examples/binwrite/binwrite_main.c
+  COMMAND rcgen ${CMAKE_SOURCE_DIR}/examples/binwrite/binwrite.json ${CMAKE_SOURCE_DIR}/examples/binwrite/binwrite_main.c
+  DEPENDS rcgen ${CMAKE_SOURCE_DIR}/examples/binwrite/binwrite.json
+  )
+add_executable(binwrite examples/binwrite/binwrite.c examples/binwrite/binwrite_main.c)
+target_link_libraries(binwrite rcom)
+
+
+# camera
+ADD_CUSTOM_COMMAND(
+  OUTPUT ${CMAKE_SOURCE_DIR}/examples/camera/camera_main.c
+  COMMAND rcgen ${CMAKE_SOURCE_DIR}/examples/camera/camera.json ${CMAKE_SOURCE_DIR}/examples/camera/camera_main.c
+  DEPENDS rcgen ${CMAKE_SOURCE_DIR}/examples/camera/camera.json
+  )
+
+add_executable(camera examples/camera/camera.c examples/camera/camera_v4l.c examples/camera/camera_main.c)
+target_link_libraries(camera rcom)
+target_link_libraries(camera jpeg)
+
+
+# camera_listener
+ADD_CUSTOM_COMMAND(
+  OUTPUT ${CMAKE_SOURCE_DIR}/examples/camera_listener/camera_listener_main.c
+  COMMAND rcgen ${CMAKE_SOURCE_DIR}/examples/camera_listener/camera_listener.json ${CMAKE_SOURCE_DIR}/examples/camera_listener/camera_listener_main.c
+  DEPENDS rcgen ${CMAKE_SOURCE_DIR}/examples/camera_listener/camera_listener.json
+  )
+
+add_executable(camera_listener examples/camera_listener/camera_listener.c examples/camera_listener/camera_listener_main.c)
+target_link_libraries(camera_listener rcom)
+
+
+## Installed files
+INSTALL(TARGETS rcom DESTINATION "lib")
+INSTALL(TARGETS rcregistry DESTINATION "bin")
+INSTALL(TARGETS rcgen DESTINATION "bin")
+#INSTALL(TARGETS rcquery DESTINATION "bin")
+#INSTALL(TARGETS rcmonitor DESTINATION "bin")
+#INSTALL(TARGETS rcreplay DESTINATION "bin")
+#INSTALL(TARGETS rcconvert DESTINATION "bin")
+#
+INSTALL (
+    DIRECTORY ${CMAKE_SOURCE_DIR}/include/
+    DESTINATION include
+    FILES_MATCHING PATTERN "*.h")
+
