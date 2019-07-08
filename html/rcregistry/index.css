@@ -12,7 +12,7 @@ div.registry {
 }
 
 div.topic {
-    border: 2px solid black; 
+    border: 2px solid black;
     border-radius: 12px;
     padding: 12px;
 }
@@ -30,6 +30,12 @@ div.entry {
     border-radius: 2px;
     padding: 3px;
     margin: 7px;
+
+}
+
+div.streamer{
+  color: white;
+  background-color: black;
 }
 
 div.datahub {
@@ -41,6 +47,8 @@ div.datalink {
     color: black;
     background-color: white;
 }
+
+
 
 h2.entry-name {
     font-size: 12pt;
@@ -54,4 +62,3 @@ p.entry-addr {
     padding: 0px;
     margin: 0px;
 }
-
