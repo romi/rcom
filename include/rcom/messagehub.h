@@ -17,12 +17,12 @@ typedef int (*messagehub_onconnect_t)(messagehub_t *hub,
                                       void *userdata);
 
 // Broadcast messages to all connected messagelinks
-int messagehub_send_num(messagehub_t *hub, messagelink_t *exclude, double value);
-int messagehub_send_str(messagehub_t *hub, messagelink_t *exclude, const char* value);
-int messagehub_send_f(messagehub_t *hub, messagelink_t *exclude, const char *format, ...);
-int messagehub_send_obj(messagehub_t *hub, messagelink_t *exclude, json_object_t value);
-int messagehub_send_text(messagehub_t *hub, messagelink_t *exclude, const char *data, int len);
-int messagehub_send_v(messagehub_t *hub, messagelink_t *exclude, const char* format, va_list ap);
+int messagehub_broadcast_num(messagehub_t *hub, messagelink_t *exclude, double value);
+int messagehub_broadcast_str(messagehub_t *hub, messagelink_t *exclude, const char* value);
+int messagehub_broadcast_f(messagehub_t *hub, messagelink_t *exclude, const char *format, ...);
+int messagehub_broadcast_obj(messagehub_t *hub, messagelink_t *exclude, json_object_t value);
+int messagehub_broadcast_text(messagehub_t *hub, messagelink_t *exclude, const char *data, int len);
+int messagehub_broadcast_v(messagehub_t *hub, messagelink_t *exclude, const char* format, va_list ap);
 
 int messagehub_send_ping(messagehub_t *hub, const char* data, int len);
 

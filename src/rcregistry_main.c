@@ -49,7 +49,7 @@ static int rcregistry_send_file(const char *path,
         return 0;
 }
 
-static int rcregistry_index(void *data, request_t *request)
+static int rcregistry_registry(void *data, request_t *request)
 {
         char b[64];
         request_reply_printf(request,
@@ -70,6 +70,34 @@ static int rcregistry_index(void *data, request_t *request)
                              "  </body>\n"
                              "</html>\n",
                              addr_string(rcregistry_addr(rcregistry), b, sizeof(b)));        
+        return 0;
+}
+
+static int rcregistry_listen(void *data, request_t *request)
+{
+        char b[64];
+        if (request_args(request) == NULL) {
+                return -1;
+        }
+
+        request_reply_printf(request,
+                             "<!DOCTYPE html>\n"
+                             "<html lang=\"en\">\n"
+                             "  <head>\n"
+                             "    <meta charset=\"utf-8\">\n"
+                             "    <title>Registry</title>\n"
+                             "    <link rel=\"stylesheet\" href=\"index.css\">\n"
+                             "    <script src=\"index.js\"></script>\n"
+                             "    <script src=\"jquery.min.js\"></script>\n"
+                             "  </head>\n"
+                             "  <body>\n"
+                             "    <div id=\"registry\"></div>\n"
+                             "    <script>\n"
+                             "      $(document).ready(function() { listenTo(\"ws://%s\"); });\n"
+                             "    </script>\n"
+                             "  </body>\n"
+                             "</html>\n",
+                             request_args(request));        
         return 0;
 }
 
@@ -199,7 +227,16 @@ int main(int argc, char **argv)
         }
         
         err = service_export(service, "registry.html", NULL, "text/html",
-			     NULL, rcregistry_index);
+			     NULL, rcregistry_registry);
+        if (err != 0) {
+                log_err("Failed to export the HTML page. Quitting.");
+                delete_rcregistry(rcregistry);
+                delete_service(service);
+                return 1;
+        }
+        
+        err = service_export(service, "listen.html", NULL, "text/html",
+			     NULL, rcregistry_listen);
         if (err != 0) {
                 log_err("Failed to export the HTML page. Quitting.");
                 delete_rcregistry(rcregistry);

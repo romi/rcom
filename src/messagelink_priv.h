@@ -13,15 +13,10 @@ typedef void (*messagelink_onpong_t)(messagelink_t *link,
                                      const char *data, int len);
 
 messagelink_t *new_messagelink(messagelink_onmessage_t onmessage,
-                               messagelink_callback_t onclose,
+                               messagelink_onclose_t onclose,
                                void *userdata);
 void delete_messagelink(messagelink_t *link);
 
-void messagelink_set_userdata(messagelink_t *link, void *userdata);
-void *messagelink_get_userdata(messagelink_t *link);
-
-void messagelink_set_onmessage(messagelink_t *link, messagelink_onmessage_t onmessage);
-void messagelink_set_onclose(messagelink_t *link, messagelink_callback_t onclose);
 void messagelink_set_onpong(messagelink_t *link, messagelink_onpong_t onpong);
 
 messagelink_t *server_messagelink_connect(messagehub_t *hub, tcp_socket_t socket);

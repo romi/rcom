@@ -10,7 +10,7 @@
 extern "C" {
 #endif
 
-#define streq(_s1, _s2) (strcmp(_s1,_s2)==0)
+#define streq(_s1, _s2) ((_s1) != NULL && (_s2) != NULL && strcmp(_s1,_s2)==0)
 
 membuf_t *escape_string(const char* s);
 

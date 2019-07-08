@@ -35,6 +35,7 @@ struct _request_t
 {
         service_t *service;
         char *name;
+        char *arg;
         char *mimetype;
         tcp_socket_t socket;
         addr_t *addr;
@@ -89,6 +90,11 @@ void delete_request(request_t *r)
 const char *request_name(request_t *r)
 {
         return r->name;
+}
+
+const char *request_args(request_t *r)
+{
+        return r->arg;
 }
 
 addr_t *request_addr(request_t *r)
@@ -236,6 +242,12 @@ static int request_on_url(http_parser *parser, const char *data, size_t length)
         request_t *r = (request_t *) parser->data;
         r->name = s;
 
+        s = strchr(r->name, '?');
+        if (s != NULL) {
+                *s = '\0';
+                r->arg = s+1;
+        }
+        
         return 0;
 }
 

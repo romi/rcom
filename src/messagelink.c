@@ -120,7 +120,7 @@ typedef struct _messagelink_t {
         
         messagelink_onmessage_t onmessage;
         messagelink_onpong_t onpong;
-        messagelink_callback_t onclose;
+        messagelink_onclose_t onclose;
         void *userdata;
 
         thread_t *thread;
@@ -147,7 +147,7 @@ static void messagelink_stop_background(messagelink_t *link);
 
 
 messagelink_t *new_messagelink(messagelink_onmessage_t onmessage,
-                               messagelink_callback_t onclose,
+                               messagelink_onclose_t onclose,
                                void *userdata)
 {
         messagelink_t *link;
@@ -236,7 +236,7 @@ void messagelink_set_onpong(messagelink_t *link, messagelink_onpong_t onpong)
         link->onpong = onpong;
 }
 
-void messagelink_set_onclose(messagelink_t *link, messagelink_callback_t onclose)
+void messagelink_set_onclose(messagelink_t *link, messagelink_onclose_t onclose)
 {
         link->onclose = onclose;
 }

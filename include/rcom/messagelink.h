@@ -13,8 +13,13 @@ typedef struct _messagehub_t messagehub_t;
 typedef void (*messagelink_onmessage_t)(messagelink_t *link,
                                         void *userdata,
                                         json_object_t message);
-typedef void (*messagelink_callback_t)(messagelink_t *link,
-                                       void *userdata);
+typedef void (*messagelink_onclose_t)(messagelink_t *link,
+                                      void *userdata);
+
+void messagelink_set_userdata(messagelink_t *link, void *userdata);
+void *messagelink_get_userdata(messagelink_t *link);
+void messagelink_set_onmessage(messagelink_t *link, messagelink_onmessage_t onmessage);
+void messagelink_set_onclose(messagelink_t *link, messagelink_onclose_t onclose);
 
 // Send messages.
 // The messagelink_send_xxx() functions are multi-thread safe. 

@@ -164,7 +164,7 @@ json_object_t json_parse(const char* buffer);
 // null
 
 json_object_t json_null();
-#define json_isnull(__obj) (__obj->type == k_json_null)
+#define json_isnull(__obj) ((__obj)->type == k_json_null)
 
 // undefined
 

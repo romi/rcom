@@ -1,5 +1,7 @@
 {
         "name": "binwrite",
+        "init": null,
+        "cleanup": null,
         "com": [
                 {
                         "type": "datahub",

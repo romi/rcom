@@ -209,7 +209,7 @@ static int messagehub_membuf(messagehub_t *hub)
         return 0;
 }
 
-int messagehub_send_num(messagehub_t *hub, messagelink_t *exclude, double value)
+int messagehub_broadcast_num(messagehub_t *hub, messagelink_t *exclude, double value)
 {
         int err;
         if (messagehub_membuf(hub) != 0)
@@ -218,12 +218,12 @@ int messagehub_send_num(messagehub_t *hub, messagelink_t *exclude, double value)
         membuf_clear(hub->mem);
         err = membuf_printf(hub->mem, "%f", value);
         if (err == 0)
-                err = messagehub_send_text(hub, exclude, membuf_data(hub->mem), membuf_len(hub->mem));
+                err = messagehub_broadcast_text(hub, exclude, membuf_data(hub->mem), membuf_len(hub->mem));
         membuf_unlock(hub->mem);
         return err;
 }
 
-int messagehub_send_str(messagehub_t *hub, messagelink_t *exclude, const char* value)
+int messagehub_broadcast_str(messagehub_t *hub, messagelink_t *exclude, const char* value)
 {
         int err;
         if (messagehub_membuf(hub) != 0)
@@ -234,7 +234,7 @@ int messagehub_send_str(messagehub_t *hub, messagelink_t *exclude, const char* v
         membuf_clear(hub->mem);
         err = membuf_printf(hub->mem, "\"%s\"", membuf_data(t));
         if (err == 0)
-                err = messagehub_send_text(hub, exclude, membuf_data(hub->mem), membuf_len(hub->mem));
+                err = messagehub_broadcast_text(hub, exclude, membuf_data(hub->mem), membuf_len(hub->mem));
         membuf_unlock(hub->mem);
         delete_membuf(t);
         return err;
@@ -245,7 +245,7 @@ static int32 messagehub_serialise(messagehub_t *hub, const char* s, int32 len)
         return membuf_append(hub->mem, s, len);
 }
 
-int messagehub_send_obj(messagehub_t *hub, messagelink_t *exclude, json_object_t value)
+int messagehub_broadcast_obj(messagehub_t *hub, messagelink_t *exclude, json_object_t value)
 {
         int err;
         if (messagehub_membuf(hub) != 0)
@@ -254,12 +254,12 @@ int messagehub_send_obj(messagehub_t *hub, messagelink_t *exclude, json_object_t
         membuf_clear(hub->mem);
         err = json_serialise(value, 0, (json_writer_t) messagehub_serialise, hub);
         if (err == 0)
-                err = messagehub_send_text(hub, exclude, membuf_data(hub->mem), membuf_len(hub->mem));
+                err = messagehub_broadcast_text(hub, exclude, membuf_data(hub->mem), membuf_len(hub->mem));
         membuf_unlock(hub->mem);
         return err;
 }
 
-int messagehub_send_f(messagehub_t *hub, messagelink_t *exclude, const char *format, ...)
+int messagehub_broadcast_f(messagehub_t *hub, messagelink_t *exclude, const char *format, ...)
 {
         int err;
         va_list ap;
@@ -284,7 +284,7 @@ int messagehub_send_f(messagehub_t *hub, messagelink_t *exclude, const char *for
         }
 
         if (err == 0) 
-                err = messagehub_send_text(hub, exclude, membuf_data(hub->mem),
+                err = messagehub_broadcast_text(hub, exclude, membuf_data(hub->mem),
                                            membuf_len(hub->mem));
         
         membuf_unlock(hub->mem);
@@ -292,7 +292,7 @@ int messagehub_send_f(messagehub_t *hub, messagelink_t *exclude, const char *for
         return err;
 }
 
-int messagehub_send_text(messagehub_t *hub, messagelink_t *exclude, const char *data, int len)
+int messagehub_broadcast_text(messagehub_t *hub, messagelink_t *exclude, const char *data, int len)
 {
         int err = 0;
         

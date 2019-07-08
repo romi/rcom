@@ -1,0 +1,13 @@
+{
+        "name": "wheel_odometry",
+        "init": null,
+        "cleanup": null,
+        "com": [
+                {
+                        "type": "messagelink",
+                        "name": "wheel_odometry",
+                        "topic": "encoders",
+                        "onmessage": "wheel_odometry_onmessage"
+                }
+        ]
+}

@@ -1,5 +1,7 @@
 {
         "name": "binread",
+        "init": null,
+        "cleanup": null,
         "com": [
                 {
                         "type": "datalink",

@@ -809,7 +809,7 @@ static json_object_t hashtable_get(hashtable_t *hashtable, const char* key)
 {
 	hashnode_t *node;
 	node = *hashtable_lookup_node(hashtable, key);
-       	return (node)? node->value : json_null();
+       	return (node)? node->value : json_undefined();
 }
 
 static int32 hashtable_unset(hashtable_t *hashtable, const char* key)
@@ -916,7 +916,7 @@ int json_object_has(json_object_t object, const char* key)
 		return 0;
 	hashtable_t *hashtable = base_get(object, hashtable_t);
 	json_object_t val = hashtable_get(hashtable, key);
-        return json_isnull(val)? 0 : 1;
+        return json_isundefined(val)? 0 : 1;
 }
 
 static json_object_t _eval_exp(json_object_t object, sexp_t *e)
@@ -2267,7 +2267,7 @@ static int32 json_parser_feed_null(json_parser_t* parser, char c)
 	} else if (parser->bufindex == 4) {
 		if (JSON_MEMCMP(parser->buffer, "null", 4) == 0) {
 			parser->parser_switch = k_parsing_json;
-			parser->token = k_false;
+			parser->token = k_null;
                         json_parser_reset_buffer(parser);
                         return k_continue;
 		} else {

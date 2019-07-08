@@ -132,17 +132,17 @@ static void rcregistry_register(rcregistry_t* rcregistry,
 
         // Broadcast new node
         char b[64];
-        messagehub_send_f(rcregistry->hub, NULL, 
-                          "{\"request\": \"proxy-add\","
-                          "\"entry\": {" 
-                          "\"id\": %d,"
-                          "\"name\": \"%s\","
-                          "\"topic\": \"%s\","
-                          "\"type\": \"%s\","
-                          "\"addr\": \"%s\"}}",
-                          id, entry->name, entry->topic,
-                          registry_type_to_str(entry->type),
-                          addr_string(entry->addr, b, 64));
+        messagehub_broadcast_f(rcregistry->hub, NULL, 
+                               "{\"request\": \"proxy-add\","
+                               "\"entry\": {" 
+                               "\"id\": %d,"
+                               "\"name\": \"%s\","
+                               "\"topic\": \"%s\","
+                               "\"type\": \"%s\","
+                               "\"addr\": \"%s\"}}",
+                               id, entry->name, entry->topic,
+                               registry_type_to_str(entry->type),
+                               addr_string(entry->addr, b, 64));
 
         delete_registry_entry(entry);
 }
@@ -172,8 +172,8 @@ static void rcregistry_unregister(rcregistry_t* rcregistry,
                 log_err("rcregistry_success returned an error");
 
         // Broadcast 
-        messagehub_send_f(rcregistry->hub, NULL, 
-                          "{\"request\": \"proxy-remove\", \"id\": %d}", id);
+        messagehub_broadcast_f(rcregistry->hub, NULL, 
+                               "{\"request\": \"proxy-remove\", \"id\": %d}", id);
 }
 
 static void rcregistry_send_list(rcregistry_t* rcregistry, messagelink_t *link)
@@ -223,9 +223,9 @@ static void rcregistry_update_address(rcregistry_t* rcregistry,
                 log_err("rcregistry_success returned an error");
         
         // Broadcast update
-        messagehub_send_f(rcregistry->hub, link, 
-                          "{\"request\": \"proxy-update-address\","
-                          "\"id\": %d, \"addr\": \"%s\"}", id, addr);
+        messagehub_broadcast_f(rcregistry->hub, link, 
+                               "{\"request\": \"proxy-update-address\","
+                               "\"id\": %d, \"addr\": \"%s\"}", id, addr);
 }
 
 static void rcregistry_onmessage(rcregistry_t* rcregistry,

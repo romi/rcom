@@ -6,15 +6,6 @@ double start_time = 0;
 double last_time = 0;
 unsigned int count = 0;
 
-int binread_init(int argc, char **argv)
-{
-        return 0;
-}
-
-void binread_cleanup()
-{
-}
-
 int binread_ondata(void *userdata, datalink_t *datalink, data_t *input, data_t *output)
 {
         double t = clock_time();

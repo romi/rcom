@@ -11,6 +11,7 @@ extern "C" {
 typedef struct _request_t request_t;
 
 const char *request_name(request_t *r);
+const char *request_args(request_t *r);
 addr_t *request_addr(request_t *r);
 const char *request_data(request_t *r);
 int request_len(request_t *r);

@@ -98,7 +98,11 @@ int print_com_decl_i(membuf_t *buf, json_object_t obj)
 {
         const char *type = json_object_getstr(obj, "type");
         const char *name = json_object_getstr(obj, "name");
-        membuf_printf(buf, "static %s_t *%s_%s = NULL;\n", type, type, name);
+        membuf_printf(buf, "static %s_t *%s_%s = NULL;\n\n", type, type, name);
+        membuf_printf(buf,
+                      "%s_t *get_%s_%s() {\n"
+                      "        return %s_%s;\n"
+                      "}\n\n", type, type, name, type, name);
         return 0;
 }
 
@@ -176,6 +180,34 @@ int print_new_messagehub(membuf_t *buf,
                          const char *topic,
                          json_object_t obj)
 {
+        const char *onconnect = json_object_getstr(obj, "onconnect");
+        const char *userdata = json_object_getstr(obj, "userdata");
+        double port = 0;
+        
+        if (json_object_has(obj, "port")) {
+                port = json_object_getnum(obj, "port");
+                if (isnan(port)) {
+                        fprintf(stderr, "Invalid port\n");
+                        return -1;
+                }
+        }
+
+        if (onconnect == NULL)
+                onconnect = "NULL";
+        if (userdata == NULL)
+                userdata = "NULL";
+        
+        membuf_printf(buf,
+                      "        messagehub_%s = registry_open_messagehub(\"%s\", \"%s\",\n"
+                      "                %d, (messagehub_onconnect_t) %s, %s);\n",
+                      name, name, topic, (int) port, onconnect, userdata);
+        membuf_printf(buf,
+                      "        if (messagehub_%s == NULL) {\n"
+                      "                log_err(\"Failed to create the messagehub\");\n"
+                      "                return -1;\n"
+                      "        };\n",
+                      name);
+        return 0;
 }
 
 int print_new_messagelink(membuf_t *buf,
@@ -183,6 +215,25 @@ int print_new_messagelink(membuf_t *buf,
                           const char *topic,
                           json_object_t obj)
 {
+        const char *onmessage = json_object_getstr(obj, "onmessage");
+        const char *userdata = json_object_getstr(obj, "userdata");
+
+        if (onmessage == NULL)
+                onmessage = "NULL";
+        if (userdata == NULL)
+                userdata = "NULL";
+        
+        membuf_printf(buf,
+                      "        messagelink_%s = registry_open_messagelink(\"%s\", \"%s\",\n"
+                      "                (messagelink_onmessage_t) %s, %s);\n",
+                      name, name, topic, onmessage, userdata);
+        membuf_printf(buf,
+                      "        if (messagelink_%s == NULL) {\n"
+                      "                log_err(\"Failed to create the messagelink\");\n"
+                      "                return -1;\n"
+                      "        };\n",
+                      name);
+        return 0;
 }
 
 int print_new_service(membuf_t *buf,
@@ -190,6 +241,8 @@ int print_new_service(membuf_t *buf,
                       const char *topic,
                       json_object_t obj)
 {
+        log_err("print_new_service not implemented");
+        return -1;
 }
 
 int print_new_streamer(membuf_t *buf,
@@ -389,7 +442,7 @@ int print_com(membuf_t *buf, json_object_t com)
         return 0;
 }
        
-int print_init(membuf_t *buf, const char *name)
+int print_init(membuf_t *buf, const char *name, const char *init_func)
 {
         membuf_printf(buf, 
                       "static int init(int argc, char **argv)\n"
@@ -397,11 +450,23 @@ int print_init(membuf_t *buf, const char *name)
                       "        int err = 0;\n"
                       "        \n");
 
-        membuf_printf(buf, 
-                      "        err = %s_init(argc, argv);\n"
-                      "        if (err != 0)\n"
-                      "                return err;\n"
-                      "\n", name);
+        if (init_func == NULL) {
+                membuf_printf(buf, 
+                              "        err = %s_init(argc, argv);\n"
+                              "        if (err != 0)\n"
+                              "                return err;\n"
+                              "\n", name);
+                
+        } else if (streq(init_func, "null")) {
+                ; // no init function
+                
+        } else {
+                membuf_printf(buf, 
+                              "        err = %s(argc, argv);\n"
+                              "        if (err != 0)\n"
+                              "                return err;\n"
+                              "\n", init_func);
+        }
         
         membuf_printf(buf, 
                       "        err = init_com();\n"
@@ -414,10 +479,16 @@ int print_init(membuf_t *buf, const char *name)
         membuf_printf(buf, "\n");
 }
        
-int print_cleanup(membuf_t *buf, const char *name)
+int print_cleanup(membuf_t *buf, const char *name, const char *cleanup_func)
 {
         membuf_printf(buf, "static void cleanup()\n{\n");
-        membuf_printf(buf, "        %s_cleanup();\n", name);
+        if (cleanup_func == NULL) {
+                membuf_printf(buf, "        %s_cleanup();\n", name);
+        } else if (streq(cleanup_func, "null")) {
+                ; // no cleanup function                
+        } else {
+                membuf_printf(buf, "        %s();\n", cleanup_func);
+        }
         membuf_printf(buf, "        cleanup_com();\n}\n");
         membuf_printf(buf, "\n");
 }
@@ -452,6 +523,8 @@ int generate_code(const char *inputfile, const char *outputfile)
 {
         const char *name = NULL;
         const char *idle_func = NULL;
+        const char *init_func = NULL;
+        const char *cleanup_func = NULL;
         const char *code_output = NULL;
         json_object_t def;
         json_object_t com;
@@ -477,7 +550,7 @@ int generate_code(const char *inputfile, const char *outputfile)
         else {
                 code_output = json_object_getstr(def, "output");
                 if (code_output == NULL) {
-                        fprintf(stderr, "Missing name source code file\n");
+                        fprintf(stderr, "Missing output file\n");
                         return 1;
                 }
         }
@@ -489,7 +562,25 @@ int generate_code(const char *inputfile, const char *outputfile)
         }
         
         idle_func = json_object_getstr(def, "idle");
+        
+        if (!json_object_has(def, "init")) {
+                init_func = NULL;
+                log_debug("No init function specified. Using default name.");
+        } else if (json_isnull(json_object_get(def, "init"))) {
+                init_func = "null";
+                log_debug("Init function is set to null.");
+        } else {
+                init_func = json_object_getstr(def, "init"); 
+                log_debug("Init function is set to '%s'.", init_func);
+        }
+        
+        if (!json_object_has(def, "cleanup")) 
+                cleanup_func = NULL;
+        else if (json_isnull(json_object_get(def, "cleanup"))) 
+                cleanup_func = "null";
+        else cleanup_func = json_object_getstr(def, "cleanup");
 
+        
         com = json_object_get(def, "com");
         if (json_isnull(com)) {
                 fprintf(stderr, "Missing com section\n");
@@ -515,11 +606,11 @@ int generate_code(const char *inputfile, const char *outputfile)
         if (err != 0)
                 return 1;
 
-        err = print_init(buf, name);
+        err = print_init(buf, name, init_func);
         if (err != 0)
                 return 1;
 
-        err = print_cleanup(buf, name);
+        err = print_cleanup(buf, name, cleanup_func);
         if (err != 0)
                 return 1;
 
@@ -621,6 +712,8 @@ int main(int argc, char **argv)
         int err;
         const char *inputfile = NULL;
         const char *outputfile = NULL;
+
+        app_init(&argc, argv);
         
         if (argc < 2) {
                 fprintf(stderr, "Usage: rcgen input-file [output-file]\n");

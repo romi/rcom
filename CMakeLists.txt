@@ -127,6 +127,28 @@ add_executable(camera_listener examples/camera_listener/camera_listener.c exampl
 target_link_libraries(camera_listener rcom)
 
 
+# motorcontroller
+ADD_CUSTOM_COMMAND(
+  OUTPUT ${CMAKE_SOURCE_DIR}/examples/motorcontroller/motorcontroller_main.c
+  COMMAND rcgen ${CMAKE_SOURCE_DIR}/examples/motorcontroller/motorcontroller.json ${CMAKE_SOURCE_DIR}/examples/motorcontroller/motorcontroller_main.c
+  DEPENDS rcgen ${CMAKE_SOURCE_DIR}/examples/motorcontroller/motorcontroller.json
+  )
+
+add_executable(motorcontroller examples/motorcontroller/motorcontroller.c examples/motorcontroller/motorcontroller_main.c)
+target_link_libraries(motorcontroller rcom)
+
+
+# wheel_odometry
+ADD_CUSTOM_COMMAND(
+  OUTPUT ${CMAKE_SOURCE_DIR}/examples/wheel_odometry/wheel_odometry_main.c
+  COMMAND rcgen ${CMAKE_SOURCE_DIR}/examples/wheel_odometry/wheel_odometry.json ${CMAKE_SOURCE_DIR}/examples/wheel_odometry/wheel_odometry_main.c
+  DEPENDS rcgen ${CMAKE_SOURCE_DIR}/examples/wheel_odometry/wheel_odometry.json
+  )
+
+add_executable(wheel_odometry examples/wheel_odometry/wheel_odometry.c examples/wheel_odometry/wheel_odometry_main.c)
+target_link_libraries(wheel_odometry rcom)
+
+
 ## Installed files
 INSTALL(TARGETS rcom DESTINATION "lib")
 INSTALL(TARGETS rcregistry DESTINATION "bin")
