@@ -4,7 +4,7 @@
 static double speed = 0.0;
 static double encoders[] = { 0.0, 0.0 };
 
-messagehub_t *get_messagehub_motorcontroller();
+messagehub_t *get_messagehub_encoders();
 
 void motorcontroller_onmessage(messagelink_t *link,
                                void *userdata,
@@ -30,8 +30,7 @@ void motorcontroller_onconnect(messagehub_t *hub,
 
 void motorcontroller_broadcast()
 {
-        messagehub_t *hub = get_messagehub_motorcontroller();
-        log_debug("motorcontroller_broadcast: sending values");
+        messagehub_t *hub = get_messagehub_encoders();
         messagehub_broadcast_f(hub, NULL, "[%f,%f]", encoders[0], encoders[1]);
         encoders[0] += speed * 1000;
         encoders[1] += speed * 1000;

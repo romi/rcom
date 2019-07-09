@@ -17,6 +17,9 @@
 #include "export.h"
 #include "streamer_priv.h"
 
+static void streamer_send_index_html(streamer_t *streamer, tcp_socket_t s);
+static void streamer_send_index_json(streamer_t *streamer, tcp_socket_t s);
+
 /*****************************************************/
 /* streamer_client_t
  * 
@@ -77,6 +80,7 @@ static streamer_client_t *new_streamer_client(streamer_t *streamer,
 
 static void streamer_client_set_uri(streamer_client_t *client, char *uri)
 {
+        log_debug("streamer_client_set_uri: uri=%s", uri);
         client->uri = uri;
 }
 
@@ -150,6 +154,9 @@ static int streamer_client_parse_url(http_parser *parser, const char *data, size
         char *s = mem_alloc(length+1);
         memcpy(s, data, length);
         s[length] = 0;
+
+        log_debug("streamer_client_parse_url: uri=%.*s, len=%d",
+                  length, data, length);
         
         streamer_client_t *c = (streamer_client_t *) parser->data;
         streamer_client_set_uri(c, s);
@@ -237,6 +244,26 @@ static void streamer_client_handle_request(streamer_client_t *client)
                 return;
         
         log_info("streamer_client: uri=%s", client->uri);
+
+        // Should not happen.
+        if (client->uri == NULL) {
+                http_send_error_headers(client->socket, 500);
+                delete_streamer_client(client);
+                return;                
+        }
+        
+        // In case the path /, index.html or index.json is requested,
+        // short-circuit the normal pathway and send back an index
+        // page.
+        if (streq(client->uri, "/") || streq(client->uri, "/index.html")) {
+                streamer_send_index_html(client->streamer, client->socket);
+                delete_streamer_client(client);
+                return;
+        } else if (streq(client->uri, "/index.json")) {
+                streamer_send_index_json(client->streamer, client->socket);
+                delete_streamer_client(client);
+                return;                
+        }
         
         log_debug("streamer_client_handle_request 2");
         client->exp = streamer_get_export(client->streamer, client->uri);
@@ -271,17 +298,11 @@ static void streamer_client_handle_request(streamer_client_t *client)
         log_info("streamer_client: thread finished");
 }
 
-/* static void *_streamer_client_handle_request(void *p) */
-/* { */
-/*         streamer_client_t *client = (streamer_client_t *) p; */
-/*         streamer_client_handle_request(client); */
-/*         return NULL; */
-/* } */
-
 /*****************************************************/
 
 struct _streamer_t
 {
+        char *name;
         addr_t *addr;
         tcp_socket_t socket;
         list_t *exports;
@@ -307,7 +328,8 @@ static void streamer_unlock(streamer_t *s);
 static void streamer_run_server(streamer_t *streamer);
 static void streamer_run_data(streamer_t *streamer);
 
-streamer_t *new_streamer(int port,
+streamer_t *new_streamer(const char *name,
+                         int port,
                          streamer_onclient_t onclient,
                          streamer_onbroadcast_t onbroadcast,
                          void *userdata)
@@ -323,6 +345,12 @@ streamer_t *new_streamer(int port,
         streamer_t *streamer = new_obj(streamer_t);
         if (streamer == NULL)
                 return NULL;
+
+        streamer->name = mem_strdup(name);
+        if (streamer->name == NULL) {
+                delete_obj(streamer);
+                return NULL;
+        }
 
         streamer->onclient = onclient;
         streamer->onbroadcast = onbroadcast;
@@ -349,8 +377,9 @@ streamer_t *new_streamer(int port,
                 return NULL;
         }
 
-        streamer_export(streamer, "/", "text/html");
-        streamer_export(streamer, "/index.json", "application/json");
+        char b[52];
+        log_info("Streamer listening at http://%s",
+                 addr_string(streamer->addr, b, sizeof(b)));
 
         streamer->cont = 1;        
 
@@ -382,14 +411,18 @@ void delete_streamer(streamer_t *streamer)
                 streamer->cont = 0;
                 
                 if (streamer->server_thread) {
+                        log_debug("delete_streamer: joining server thread");
                         thread_join(streamer->server_thread);
                         delete_thread(streamer->server_thread);
                 }
                 
                 if (streamer->data_thread) {
+                        log_debug("delete_streamer: joining data thread");
                         thread_join(streamer->data_thread);
                         delete_thread(streamer->data_thread);
                 }
+                
+                log_debug("delete_streamer: deleting clients");
                 
                 // delete clients
                 streamer_lock_clients(streamer); // lock
@@ -405,6 +438,8 @@ void delete_streamer(streamer_t *streamer)
                 
                 delete_mutex(streamer->clients_mutex);
 
+                log_debug("delete_streamer: deleting exports");
+                
                 // delete exports
                 streamer_lock(streamer); // lock
                 l = streamer->exports;
@@ -419,6 +454,8 @@ void delete_streamer(streamer_t *streamer)
                 
                 delete_mutex(streamer->mutex);
                 
+                if (streamer->name)
+                        mem_free(streamer->name);
                 if (streamer->addr)
                         delete_addr(streamer->addr);
                 if (streamer->socket != INVALID_TCP_SOCKET)
@@ -638,6 +675,110 @@ int streamer_send_multipart(streamer_t* s,
         
         return 0;        
 }
+
+static void streamer_send_index_html(streamer_t *streamer, tcp_socket_t s)
+{
+        export_t *e;
+        list_t *l;
+        char b[52];
+        membuf_t *membuf = new_membuf();
+
+        log_debug("streamer_send_index_html");
+
+        if (membuf == NULL) {
+                http_send_error_headers(s, 500);
+                return;
+        }
+        
+        membuf_printf(membuf, 
+                      "<!DOCTYPE html>\n"
+                      "<html lang=\"en\">\n"
+                      "  <head>\n"
+                      "    <meta charset=\"utf-8\">\n"
+                      "    <title>%s</title>\n"
+                      "  </head>\n"
+                      "  <body>\n",
+                      streamer->name);
+
+        addr_string(streamer->addr, b, 52);
+        
+        streamer_lock(streamer);
+        l = streamer->exports;
+        while (l) {
+                e = list_get(l, export_t);
+                const char* name = export_name(e);
+                if (streq(name, "*"))
+                    ; // skip
+                else if (name[0] == '/')
+                        membuf_printf(membuf, 
+                                      "    <a href=\"http://%s%s\">%s</a><br>\n",
+                                      b, name, name);
+                else
+                        membuf_printf(membuf, 
+                                      "    <a href=\"http://%s/%s\">%s</a><br>\n",
+                                      b, name, name);
+                l = list_next(l);
+        }
+        streamer_unlock(streamer);
+        
+        membuf_printf(membuf, "  </body>\n</html>\n");
+
+        int err = http_send_headers(s, 200, "text/html", membuf_len(membuf));
+        if (err != 0) goto cleanup;
+        
+        err = tcp_socket_send(s, membuf_data(membuf), membuf_len(membuf));
+        if (err == -1) goto cleanup;
+
+cleanup:
+        delete_membuf(membuf);
+        log_info("streamer_send_index_html: thread finished");
+}
+
+static void streamer_send_index_json(streamer_t *streamer, tcp_socket_t s)
+{
+        export_t *e;
+        list_t *l;
+        char b[52];
+        membuf_t *membuf = new_membuf();
+
+        log_debug("streamer_send_index_json");
+
+        if (membuf == NULL) {
+                http_send_error_headers(s, 500);
+                return;
+        }
+        
+        addr_string(streamer->addr, b, 52);
+        
+        membuf_printf(membuf, "{\"exports\": [");
+
+        streamer_lock(streamer);
+        l = streamer->exports;
+        while (l) {
+                e = list_get(l, export_t);
+                const char* name = export_name(e);
+                const char* s = (name[0] == '/')? name + 1 : name;
+                membuf_printf(membuf, 
+                              "{\"name\": \"%s\", \"uri\": \"http://%s/%s\"}",
+                              name, b, s);
+                l = list_next(l);
+                if (l) membuf_printf(membuf, ", ");
+        }
+        streamer_unlock(streamer);
+
+        membuf_printf(membuf, "]}");
+
+        int err = http_send_headers(s, 200, "application/json", membuf_len(membuf));
+        if (err != 0) goto cleanup;
+        
+        err = tcp_socket_send(s, membuf_data(membuf), membuf_len(membuf));
+        if (err == -1) goto cleanup;
+
+cleanup:
+        delete_membuf(membuf);
+        log_info("streamer_send_index: thread finished");
+}
+
 
 /* static void *_dumper_thread_run(void *data) */
 /* { */

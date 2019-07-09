@@ -69,7 +69,7 @@ service_t* new_service(const char *name, int port)
                 return NULL;
         }
 
-        char b[64];
+        char b[52];
         log_info("Service listening at http://%s",
                  addr_string(service->addr, b, sizeof(b)));
 
@@ -179,7 +179,7 @@ static void service_index_json(service_t* service, request_t *request)
         export_t *e;
         char b[52];
         
-        request_reply_printf(request, "[");
+        request_reply_printf(request, "{\"exports\": [");
 
         addr_string(service->addr, b, 52);
         
@@ -201,7 +201,7 @@ static void service_index_json(service_t* service, request_t *request)
         }
         service_unlock(service);
 
-        request_reply_printf(request, "]");
+        request_reply_printf(request, "]}");
 }
 
 int service_export(service_t* service,

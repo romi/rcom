@@ -29,18 +29,22 @@ void camera_cleanup()
 
 int camera_broadcast(camera_t* camera, streamer_t *streamer)
 {
-        int error = camera_capture(camera);
-        if (error) {
-                log_err("Failed to grab the image");
-                clock_sleep(0.04);
-                return 0;
-        }
+        if (streamer_has_clients(streamer)) {
+                int error = camera_capture(camera);
+                if (error) {
+                        log_err("Failed to grab the image");
+                        clock_sleep(0.04);
+                        return 0;
+                }
 
-        double timestamp = clock_time();
+                double timestamp = clock_time();
         
-        streamer_send_multipart(streamer, "rgb",
-                                camera_getimagebuffer(camera),
-                                camera_getimagesize(camera),
-                                "image/jpeg", timestamp);
+                streamer_send_multipart(streamer, "rgb",
+                                        camera_getimagebuffer(camera),
+                                        camera_getimagesize(camera),
+                                        "image/jpeg", timestamp);
+        } else {
+                clock_sleep(0.1);
+        }
         return 0;
 }

@@ -1035,7 +1035,7 @@ static streamer_t *proxy_open_streamer(proxy_t *proxy,
         streamer_t *streamer;
         registry_entry_t *entry;
 
-        streamer = new_streamer(port, onclient, onbroadcast, userdata);
+        streamer = new_streamer(name, port, onclient, onbroadcast, userdata);
         if (streamer == NULL)
                 return NULL;
 

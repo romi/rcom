@@ -1281,6 +1281,8 @@ static int client_messagelink_validate_response(messagelink_t *link, const char 
 
 static int client_messagelink_open_socket(messagelink_t *link, addr_t *addr)
 {
+        log_debug("client_messagelink_open_socket");
+        
         link->socket = open_tcp_socket(addr);
         if (link->socket == INVALID_TCP_SOCKET) {
                 log_err("client_messagelink_open_socket: failed to connect the socket");
@@ -1298,6 +1300,8 @@ static int client_messagelink_open_websocket(messagelink_t *link, const char *ho
         char *accept = _make_accept(key);
         if (key == NULL || accept == NULL)
                 goto cleanup;
+
+        log_debug("client_messagelink_open_websocket");
         
         int err = client_messagelink_send_request(link, host, key);
         if (err != 0)
@@ -1320,8 +1324,12 @@ cleanup:
         return -1;
 }
 
-static int client_messagelink_send_request(messagelink_t *link, const char *host, const char *key)
+static int client_messagelink_send_request(messagelink_t *link,
+                                           const char *host,
+                                           const char *key)
 {
+        log_debug("client_messagelink_send_request");
+
         char header[2048];
         int len = snprintf(header, 2048,
                        "GET / HTTP/1.1\r\n"

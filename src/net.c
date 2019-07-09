@@ -240,17 +240,30 @@ tcp_socket_t server_socket_accept(tcp_socket_t s)
 {
         int addrlen = sizeof(struct sockaddr_in);
         struct sockaddr_in addr;
-        int client;
-        
-        client =  accept(s, (struct sockaddr*) &addr, &addrlen);
-        if (client == -1) {
-                // Server socket is probably being closed // FIXME: is this true?
-                log_err("server_socket_accept: accept failed: %s (socket %d)",
-                        strerror(errno), s); 
-                return INVALID_TCP_SOCKET;
+        int client = -1;
+
+        // The code waits for incoming connections for one
+        // second. Then it checks whether it should return because the
+        // app is quitting. If not, it waits for incoming connections
+        // again, and so on.
+        while (!app_quit()) {
+                if (posix_wait_data(s, 1)) {
+                        log_debug("server_socket_accept: calling accept");
+                        client =  accept(s, (struct sockaddr*) &addr, &addrlen);
+                        if (client == -1) {
+                                // Server socket is probably being
+                                // closed
+                                // FIXME: is this true?
+                                log_err("server_socket_accept: "
+                                        "accept failed: %s (socket %d)",
+                                        strerror(errno), s); 
+                                return INVALID_TCP_SOCKET;
+                        }
+                        log_debug("server_socket_accept: new connection");
+                        return client;
+                }
         }
-        
-        return client;
+        return INVALID_TCP_SOCKET;
 }
 
 
