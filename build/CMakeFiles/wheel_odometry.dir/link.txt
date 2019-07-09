@@ -1,0 +1,1 @@
+/usr/bin/cc -O0 -ggdb -O0 -ggdb  -rdynamic CMakeFiles/wheel_odometry.dir/examples/wheel_odometry/wheel_odometry.c.o CMakeFiles/wheel_odometry.dir/examples/wheel_odometry/wheel_odometry_main.c.o  -o wheel_odometry -Wl,-rpath,/home/issam/rcom/build librcom.so -lm -lpthread 

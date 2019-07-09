@@ -1,0 +1,1 @@
+/usr/bin/cc -O0 -ggdb -O0 -ggdb  -rdynamic CMakeFiles/binread.dir/examples/binread/binread.c.o CMakeFiles/binread.dir/examples/binread/binread_main.c.o  -o binread -Wl,-rpath,/home/issam/rcom/build librcom.so -lm -lpthread 

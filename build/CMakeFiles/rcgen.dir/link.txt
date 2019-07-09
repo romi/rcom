@@ -1,0 +1,1 @@
+/usr/bin/cc -O0 -ggdb -O0 -ggdb  -rdynamic CMakeFiles/rcgen.dir/src/rcgen.c.o  -o rcgen -Wl,-rpath,/home/issam/rcom/build: librcom.so -lm -lpthread 

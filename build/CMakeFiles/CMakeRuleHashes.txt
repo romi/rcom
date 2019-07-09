@@ -1,0 +1,7 @@
+# Hashes of file build rules.
+6dd65a858ec05a83867bba0ea39f9922 ../examples/binread/binread_main.c
+e6cb8331c0822e4f5755e71ea6563003 ../examples/binwrite/binwrite_main.c
+1ffae9959767491fcf22484de2c1be38 ../examples/camera/camera_main.c
+8aad3a7e8689fb22f0713c619c3a3306 ../examples/camera_listener/camera_listener_main.c
+870a4123deddfbfe2019ecfc050fd575 ../examples/motorcontroller/motorcontroller_main.c
+179bef553affc5206e8e33fcb6f8ec26 ../examples/wheel_odometry/wheel_odometry_main.c

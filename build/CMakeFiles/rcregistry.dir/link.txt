@@ -1,0 +1,1 @@
+/usr/bin/cc -O0 -ggdb -O0 -ggdb  -rdynamic CMakeFiles/rcregistry.dir/src/rcregistry_main.c.o  -o rcregistry -Wl,-rpath,/home/issam/rcom/build: librcom.so -lm -lpthread 
