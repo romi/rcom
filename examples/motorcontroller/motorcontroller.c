@@ -1,8 +1,9 @@
 #include <string.h>
 #include "motorcontroller.h"
 
-static double speed = 0.0;
+static double start_time = 0;
 static double encoders[] = { 0.0, 0.0 };
+static double speed = 0.0;
 
 messagehub_t *get_messagehub_encoders();
 
@@ -31,9 +32,18 @@ void motorcontroller_onconnect(messagehub_t *hub,
 void motorcontroller_broadcast()
 {
         messagehub_t *hub = get_messagehub_encoders();
-        messagehub_broadcast_f(hub, NULL, "[%f,%f]", encoders[0], encoders[1]);
-        encoders[0] += speed * 1000;
-        encoders[1] += speed * 1000;
+        if (start_time == 0)
+                start_time = clock_time();
+
+        double position;
+        double t = clock_time();
+        t = fmod((t - start_time), 240.0);
+        if (t < 120)
+                position = 3.6 * t / 120;
+        else
+                position = 3.6 - 3.6 * t / 120;
+        messagehub_broadcast_f(hub, NULL, "[%f,%f]", position, position);
+        //messagehub_broadcast_f(hub, NULL, "[%f,%f]", encoders[0], encoders[1]);
         clock_sleep(1);
 }
 
