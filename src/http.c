@@ -127,10 +127,12 @@ int http_send_headers(tcp_socket_t socket, int status, const char *mimetype, int
 {
         char header[2048];
         // FIXME: write directly in socket, instead of intermediate buffer
+        // FIXME: or use a membuf!
         int len = snprintf(NULL, 0,
                            "HTTP/1.1 %d %s\r\n"
                            "Content-Type: %s\r\n"
                            "Content-Length: %d\r\n"
+                           "Access-Control-Allow-Origin: *\r\n"
                            "Connection: close\r\n\r\n",
                            status, http_status_string(status), mimetype, content_length);
         if (len > sizeof(header) - 1) {
@@ -142,6 +144,7 @@ int http_send_headers(tcp_socket_t socket, int status, const char *mimetype, int
                        "HTTP/1.1 %d %s\r\n"
                        "Content-Type: %s\r\n"
                        "Content-Length: %d\r\n"
+                       "Access-Control-Allow-Origin: *\r\n"
                        "Connection: close\r\n\r\n",
                        status, http_status_string(status), mimetype, content_length);
 
