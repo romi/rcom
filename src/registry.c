@@ -51,7 +51,7 @@ const char *registry_type_to_str(int type)
 
 /***********************************************************************/
 
-registry_entry_t *new_registry_entry(int id, const char *name, const char *topic,
+registry_entry_t *new_registry_entry(const char *id, const char *name, const char *topic,
                                      int type, addr_t *addr, void *endpoint)
 {
         if (name == NULL || topic == NULL || addr == NULL || type < 0) {
@@ -67,14 +67,15 @@ registry_entry_t *new_registry_entry(int id, const char *name, const char *topic
         if (entry == NULL)
                 return NULL;
 
-        entry->id = id;
+        entry->id = (id == NULL)? generate_uuid() : mem_strdup(id);
         entry->name = mem_strdup(name);
         entry->topic = mem_strdup(topic);
         entry->type = type;
         entry->addr = addr_clone(addr);
         entry->endpoint = endpoint;
 
-        if (entry->name == NULL || entry->topic == NULL || entry->addr == NULL) {
+        if (entry->id == NULL || entry->name == NULL
+            || entry->topic == NULL || entry->addr == NULL) {
                 delete_registry_entry(entry);
                 return NULL;
         }
@@ -85,6 +86,8 @@ registry_entry_t *new_registry_entry(int id, const char *name, const char *topic
 void delete_registry_entry(registry_entry_t *entry)
 {
         if (entry) {
+                if (entry->id)
+                        mem_free(entry->id);
                 if (entry->name)
                         mem_free(entry->name);
                 if (entry->topic)
@@ -99,6 +102,7 @@ void delete_registry_entry(registry_entry_t *entry)
 
 registry_entry_t *registry_entry_parse(json_object_t obj, int *error)
 {
+        const char *id;
         const char *name;
         const char *topic;
         const char *type_str;
@@ -106,26 +110,23 @@ registry_entry_t *registry_entry_parse(json_object_t obj, int *error)
         addr_t *addr;
         int type;
         int err;
-        int id;
         
-        double v = json_object_getnum(obj, "id");
-        if (isnan(v)) {
-                log_debug("registry_entry_parse: id=%f", v);
-                *error = -5;
-                return NULL;
-        }
-        id = (int) v;
+        id = json_object_getstr(obj, "id");
         name = json_object_getstr(obj, "name");
         topic = json_object_getstr(obj, "topic");
         type_str = json_object_getstr(obj, "type");
         addr_str = json_object_getstr(obj, "addr");
 
-        if (name == NULL || !registry_valid_name(name)) {
+        if (!registry_valid_id(id)) {
+                *error = -5;
+                return NULL;
+        }
+        if (!registry_valid_name(name)) {
                 *error = -1;
                 return NULL;
         }
 
-        if (topic == NULL || !registry_valid_topic(topic)) {
+        if (!registry_valid_topic(topic)) {
                 *error = -2;
                 return NULL;
         }
@@ -158,7 +159,7 @@ json_object_t registry_entry_encode(registry_entry_t *e)
 {
         char b[64];
         json_object_t obj = json_object_create();
-        json_object_setnum(obj, "id", e->id);
+        json_object_setstr(obj, "id", e->id);
         json_object_setstr(obj, "name", e->name);
         json_object_setstr(obj, "topic", e->topic);
         json_object_setstr(obj, "type", registry_type_to_str(e->type));
@@ -224,6 +225,38 @@ json_object_t registry_entry_encode_list(list_t *list)
 
 /********************************************************/
 
+int registry_valid_id(const char *id)
+{
+        const char *p = id;
+        int i, j;
+        
+        if (id == NULL)
+                return 0;
+        int len = strlen(id);
+        if (len != 36)
+                return 0;
+        
+        // format: 1b4e28ba-2fa1-11d2-883f-0016d3cca427
+        
+        for (i = 0; i < 8; i++) 
+                if (strchr("0123456789abcdef", *p++) == NULL)
+                        return 0;
+        if (*p++ != '-') return 0;
+        
+        for (j = 0; j < 3; j++) {
+                for (i = 0; i < 4; i++) 
+                        if (strchr("0123456789abcdef", *p++) == NULL)
+                                return 0;
+                if (*p++ != '-') return 0;
+        }
+        
+        for (i = 0; i < 12; i++) 
+                if (strchr("0123456789abcdef", *p++) == NULL)
+                        return 0;
+        
+        return 1;
+}
+
 // TODO: improve
 int registry_valid_topic(const char *topic)
 {
@@ -265,7 +298,6 @@ typedef struct _registry_t
         list_t *entries;
         messagelink_t *link;
         mutex_t *mutex;
-        int id;
 } registry_t;
 
 static void registry_lock(registry_t* registry);
@@ -280,7 +312,6 @@ registry_t* new_registry()
                 return NULL;
 
         registry->mutex = new_mutex();        
-        registry->id = -1;        
         return registry;
 }
 
@@ -308,7 +339,7 @@ static void registry_unlock(registry_t* registry)
         mutex_unlock(registry->mutex);
 }
 
-registry_entry_t *registry_get(registry_t* registry, int id)
+registry_entry_t *registry_get(registry_t* registry, const char *id)
 {
         registry_entry_t *clone = NULL;
         registry_entry_t *e;
@@ -316,7 +347,7 @@ registry_entry_t *registry_get(registry_t* registry, int id)
         registry_lock(registry);
         for (list_t *l = registry->entries; l != NULL; l = list_next(l)) {
                 e = list_get(l, registry_entry_t);
-                if (e->id == id) {
+                if (streq(e->id, id)) {
                         clone = new_registry_entry(e->id, e->name, e->topic, e->type,
                                                    e->addr, e->endpoint);
                         break;
@@ -326,8 +357,8 @@ registry_entry_t *registry_get(registry_t* registry, int id)
         return clone;
 }
 
-list_t *registry_select(registry_t* registry, int id, const char *name, const char *topic,
-                        int type, addr_t *addr, void *endpoint)
+list_t *registry_select(registry_t* registry, const char *id, const char *name,
+                        const char *topic, int type, addr_t *addr, void *endpoint)
 {
         list_t *results = NULL;
         registry_entry_t *e;
@@ -335,7 +366,7 @@ list_t *registry_select(registry_t* registry, int id, const char *name, const ch
         registry_lock(registry);
         for (list_t *l = registry->entries; l != NULL; l = list_next(l)) {
                 e = list_get(l, registry_entry_t);
-                if ((id == 0 || e->id == id)
+                if ((id == NULL || streq(e->id, id))
                     && (type == TYPE_ANY || e->type == type)
                     && (name == NULL || streq(e->name, name))
                     && (topic == NULL || streq(e->topic, topic))
@@ -356,7 +387,7 @@ list_t *registry_select_all(registry_t* registry)
         return registry_select(registry, 0, NULL, NULL, TYPE_ANY, NULL, NULL);
 }
 
-int registry_count(registry_t* registry, int id, const char *name,
+int registry_count(registry_t* registry, const char *id, const char *name,
                    const char *topic, int type, addr_t *addr, void *endpoint)
 {
         int count = 0;
@@ -365,7 +396,7 @@ int registry_count(registry_t* registry, int id, const char *name,
         registry_lock(registry);
         for (list_t *l = registry->entries; l != NULL; l = list_next(l)) {
                 e = list_get(l, registry_entry_t);
-                if ((id == 0 || e->id == id)
+                if ((id == NULL || streq(e->id, id))
                     && (type == TYPE_ANY || e->type == type)
                     && (name == NULL || streq(e->name, name))
                     && (topic == NULL || streq(e->topic, topic))
@@ -393,16 +424,12 @@ static int registry_add_entry(registry_t* registry, registry_entry_t *entry)
         return r;
 }
 
-int registry_insert(registry_t* registry, int id, const char *name,
+int registry_insert(registry_t* registry, const char *id, const char *name,
                     const char *topic, int type, addr_t *addr, void *endpoint)
 {
         registry_entry_t *entry;
 
         log_debug("registry_add %s:%s", name, topic);
-
-        if (id == 0)
-                // give the entry a unique, temporary ID
-                id = registry->id--;
         
         entry = new_registry_entry(id, name, topic, type, addr, endpoint);
         if (entry == NULL)
@@ -438,17 +465,17 @@ static int registry_remove_entry(registry_t* registry, registry_entry_t *entry)
         return r;
 }
 
-int registry_delete(registry_t* registry, int id)
+int registry_delete(registry_t* registry, const char *id)
 {
         int ret = -1;
         
-        log_debug("registry_delete id=%d", id);
+        log_debug("registry_delete id=%s", id);
 
         mutex_lock(registry->mutex);
         list_t *l = registry->entries;
         while (l) {
                 registry_entry_t *e = list_get(l, registry_entry_t);
-                if (e->id == id) {
+                if (streq(e->id, id)) {
                         ret = registry_remove_entry_locked(registry, e);
                         delete_registry_entry(e);
                         break;
@@ -459,7 +486,7 @@ int registry_delete(registry_t* registry, int id)
         return ret;
 }
 
-int registry_update_addr(registry_t* registry, int id, const char *addr)
+int registry_update_addr(registry_t* registry, const char *id, const char *addr)
 {
         int err = 0;
         registry_entry_t *e;
@@ -467,7 +494,7 @@ int registry_update_addr(registry_t* registry, int id, const char *addr)
         registry_lock(registry);
         for (list_t *l = registry->entries; l != NULL; l = list_next(l)) {
                 e = list_get(l, registry_entry_t);
-                if (id == e->id) {
+                if (streq(id, e->id)) {
                         if (e->addr != NULL)
                                 delete_addr(e->addr);
                         e->addr = addr_parse(addr);
@@ -482,23 +509,23 @@ int registry_update_addr(registry_t* registry, int id, const char *addr)
         return err;        
 }
 
-int registry_update_id(registry_t* registry, int old_id, int new_id)
-{
-        int err = 0;
-        registry_entry_t *e;
+/* int registry_update_id(registry_t* registry, int old_id, int new_id) */
+/* { */
+/*         int err = 0; */
+/*         registry_entry_t *e; */
 
-        log_debug("registry_update_id: %d -> %d", old_id, new_id);
+/*         log_debug("registry_update_id: %d -> %d", old_id, new_id); */
         
-        registry_lock(registry);
-        for (list_t *l = registry->entries; l != NULL; l = list_next(l)) {
-                e = list_get(l, registry_entry_t);
-                if (e->id == old_id) {
-                        e->id = new_id;
-                        break;
-                }
-        }
-        registry_unlock(registry);
-        return err;        
-}
+/*         registry_lock(registry); */
+/*         for (list_t *l = registry->entries; l != NULL; l = list_next(l)) { */
+/*                 e = list_get(l, registry_entry_t); */
+/*                 if (e->id == old_id) { */
+/*                         e->id = new_id; */
+/*                         break; */
+/*                 } */
+/*         } */
+/*         registry_unlock(registry); */
+/*         return err;         */
+/* } */
 
 

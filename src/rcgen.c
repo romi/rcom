@@ -1,7 +1,45 @@
 #include <stdio.h>
+//#include <getopt.h>
+
 #include <rcom.h>
+
 #include "membuf.h"
 #include "util.h"
+
+/*
+enum {
+        OP_CODE,
+        OP_CMAKELISTS
+}; 
+
+static int op = OP_CODE;
+extern int opterr;
+
+static int parse_args(int *argc, char **argv)
+{
+        int c, option_index = 0;
+        static char *optchars = "ms";
+        static struct option long_options[] = {
+                {"cmakelists", required_argument, 0, 'm'},
+                {"code", required_argument, 0, 's'},
+                {0, 0, 0, 0}
+        };
+        while (1) {
+                c = getopt_long(*argc, argv, optchars, long_options, &option_index);
+                if (c == -1)
+                        break;
+                switch (c) {
+                case 'm':
+                        op = OP_CMAKELISTS;
+                        break;
+                case 's':
+                        op = OP_CMAKELISTS;
+                        break;
+                }
+        }
+        return 0;
+}
+*/
 
 int print_headers(membuf_t *buf, const char *name)
 {
@@ -42,7 +80,6 @@ int print_main(membuf_t *buf)
 int check_com_i(membuf_t *buf, json_object_t obj)
 {
         const char *type = NULL;
-        const char *name = NULL;
         const char *topic = NULL;
         
         if (!json_isobject(obj)) {
@@ -53,12 +90,6 @@ int check_com_i(membuf_t *buf, json_object_t obj)
         type = json_object_getstr(obj, "type");
         if (type == NULL) {
                 fprintf(stderr, "Com: Missing type\n");
-                return -1;
-        }
-        
-        name = json_object_getstr(obj, "name");
-        if (name == NULL) {
-                fprintf(stderr, "Com: Missing name\n");
                 return -1;
         }
         
@@ -94,23 +125,26 @@ int check_com(membuf_t *buf, json_object_t com)
         return 0;
 }
 
-int print_com_decl_i(membuf_t *buf, json_object_t obj)
+int print_com_decl_i(membuf_t *buf, const char *name, json_object_t obj)
 {
         const char *type = json_object_getstr(obj, "type");
-        const char *name = json_object_getstr(obj, "name");
-        membuf_printf(buf, "static %s_t *%s_%s = NULL;\n\n", type, type, name);
+        const char *topic = json_object_getstr(obj, "topic");
+        membuf_printf(buf, "static %s_t *%s_%s = NULL;\n\n", type, type, topic);
         membuf_printf(buf,
                       "%s_t *get_%s_%s() {\n"
                       "        return %s_%s;\n"
-                      "}\n\n", type, type, name, type, name);
+                      "}\n\n",
+                      type,
+                      type, topic,
+                      type, topic);
         return 0;
 }
 
-int print_com_decl(membuf_t *buf, json_object_t com)
+int print_com_decl(membuf_t *buf, const char *name, json_object_t com)
 {
         for (int i = 0; i < json_array_length(com); i++) {
                 json_object_t obj = json_array_get(com, i);
-                int err = print_com_decl_i(buf, obj);
+                int err = print_com_decl_i(buf, name, obj);
                 if (err != 0)
                         return 1;
         }
@@ -139,13 +173,13 @@ int print_new_datahub(membuf_t *buf,
                       "                (datahub_onbroadcast_t) %s,\n"
                       "                (datahub_ondata_t) %s,\n"
                       "                %s);\n",
-                      name, name, topic, onbroadcast, ondata, userdata);
+                      topic, name, topic, onbroadcast, ondata, userdata);
         membuf_printf(buf,
                       "        if (datahub_%s == NULL) {\n"
                       "                log_err(\"Failed to create the datahub\");\n"
                       "                return -1;\n"
                       "        };\n",
-                      name);
+                      topic);
         return 0;
 }
 
@@ -165,13 +199,13 @@ int print_new_datalink(membuf_t *buf,
         membuf_printf(buf,
                       "        datalink_%s = registry_open_datalink(\"%s\", \"%s\",\n"
                       "                (datalink_ondata_t) %s, %s);\n",
-                      name, name, topic, ondata, userdata);
+                      topic, name, topic, ondata, userdata);
         membuf_printf(buf,
                       "        if (datalink_%s == NULL) {\n"
                       "                log_err(\"Failed to create the datalink\");\n"
                       "                return -1;\n"
                       "        };\n",
-                      name);
+                      topic);
         return 0;
 }
 
@@ -200,13 +234,13 @@ int print_new_messagehub(membuf_t *buf,
         membuf_printf(buf,
                       "        messagehub_%s = registry_open_messagehub(\"%s\", \"%s\",\n"
                       "                %d, (messagehub_onconnect_t) %s, %s);\n",
-                      name, name, topic, (int) port, onconnect, userdata);
+                      topic, name, topic, (int) port, onconnect, userdata);
         membuf_printf(buf,
                       "        if (messagehub_%s == NULL) {\n"
                       "                log_err(\"Failed to create the messagehub\");\n"
                       "                return -1;\n"
                       "        };\n",
-                      name);
+                      topic);
         return 0;
 }
 
@@ -226,13 +260,13 @@ int print_new_messagelink(membuf_t *buf,
         membuf_printf(buf,
                       "        messagelink_%s = registry_open_messagelink(\"%s\", \"%s\",\n"
                       "                (messagelink_onmessage_t) %s, %s);\n",
-                      name, name, topic, onmessage, userdata);
+                      topic, name, topic, onmessage, userdata);
         membuf_printf(buf,
                       "        if (messagelink_%s == NULL) {\n"
                       "                log_err(\"Failed to create the messagelink\");\n"
                       "                return -1;\n"
                       "        };\n",
-                      name);
+                      topic);
         return 0;
 }
 
@@ -241,8 +275,65 @@ int print_new_service(membuf_t *buf,
                       const char *topic,
                       json_object_t obj)
 {
-        log_err("print_new_service not implemented");
-        return -1;
+        const char *userdata = json_object_getstr(obj, "userdata");
+        json_object_t resources;
+        double port = 0;
+
+        if (json_object_has(obj, "port")) {
+                port = json_object_getnum(obj, "port");
+                if (isnan(port)) {
+                        fprintf(stderr, "Invalid port\n");
+                        return -1;
+                }
+        }
+
+        if (userdata == NULL)
+                userdata = "NULL";
+        
+        membuf_printf(buf,
+                      "        service_%s = registry_open_service(\"%s\",\n"
+                      "                \"%s\",\n"
+                      "                %d);\n",
+                      topic, name, topic, (int) port);
+        membuf_printf(buf,
+                      "        if (service_%s == NULL) {\n"
+                      "                log_err(\"Failed to create the service\");\n"
+                      "                return -1;\n"
+                      "        };\n",
+                      topic);
+        resources = json_object_get(obj, "resources");
+        if (json_isnull(resources)) {
+                        fprintf(stderr, "Service is not exporting any resources\n");
+                        return -1;
+        }
+        if (!json_isarray(resources)) {
+                fprintf(stderr, "Expected an array for the resources\n");
+                return -1;
+        }
+        for (int i = 0; i < json_array_length(resources); i++) {
+                json_object_t d = json_array_get(resources, i);
+                if (!json_isobject(d)) {
+                        fprintf(stderr, "Invalid resources description\n");
+                        return -1;
+                }
+                const char *n = json_object_getstr(d, "name");
+                const char *mout = json_object_getstr(d, "mimetype_out");
+                const char *onrequest = json_object_getstr(d, "onrequest");
+                if (n == NULL || mout == NULL) {
+                        fprintf(stderr, "Incomplete resources description\n");
+                        return -1;
+                }
+                const char *min = json_object_getstr(d, "mimetype_in");
+                if (min == NULL)
+                        min = "NULL";
+                membuf_printf(buf,
+                              "        err = service_export(service_%s,\n"
+                              "               \"%s\",\n"
+                              "               \"%s\");\n"
+                              "        if (err) return -1;\n",
+                              topic, n, min, mout, userdata, onrequest);
+        }
+        return 0;
 }
 
 int print_new_streamer(membuf_t *buf,
@@ -280,13 +371,13 @@ int print_new_streamer(membuf_t *buf,
                       "                (streamer_onclient_t) %s,\n"
                       "                (streamer_onbroadcast_t) %s,\n"
                       "                %s);\n",
-                      name, name, topic, (int) port, onclient, onbroadcast, userdata);
+                      topic, name, topic, (int) port, onclient, onbroadcast, userdata);
         membuf_printf(buf,
                       "        if (streamer_%s == NULL) {\n"
                       "                log_err(\"Failed to create the streamer\");\n"
                       "                return -1;\n"
                       "        };\n",
-                      name);
+                      topic);
         resources = json_object_get(obj, "resources");
         if (json_isnull(resources)) {
                         fprintf(stderr, "Streamer is not exporting any resources\n");
@@ -313,7 +404,7 @@ int print_new_streamer(membuf_t *buf,
                               "               \"%s\",\n"
                               "               \"%s\");\n"
                               "        if (err) return -1;\n",
-                              name, n, m);
+                              topic, n, m);
         }
         return 0;
 }
@@ -342,20 +433,19 @@ int print_new_streamerlink(membuf_t *buf,
                       "        streamerlink_%s = registry_open_streamerlink(\"%s\","
                       "                \"%s\", \"%s\",\n"
                       "                (streamerlink_ondata_t) %s, %s);\n",
-                      name, name, topic, resource, ondata, userdata);
+                      topic, name, topic, resource, ondata, userdata);
         membuf_printf(buf,
                       "        if (streamerlink_%s == NULL) {\n"
                       "                log_err(\"Failed to create the streamerlink\");\n"
                       "                return -1;\n"
                       "        };\n",
-                      name);
+                      topic);
         return 0;
 }
 
-int print_com_init_i(membuf_t *buf, json_object_t obj)
+int print_com_init_i(membuf_t *buf, const char *name, json_object_t obj)
 {
         const char *type = json_object_getstr(obj, "type");
-        const char *name = json_object_getstr(obj, "name");
         const char *topic = json_object_getstr(obj, "topic");
         int err = 0;
         
@@ -383,14 +473,14 @@ int print_com_init_i(membuf_t *buf, json_object_t obj)
         return err;
 }
 
-int print_com_init(membuf_t *buf, json_object_t com)
+int print_com_init(membuf_t *buf, const char *name, json_object_t com)
 {
         membuf_printf(buf, "static int init_com()\n{\n");
         membuf_printf(buf, "        int err;\n");
         
         for (int i = 0; i < json_array_length(com); i++) {
                 json_object_t obj = json_array_get(com, i);
-                int err = print_com_init_i(buf, obj);
+                int err = print_com_init_i(buf, name, obj);
                 if (err != 0)
                         return -1;
         }
@@ -403,11 +493,11 @@ int print_com_init(membuf_t *buf, json_object_t com)
 int print_com_cleanup_i(membuf_t *buf, json_object_t obj)
 {
         const char *type = json_object_getstr(obj, "type");
-        const char *name = json_object_getstr(obj, "name");
+        const char *topic = json_object_getstr(obj, "topic");
         membuf_printf(buf,
                       "        if (%s_%s)\n"
                       "                registry_close_%s(%s_%s);\n",
-                      type, name, type, type, name);
+                      type, topic, type, type, topic);
         return 0;
 }
 
@@ -426,14 +516,14 @@ int print_com_cleanup(membuf_t *buf, json_object_t com)
         return 0;
 }
 
-int print_com(membuf_t *buf, json_object_t com)
+int print_com(membuf_t *buf, const char *name, json_object_t com)
 {
         int err;
         
-        err = print_com_decl(buf, com);
+        err = print_com_decl(buf, name, com);
         if (err != 0) return -1;
 
-        err = print_com_init(buf, com);
+        err = print_com_init(buf, name, com);
         if (err != 0) return -1;
 
         err = print_com_cleanup(buf, com);
@@ -602,7 +692,7 @@ int generate_code(const char *inputfile, const char *outputfile)
         if (err != 0)
                 return 1;
         
-        err = print_com(buf, com);
+        err = print_com(buf, name, com);
         if (err != 0)
                 return 1;
 
@@ -630,7 +720,8 @@ int generate_code(const char *inputfile, const char *outputfile)
         return 0;
 }
 
-int wite_cmakelists(const char *exec, const char *codefile, json_object_t sources)
+int write_cmakelists(const char *exec, const char *codefile,
+                     json_object_t sources, const char *outputfile)
 {
         membuf_t *buf = new_membuf();
 
@@ -652,7 +743,7 @@ int wite_cmakelists(const char *exec, const char *codefile, json_object_t source
         membuf_printf(buf, "target_link_libraries(%s rcom)\n", exec);
         membuf_append_zero(buf);
         
-        FILE *fp = fopen("CMakeLists.txt", "w");
+        FILE *fp = fopen(outputfile, "w");
         if (fp == NULL) {
                 fprintf(stderr, "Failed to open CMakeLists.txt\n");
                 return -1;
@@ -663,7 +754,7 @@ int wite_cmakelists(const char *exec, const char *codefile, json_object_t source
         return 0;
 }
 
-int generate_cmakelists(const char *inputfile)
+int generate_cmakelists(const char *inputfile, const char *outputfile)
 {
         int err;
         json_object_t def;
@@ -700,31 +791,75 @@ int generate_cmakelists(const char *inputfile)
                 return 1;
         }
 
-        err = wite_cmakelists(exec_name, code_output, sources);
+        err = write_cmakelists(exec_name, code_output, sources, outputfile);
         if (err != 0)
                 return 1;
 
         return 0;
 }
 
+void print_usage()
+{
+        fprintf(stderr, "Usage:\n");
+        fprintf(stderr, "    rcgen code output-file [input-file]\n");
+        fprintf(stderr, "    rcgen cmakelists [output-file] [input-file]\n");
+        fprintf(stderr, "    rcgen help\n");
+}
+
 int main(int argc, char **argv)
 {
         int err;
+        const char *op = NULL;
         const char *inputfile = NULL;
         const char *outputfile = NULL;
 
-        app_init(&argc, argv);
+        //parse_args(argc, argv);
         
         if (argc < 2) {
-                fprintf(stderr, "Usage: rcgen input-file [output-file]\n");
+                print_usage();
                 return 1;
         }
 
-        inputfile = argv[1];
-        if (argc >= 3) 
-                outputfile = argv[2];
+        op = argv[1];
+        if (!streq(op, "code") && !streq(op, "cmakelists")
+            && !streq(op, "help") && !streq(op, "-h")) {
+                fprintf(stderr, "Unknown operation: %s\n", op);
+                return 1;
+        }
         
-        err = generate_code(inputfile, outputfile);
-
+        if (streq(op, "help") || streq(op, "-h")) {
+                print_usage();
+                return 0;
+                
+        } else if (streq(op, "code")) {
+                if (argc == 3) {
+                        outputfile = argv[2];
+                        inputfile = "rcgen.json";
+                } else if (argc == 4) {
+                        outputfile = argv[2];
+                        inputfile = argv[3];
+                } else {
+                        print_usage();
+                        return 1;
+                }
+                err = generate_code(inputfile, outputfile);
+                
+        } else if (streq(op, "cmakelists")) {
+                if (argc == 2) {
+                        outputfile = "CMakeLists.txt";
+                        inputfile = "rcgen.json";
+                } else if (argc == 3) {
+                        outputfile = argv[2];
+                        inputfile = "rcgen.json";
+                } else if (argc == 4) {
+                        outputfile = argv[2];
+                        inputfile = argv[3];
+                } else {
+                        print_usage();
+                        return 1;
+                }
+                err = generate_cmakelists(inputfile, outputfile);
+        }
+        
         return err? 1 : 0;
 }

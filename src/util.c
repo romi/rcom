@@ -7,6 +7,7 @@
 #include <sys/time.h>
 #include <sys/types.h>
 #include <sys/syscall.h>
+#include <uuid/uuid.h>
 
 #include "rcom/log.h"
 
@@ -119,3 +120,13 @@ void generate_random_buffer(uint8_t *buffer, ssize_t len)
                 n += m;
         }
 }
+
+char *generate_uuid()
+{
+        uuid_t uuid;
+        char s[37];
+        uuid_generate(uuid);
+        uuid_unparse_lower(uuid, s);
+        return mem_strdup(s);
+}
+

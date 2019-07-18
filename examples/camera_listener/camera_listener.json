@@ -3,7 +3,6 @@
         "com": [
                 {
                         "type": "streamerlink",
-                        "name": "camera_listener",
                         "topic": "camera",
                         "resource": "rgb",
                         "ondata": "camera_listener_ondata"

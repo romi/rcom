@@ -92,6 +92,21 @@ enum {
         k_header_value
 };
 
+const char *get_state_str(int state)
+{
+        switch (state) {
+        case WS_CREATED: return "WS_CREATED";
+        case WS_CLIENT_CONNECTING: return "WS_CLIENT_CONNECTING";
+        case WS_SERVER_CONNECTING: return "WS_SERVER_CONNECTING";
+        case WS_OPEN: return "WS_OPEN";
+        case WS_CLOSING: return "WS_CLOSING";
+        case WS_CLOSE_RECEIVED: return "WS_CLOSE_RECEIVED";
+        case WS_FINALIZING_CLOSE: return "WS_FINALIZING_CLOSE";
+        case WS_CLOSED: return "WS_CLOSED";
+        default: return "UNKNOWN!";
+        }
+}
+
 /*****************************************************/
 /* messagelink_t
  * 
@@ -129,11 +144,9 @@ typedef struct _messagelink_t {
 
 } messagelink_t;
 
-void delete_messagelink(messagelink_t *link);
 static void owner_messagelink_close(messagelink_t *link, int code);
 
 static void messagelink_run(messagelink_t *link);
-static void *_messagelink_run(void *p);
 static int messagelink_read_message(messagelink_t *link, ws_frame_t *frame);
 
 static int messagelink_send_close(messagelink_t *link, int code);
@@ -187,10 +200,14 @@ void delete_messagelink(messagelink_t *link)
 {
         log_debug("delete_messagelink");
         if (link) {
-                if (link->state_mutex)
+                if (link->hub)
+                        messagehub_remove_link(link->hub, link);
+                if (link->state_mutex) {
                         mutex_lock(link->state_mutex);
-                if (link->state == WS_OPEN)
-                        owner_messagelink_close(link, 1001);
+                        if (link->state == WS_OPEN)
+                                owner_messagelink_close(link, 1001);
+                        mutex_unlock(link->state_mutex);
+                }
                 if (link->thread)
                         messagelink_stop_background(link);
                 if (link->in)
@@ -203,10 +220,8 @@ void delete_messagelink(messagelink_t *link)
                         delete_addr(link->remote_addr);
                 if (link->send_mutex)
                         delete_mutex(link->send_mutex);
-                if (link->state_mutex) {
-                        mutex_unlock(link->state_mutex);
+                if (link->state_mutex)
                         delete_mutex(link->state_mutex);
-                }
                 delete_obj(link);
         }
 }
@@ -335,7 +350,7 @@ static void messagelink_close_socket(messagelink_t *link)
 }
 
 // This function is called when the close handshake in initiated by
-// the owner of this link (e.g. in delete_messagelink()).
+// the owner of this link.
 static void owner_messagelink_close(messagelink_t *link, int code)
 {
         log_debug("owner_messagelink_close: code %d", code);
@@ -365,12 +380,6 @@ static void owner_messagelink_close(messagelink_t *link, int code)
                 sleep(4);
         
         messagelink_close_socket(link);
-        link->state = WS_CLOSED;
-        
-        if (link->hub) {
-                messagehub_remove_link(link->hub, link);
-                delete_messagelink(link);
-        }
 }
 
 static int owner_messagelink_send_close(messagelink_t *link, int code)
@@ -444,7 +453,8 @@ static int remote_messagelink_close(messagelink_t *link)
                 log_debug("remote_messagelink_close: code %d", link->close_code);
         }
 
-        // Let the server initiate the closing sequence.
+        // If this is a client link, wait a bit so that the server
+        // shuts down the tcp connection first.
         if (link->is_client)
                 sleep(4);
 
@@ -452,12 +462,12 @@ static int remote_messagelink_close(messagelink_t *link)
         messagelink_close_socket(link);
         if (link->onclose)
                 link->onclose(link, link->userdata);
-                
-        if (link->hub) {
-                messagehub_remove_link(link->hub, link);
-                delete_messagelink(link);
-        }
 
+        messagelink_stop_background(link);
+
+        if (link->hub)
+                delete_messagelink(link);
+        
         return 0;
 }
 
@@ -625,7 +635,8 @@ static int messagelink_try_read_message(messagelink_t *link, ws_frame_t *frame)
 static json_object_t messagelink_read(messagelink_t *link)
 {
         if (link->state != WS_OPEN) {
-                log_warn("messagelink_read: link not in open or closing state.");
+                log_warn("messagelink_read: link not in open or closing state (state=%s).",
+                         get_state_str(link->state));
                 clock_sleep(0.05);
                 return json_null();
         }
@@ -717,9 +728,9 @@ static json_object_t messagelink_read(messagelink_t *link)
 
 static void messagelink_run(messagelink_t *link)
 {
-        link->cont = 1;
+        log_debug("messagelink_run");
         
-        while (link->cont && !app_quit()) {
+        while (link->state == WS_OPEN && !app_quit()) {
                 
                 json_object_t message = messagelink_read(link);
 
@@ -732,6 +743,7 @@ static void messagelink_run(messagelink_t *link)
 
 void messagelink_read_in_background(messagelink_t *link)
 {
+        log_debug("messagelink_read_in_background");
         if (link->thread == NULL) {
                 link->thread = new_thread((thread_run_t) messagelink_run, link, 0);
         }
@@ -741,7 +753,6 @@ static void messagelink_stop_background(messagelink_t *link)
 {
         log_debug("messagelink_stop_background");
         if (link->thread) {
-                link->cont = 0;
                 log_debug("messagelink_stop_background: joining read thread");
                 thread_join(link->thread);
                 log_debug("messagelink_stop_background: joined");

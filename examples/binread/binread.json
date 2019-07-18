@@ -5,8 +5,7 @@
         "com": [
                 {
                         "type": "datalink",
-                        "name": "binread",
-                        "topic": "binwrite.data",
+                        "topic": "data",
                         "ondata": "binread_ondata"
                 }
         ]

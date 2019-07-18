@@ -6,12 +6,10 @@
         "com": [
                 {
                         "type": "messagehub",
-                        "name": "encoders",
                         "topic": "encoders"
                 },
                 {
                         "type": "messagehub",
-                        "name": "motorcontroller",
                         "topic": "motorcontroller",
                         "onconnect": "motorcontroller_onconnect"
                 }

@@ -25,7 +25,8 @@ enum {
 // registry entry
 typedef struct _registry_entry_t
 {
-        int id;
+        char *id;
+        //int id;
         char *name;
         char *topic;
         int type;
@@ -33,7 +34,7 @@ typedef struct _registry_entry_t
         void *endpoint;
 } registry_entry_t;
 
-registry_entry_t *new_registry_entry(int id, const char *name, const char *topic,
+registry_entry_t *new_registry_entry(const char *id, const char *name, const char *topic,
                                      int type, addr_t *addr, void *endpoint);
 void delete_registry_entry(registry_entry_t *entry);
 
@@ -55,28 +56,29 @@ typedef struct _registry_t registry_t;
 registry_t* new_registry();
 void delete_registry(registry_t* registry);
 
-int registry_insert(registry_t* registry, int id, const char *name,
+int registry_insert(registry_t* registry, const char *id, const char *name,
                     const char *topic, int type, addr_t *addr, void *endpoint);
 int registry_insert_entry(registry_t* registry, registry_entry_t *entry);
 
-int registry_delete(registry_t* registry, int id);
+int registry_delete(registry_t* registry, const char *id);
 
-registry_entry_t *registry_get(registry_t* registry, int id);
+registry_entry_t *registry_get(registry_t* registry, const char *id);
 
-list_t *registry_select(registry_t* registry, int id, const char *name,
+list_t *registry_select(registry_t* registry, const char *id, const char *name,
                         const char *topic, int type, addr_t *addr, void *endpoint);
 list_t *registry_select_all(registry_t* registry);
 
-int registry_count(registry_t* registry, int id, const char *name,
+int registry_count(registry_t* registry, const char *id, const char *name,
                    const char *topic, int type, addr_t *addr, void *endpoint);
 
-int registry_update_addr(registry_t* registry, int id, const char *addr);
-int registry_update_id(registry_t* registry, int old_id, int new_id);
+int registry_update_addr(registry_t* registry, const char *id, const char *addr);
+//int registry_update_id(registry_t* registry, int old_id, int new_id);
 
 /**************************************************/
 // global utility function
-int registry_valid_topic(const char *topic);
+int registry_valid_id(const char *id);
 int registry_valid_name(const char *name);
+int registry_valid_topic(const char *topic);
 int registry_str_to_type(const char* str);
 const char *registry_type_to_str(int type);
 addr_t *registry_valid_addr(const char *s);

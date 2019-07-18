@@ -56,6 +56,7 @@ include_directories("${CMAKE_CURRENT_BINARY_DIR}")
 
 add_library(rcom SHARED ${SOURCES})
 target_link_libraries(rcom m)
+target_link_libraries(rcom uuid)
 target_link_libraries(rcom pthread)
 ##target_link_libraries(rcom debug sgc)
 
@@ -86,7 +87,7 @@ target_link_libraries(rcgen rcom)
 # binread
 ADD_CUSTOM_COMMAND(
   OUTPUT ${CMAKE_SOURCE_DIR}/examples/binread/binread_main.c
-  COMMAND rcgen ${CMAKE_SOURCE_DIR}/examples/binread/binread.json ${CMAKE_SOURCE_DIR}/examples/binread/binread_main.c
+  COMMAND rcgen code ${CMAKE_SOURCE_DIR}/examples/binread/binread_main.c ${CMAKE_SOURCE_DIR}/examples/binread/binread.json
   DEPENDS rcgen ${CMAKE_SOURCE_DIR}/examples/binread/binread.json
   )
 
@@ -97,7 +98,7 @@ target_link_libraries(binread rcom)
 # binwrite
 ADD_CUSTOM_COMMAND(
   OUTPUT ${CMAKE_SOURCE_DIR}/examples/binwrite/binwrite_main.c
-  COMMAND rcgen ${CMAKE_SOURCE_DIR}/examples/binwrite/binwrite.json ${CMAKE_SOURCE_DIR}/examples/binwrite/binwrite_main.c
+  COMMAND rcgen code ${CMAKE_SOURCE_DIR}/examples/binwrite/binwrite_main.c ${CMAKE_SOURCE_DIR}/examples/binwrite/binwrite.json
   DEPENDS rcgen ${CMAKE_SOURCE_DIR}/examples/binwrite/binwrite.json
   )
 add_executable(binwrite examples/binwrite/binwrite.c examples/binwrite/binwrite_main.c)
@@ -107,7 +108,7 @@ target_link_libraries(binwrite rcom)
 # camera
 ADD_CUSTOM_COMMAND(
   OUTPUT ${CMAKE_SOURCE_DIR}/examples/camera/camera_main.c
-  COMMAND rcgen ${CMAKE_SOURCE_DIR}/examples/camera/camera.json ${CMAKE_SOURCE_DIR}/examples/camera/camera_main.c
+  COMMAND rcgen code ${CMAKE_SOURCE_DIR}/examples/camera/camera_main.c ${CMAKE_SOURCE_DIR}/examples/camera/camera.json
   DEPENDS rcgen ${CMAKE_SOURCE_DIR}/examples/camera/camera.json
   )
 
@@ -119,7 +120,7 @@ target_link_libraries(camera jpeg)
 # camera_listener
 ADD_CUSTOM_COMMAND(
   OUTPUT ${CMAKE_SOURCE_DIR}/examples/camera_listener/camera_listener_main.c
-  COMMAND rcgen ${CMAKE_SOURCE_DIR}/examples/camera_listener/camera_listener.json ${CMAKE_SOURCE_DIR}/examples/camera_listener/camera_listener_main.c
+  COMMAND rcgen code ${CMAKE_SOURCE_DIR}/examples/camera_listener/camera_listener_main.c ${CMAKE_SOURCE_DIR}/examples/camera_listener/camera_listener.json
   DEPENDS rcgen ${CMAKE_SOURCE_DIR}/examples/camera_listener/camera_listener.json
   )
 
@@ -130,7 +131,7 @@ target_link_libraries(camera_listener rcom)
 # motorcontroller
 ADD_CUSTOM_COMMAND(
   OUTPUT ${CMAKE_SOURCE_DIR}/examples/motorcontroller/motorcontroller_main.c
-  COMMAND rcgen ${CMAKE_SOURCE_DIR}/examples/motorcontroller/motorcontroller.json ${CMAKE_SOURCE_DIR}/examples/motorcontroller/motorcontroller_main.c
+  COMMAND rcgen code ${CMAKE_SOURCE_DIR}/examples/motorcontroller/motorcontroller_main.c ${CMAKE_SOURCE_DIR}/examples/motorcontroller/motorcontroller.json
   DEPENDS rcgen ${CMAKE_SOURCE_DIR}/examples/motorcontroller/motorcontroller.json
   )
 
@@ -141,7 +142,7 @@ target_link_libraries(motorcontroller rcom)
 # wheel_odometry
 ADD_CUSTOM_COMMAND(
   OUTPUT ${CMAKE_SOURCE_DIR}/examples/wheel_odometry/wheel_odometry_main.c
-  COMMAND rcgen ${CMAKE_SOURCE_DIR}/examples/wheel_odometry/wheel_odometry.json ${CMAKE_SOURCE_DIR}/examples/wheel_odometry/wheel_odometry_main.c
+  COMMAND rcgen code ${CMAKE_SOURCE_DIR}/examples/wheel_odometry/wheel_odometry_main.c ${CMAKE_SOURCE_DIR}/examples/wheel_odometry/wheel_odometry.json
   DEPENDS rcgen ${CMAKE_SOURCE_DIR}/examples/wheel_odometry/wheel_odometry.json
   )
 

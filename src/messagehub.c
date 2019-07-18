@@ -79,7 +79,9 @@ messagehub_t* new_messagehub(int port,
 void delete_messagehub(messagehub_t*hub)
 {
         list_t *l;
- 
+
+        log_debug("delete_messagehub");
+        
         if (hub) {
                 hub->quit = 1;
                 pthread_join(hub->thread, NULL);
@@ -93,23 +95,44 @@ void delete_messagehub(messagehub_t*hub)
                 }
                 
                 if (hub->links_mutex) {
-                        messagehub_lock_links(hub);
-                        l = hub->links;
-                        while (l) {
+                        int count = 0;
+                        while (hub->links) {
+                                // The head of the list is removed one
+                                // at the time, protected by the
+                                // mutex. Then owner_messagelink_close
+                                // is called outside of the mutex to
+                                // avoid a deadlock because
+                                // owner_messagelink_close calls
+                                // messagehub_remove_link, which also
+                                // uses the mutex.
+                                messagehub_lock_links(hub);
+                                l = hub->links;
+                                hub->links = list_next(l);
+                                messagehub_unlock_links(hub);                
+
+                                log_debug("delete_messagehub: deleting messagelink %d",
+                                          count++);
                                 messagelink_t *link = list_get(l, messagelink_t);
                                 delete_messagelink(link);
+                                delete1_list(l);
+
                         }
-                        messagehub_unlock_links(hub);                
                         delete_mutex(hub->links_mutex);
                 }
                 
                 delete_obj(hub);
         }
+
+        log_debug("delete_messagehub: done");
 }
 
 addr_t *messagehub_addr(messagehub_t *hub)
 {
         return hub->addr;
+}
+
+static void messagehub_link_onclose()
+{
 }
 
 static void messagehub_handle_connect(messagehub_t *hub)
@@ -285,14 +308,15 @@ int messagehub_broadcast_f(messagehub_t *hub, messagelink_t *exclude, const char
 
         if (err == 0) 
                 err = messagehub_broadcast_text(hub, exclude, membuf_data(hub->mem),
-                                           membuf_len(hub->mem));
+                                                membuf_len(hub->mem));
         
         membuf_unlock(hub->mem);
         
         return err;
 }
 
-int messagehub_broadcast_text(messagehub_t *hub, messagelink_t *exclude, const char *data, int len)
+int messagehub_broadcast_text(messagehub_t *hub, messagelink_t *exclude,
+                              const char *data, int len)
 {
         int err = 0;
         

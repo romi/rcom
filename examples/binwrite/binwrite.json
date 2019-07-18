@@ -5,8 +5,7 @@
         "com": [
                 {
                         "type": "datahub",
-                        "name": "binwrite",
-                        "topic": "binwrite.data",
+                        "topic": "data",
                         "onbroadcast": "binwrite_broadcast"
                 }
         ]

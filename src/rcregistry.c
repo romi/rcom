@@ -14,7 +14,6 @@
 typedef struct _rcregistry_t {
         registry_t *registry;
         messagehub_t *hub;
-        int id;
 } rcregistry_t;
 
 static void _onmessage(messagelink_t *link, void *userdata, json_object_t message);
@@ -41,8 +40,6 @@ rcregistry_t* new_rcregistry(addr_t *addr)
         if (rcregistry == NULL)
                 return NULL;
 
-        rcregistry->id = 1;
-        
         rcregistry->registry = new_registry();
         if (rcregistry->registry == NULL) {
                 log_err("Failed to create the registry. Quiting.");
@@ -115,8 +112,7 @@ static void rcregistry_register(rcregistry_t* rcregistry,
         default: rcregistry_fail(link, "register-response", "Unknown error"); return; 
         }
 
-        id = rcregistry->id++;
-        err = registry_insert(rcregistry->registry, id, entry->name,
+        err = registry_insert(rcregistry->registry, entry->id, entry->name,
                               entry->topic, entry->type, entry->addr, NULL);
         
         if (err != 0) {
@@ -135,12 +131,12 @@ static void rcregistry_register(rcregistry_t* rcregistry,
         messagehub_broadcast_f(rcregistry->hub, NULL, 
                                "{\"request\": \"proxy-add\","
                                "\"entry\": {" 
-                               "\"id\": %d,"
+                               "\"id\": \"%s\","
                                "\"name\": \"%s\","
                                "\"topic\": \"%s\","
                                "\"type\": \"%s\","
                                "\"addr\": \"%s\"}}",
-                               id, entry->name, entry->topic,
+                               entry->id, entry->name, entry->topic,
                                registry_type_to_str(entry->type),
                                addr_string(entry->addr, b, 64));
 
@@ -151,15 +147,14 @@ static void rcregistry_unregister(rcregistry_t* rcregistry,
                                   messagelink_t *link,
                                   json_object_t message)
 {
-        int err, id;
-        double v;
+        int err;
+        const char *id;
         
-        v = json_object_getnum(message, "id");
-        if (isnan(v)) {
+        id = json_object_getstr(message, "id");
+        if (id == NULL) {
                 log_err("rcregistry_unregister: Invalid ID"); 
                 return;
         }
-        id = (int) v;
         
         err = registry_delete(rcregistry->registry, id);
         if (err != 0) {
@@ -173,7 +168,7 @@ static void rcregistry_unregister(rcregistry_t* rcregistry,
 
         // Broadcast 
         messagehub_broadcast_f(rcregistry->hub, NULL, 
-                               "{\"request\": \"proxy-remove\", \"id\": %d}", id);
+                               "{\"request\": \"proxy-remove\", \"id\": \"%s\"}", id);
 }
 
 static void rcregistry_send_list(rcregistry_t* rcregistry, messagelink_t *link)
@@ -195,16 +190,15 @@ static void rcregistry_update_address(rcregistry_t* rcregistry,
                                       messagelink_t *link,
                                       json_object_t message)
 {
-        int err, id;
-        double v;
+        int err;
+        const char *id;
         const char *addr;
         
-        v = json_object_getnum(message, "id");
-        if (isnan(v)) {
+        id = json_object_getstr(message, "id");
+        if (id == NULL) {
                 log_err("rcregistry_update_address: Invalid ID"); 
                 return;
         }
-        id = (int) v;
 
         addr = json_object_getstr(message, "addr");
         if (addr == NULL) {
@@ -225,7 +219,7 @@ static void rcregistry_update_address(rcregistry_t* rcregistry,
         // Broadcast update
         messagehub_broadcast_f(rcregistry->hub, link, 
                                "{\"request\": \"proxy-update-address\","
-                               "\"id\": %d, \"addr\": \"%s\"}", id, addr);
+                               "\"id\": \"%s\", \"addr\": \"%s\"}", id, addr);
 }
 
 static void rcregistry_onmessage(rcregistry_t* rcregistry,
