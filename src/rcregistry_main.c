@@ -87,7 +87,7 @@ static int rcregistry_listen(void *data, request_t *request)
                              "    <meta charset=\"utf-8\">\n"
                              "    <title>Registry</title>\n"
                              "    <link rel=\"stylesheet\" href=\"index.css\">\n"
-                             "    <script src=\"index.js\"></script>\n"
+                             "    <script src=\"listen.js\"></script>\n"
                              "    <script src=\"jquery.min.js\"></script>\n"
                              "  </head>\n"
                              "  <body>\n"
