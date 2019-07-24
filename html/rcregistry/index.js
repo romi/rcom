@@ -1,4 +1,3 @@
-
 var registry;
 
 function Topic(name)
@@ -32,18 +31,24 @@ function Registry(uri)
             s += "<div class='topic'><h1 class='topic-name'>" + topic.name + "</h1>";
             for (var j = 0; j < topic.list.length; j++) {
                 var e = topic.list[j];
-                if(e.name == "camera"){
-                  s += ("<a target='_blank' href='http://" + e.addr  + "/rgb'> <div class='entry " + e.type + "'>"
-                        + "<h2 class='entry-name'>" + e.name + "</h2>"
-                        + "<p class='entry-addr'>" + e.addr + "</p>"
-                        + "</div></a>");
-                }else{
-                  s += ("<div class='entry " + e.type + "'>"
-                        + "<h2 class='entry-name'>" + e.name + "</h2>"
-                        + "<p class='entry-addr'>" + e.addr + "</p>"
-                        + "</div>");
-                }
 
+                  if(e.name == "camera"){
+                    s += ("<a target='_blank' href=http://" + e.addr +"/rgb> <div class='entry " + e.type + "'>"
+                          + "<h2 class='entry-name'>" + e.name + "</h2>"
+                          + "<p class='entry-addr'>" + e.addr + "</p>"
+                          + "</div></a> ");
+
+                  }else if(e.topic =="encoders" &&  e.name == "motorcontroller"){
+                    s += ("<a href=listen.html?" + e.addr + "> <div id='svg' class='entry " + e.type + "'>"
+                          + "<h2 class='entry-name'>" + e.name + "</h2>"
+                          + "<p class='entry-addr'>" + e.addr + "</p>"
+                          + "</div></a>");
+                  }else{
+                    s += ("<div class='entry " + e.type + "'>"
+                          + "<h2 class='entry-name'>" + e.name + "</h2>"
+                          + "<p class='entry-addr'>" + e.addr + "</p>"
+                          + "</div>");
+                  }
             }
             s += "</div>";
         }

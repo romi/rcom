@@ -33,7 +33,7 @@ div.entry {
 
 }
 
-div.streamer{
+div.streamer, #svg{
   color: white;
   background-color: black;
 }
