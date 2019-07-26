@@ -1,22 +1,21 @@
 html, body{
-    margin: 0;
+    font-family: sans-serif;
     padding: 0;
+    margin: 0;
+
     height: 100%;
     width: 100%;
 
 }
 
+
 #drum{
     background: url("../img/map.png");
     background-size: cover;
+    margin-top: auto;
 }
 a{
     text-decoration: none !important;
-}
-
-#test{
-    background: url('img/map.png');
-    background-size: cover;
 }
 
 .btn a{
@@ -24,9 +23,16 @@ a{
 }
 
 .btn{
-    font-size: 3em;
-    padding: 15px;
+    font-size: 2em;
+    padding: 10px;
     margin-top: 3%;
+    background: #209a34;
+    border-color: #209a34;
+}
+
+.btn:hover{
+    background: #209a34;
+    border-color: #209a34;
 }
 
 .btnBack{

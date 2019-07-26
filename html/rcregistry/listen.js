@@ -9,7 +9,7 @@ function drawCircles()
     /*circle code*/
     for (let i = 0; i < posX.length; i++) {
         var circles = svgdoc.createElementNS("http://www.w3.org/2000/svg", "circle");
-        circles.setAttributeNS(null, 'r', '2%');
+        circles.setAttributeNS(null, 'r', '3%');
         circles.setAttributeNS(null, 'cx', posX[i]);
         circles.setAttributeNS(null, 'cy', posY[i]);
         circles.setAttributeNS(null, 'fill', 'green');
@@ -38,7 +38,7 @@ function addCircle(x, y)
         var x1 = posX[posX.length - 1];
         var y1 = posY[posY.length - 1];
         var d = Math.sqrt((x1 - x) * (x1 - x) + (y1 - y) * (y1 - y));
-        console.log([[x,y],[x1,y1],[x1 - x, y1 - y],d]);
+        //console.log([[x,y],[x1,y1],[x1 - x, y1 - y],d]);
         if (d < 20) return;
     }
 
@@ -68,38 +68,41 @@ function addCircle(x, y)
 
 function listenTo(values)
 {
-    document.head.insertAdjacentHTML('afterbegin', "<link rel='stylesheet' href='css/style.css'>");
+    document.head.insertAdjacentHTML('beforeend', "<link rel='stylesheet' href='css/style.css'>");
     document.head.insertAdjacentHTML('afterbegin', "<link rel='stylesheet' href='css/bootstrap.min.css'>");
     document.head.insertAdjacentHTML('afterbegin', "<meta name='viewport' content='width=device-width, initial-scale=1, shrink-to-fit=no'>");
-    document.body.insertAdjacentHTML('afterbegin', "<button type='button' class='btn btn-primary btn-block col-lg-2 offset-lg-5'><a href='http://0.0.0.0:10100/registry.html'><b>Back</b></a></button>");
+    document.body.insertAdjacentHTML('afterbegin', "<button type='button' class='btn btn-primary btn-block col-4 offset-4 col-lg-2 offset-lg-5'><a href='http://0.0.0.0:10100/registry.html'><b>Back</b></a></button>");
     document.body.insertAdjacentHTML('afterbegin', "<object id='drum' type='image/svg+xml' data='drawing.svg'> your browser does not support SVG </object>");
     document.body.insertAdjacentHTML('beforeend', "<script src='js/bootstrap.min.js'></script>");
     document.body.insertAdjacentHTML('beforeend', "<script src='js/jquery.js'></script>");
+    document.body.insertAdjacentHTML('beforeend', "<script src='graph.js'></script>");
 
 
     document.getElementById('drum').addEventListener('load', function() {
         svgdoc = document.getElementById('drum').contentDocument;
         svg = svgdoc.getElementsByTagName('svg')[0];
-        console.log(svg);
+        //console.log(svg);
     }, true);
 
-  ws = new WebSocket(values);
 
-  ws.onopen = function(e) {
-      console.log("Registry: websocket open");
-  }
+    ws = new WebSocket(values);
 
-  ws.onmessage = function(e) {
-     var pos = JSON.parse(e.data);
-     console.log(pos);
-     addCircle(pos[0], pos[1]);
-  }
+    ws.onopen = function(e) {
+        console.log("Registry: websocket open");
+    }
 
-  ws.onclose = function(e) {
-      console.log("Registry: websocket closed");
-  }
+    ws.onmessage = function(e) {
+        var pos = JSON.parse(e.data);
+        console.log(pos);
+        addCircle(pos[0], pos[1]);
 
-  ws.onerror = function(e) {
-      console.log("Registry: websocket error: " + e.toString());
-  }
+    }
+
+    ws.onclose = function(e) {
+        console.log("Registry: websocket closed");
+    }
+
+    ws.onerror = function(e) {
+        console.log("Registry: websocket error: " + e.toString());
+    }
 }

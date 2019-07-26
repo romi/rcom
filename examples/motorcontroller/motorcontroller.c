@@ -41,11 +41,8 @@ void motorcontroller_broadcast()
         if (t < 120)
                 position = 3.6 * t / 120;
         else
-                position = 3.6 - 3.6 * t / 120;
-        messagehub_broadcast_f(hub, NULL, "[%f,%f]", position, position);
+                position = 3.6 - 3.6 * (t - 120) / 120;
+        messagehub_broadcast_f(hub, NULL, "[%f,%f]", position, 0.45);
         //messagehub_broadcast_f(hub, NULL, "[%f,%f]", encoders[0], encoders[1]);
         clock_sleep(1);
 }
-
-
-
