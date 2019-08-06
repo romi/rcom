@@ -90,6 +90,11 @@ void delete_request(request_t *r)
                         delete_thread(r->thread);
                 if (r->addr)
                         delete_addr(r->addr);
+                for (list_t *l = r->headers; l != NULL; l = list_next(l)) {
+                        http_header_t *h = list_get(l, http_header_t);
+                        delete_http_header(h);
+                }
+                delete_list(r->headers);
                 delete_obj(r);
         }
 }
