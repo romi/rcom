@@ -1,0 +1,42 @@
+html, body{
+    font-family: sans-serif;
+    padding: 0;
+    margin: 0;
+
+    height: 100%;
+    width: 100%;
+
+}
+
+
+#drum{
+    background: url("../img/map.png");
+    background-size: cover;
+    margin-top: auto;
+}
+a{
+    text-decoration: none !important;
+}
+
+.btn a{
+    color: #fff;
+}
+
+.btn{
+    font-size: 2em;
+    padding: 10px;
+    margin-top: 3%;
+    background: #209a34;
+    border-color: #209a34;
+}
+
+.btn:hover{
+    background: #209a34;
+    border-color: #209a34;
+}
+
+.btnBack{
+    font-size: 2em;
+    padding: 10px;
+    margin-bottom: 3%;
+}

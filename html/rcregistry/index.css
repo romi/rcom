@@ -1,5 +1,23 @@
-body {
+html, body {
   font-family: sans-serif;
+  padding: 0;
+  margin: 0;
+  height: 100%;
+  width: 100%;
+}
+
+div.robotTitle{
+    text-align: center;
+    font-size: 2em;
+    font-weight: bold;
+    padding: 3%;
+    color: #fff;
+    background-color: #209a34;
+    background-repeat: no-repeat;
+}
+
+a{
+    text-decoration: none;
 }
 
 div.registry {
@@ -12,30 +30,53 @@ div.registry {
 }
 
 div.topic {
-    border: 2px solid black;
+    margin: 4%;
+    border: 3px solid black;
     border-radius: 12px;
-    padding: 12px;
+    padding: 15px;
+    width: 90%;
+    margin-left: auto;
+    margin-right: auto;
+    background: #fff;
+    height: 100%;
 }
 
 h1.topic-name {
-    font-size: 14pt;
+    font-size: 16pt;
     font-weight: bold;
     padding: 0px;
     margin: 0px;
     padding-bottom: 14px;
+
+}
+.gauche{
+    width: 50%;
+    float: left;
+    color: #fff;
 }
 
-div.entry {
-    border: solid 1px black;
+#camera{
+    margin-left: 10%;
+}
+
+.logoMotor{
+    margin-left: 30%;
+}
+
+.logoCam{
+    margin-left: 35%;
+}
+
+div.entry{
+    border: solid 2px black;
     border-radius: 2px;
     padding: 3px;
     margin: 7px;
-
 }
 
-div.streamer{
-  color: white;
-  background-color: black;
+div.streamer, #svg{
+  background-color: #209a34;
+  color: #fff;
 }
 
 div.datahub {
@@ -48,8 +89,6 @@ div.datalink {
     background-color: white;
 }
 
-
-
 h2.entry-name {
     font-size: 12pt;
     font-weight: bold;
@@ -61,4 +100,5 @@ p.entry-addr {
     font-size: 9pt;
     padding: 0px;
     margin: 0px;
+
 }
