@@ -36,6 +36,7 @@ int udp_socket_read(udp_socket_t socket, data_t *data, addr_t *addr);
 typedef int tcp_socket_t;
 
 #define INVALID_TCP_SOCKET -1
+#define TCP_SOCKET_TIMEOUT -2
 
 tcp_socket_t open_tcp_socket(addr_t *addr);
 void close_tcp_socket(tcp_socket_t socket);
@@ -45,6 +46,11 @@ int tcp_socket_send(tcp_socket_t socket, const char *data, int len);
 // Returns number of bytes read. This number may be smaller than the
 // number of bytes requested (len). In case an error occurs then -1 is
 // returned. In case the socket was shut down, zero is returned.
+// Returns:
+// -2: timeout
+// -1: error
+// 0: shutdown
+// >0: amount of data received
 int tcp_socket_recv(tcp_socket_t socket, char *data, int len);
 
 // Returns the number of bytes read. This number should be to the

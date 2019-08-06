@@ -16,6 +16,13 @@ extern "C" {
 /* Call the developer on her phone */
 #define LOG_PANIC 4
 
+
+void log_err(const char* format, ...);
+void log_warn(const char* format, ...);
+void log_info(const char* format, ...);
+void log_debug(const char* format, ...);
+void log_panic(const char* format, ...);
+
 int log_get_level();
 void log_set_level(int level);
 int log_set_file(const char* path);
@@ -23,11 +30,10 @@ void log_set_filep(FILE* file);
 void log_set_app(const char* name);
 const char *log_get_file();
 
-void log_err(const char* format, ...);
-void log_warn(const char* format, ...);
-void log_info(const char* format, ...);
-void log_debug(const char* format, ...);
-void log_panic(const char* format, ...);
+typedef void (*log_writer_t)(void *userdata, const char* s);
+
+void set_log_writer(log_writer_t callback, void *userdata);
+void get_log_writer(log_writer_t *callback, void **userdata);
 
 #ifdef __cplusplus
 }

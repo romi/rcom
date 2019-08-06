@@ -1,6 +1,8 @@
 #ifndef _RCOM_SERIAL_H_
 #define _RCOM_SERIAL_H_
 
+#include "rcom/membuf.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -12,7 +14,7 @@ void delete_serial(serial_t *s);
 
 int serial_get(serial_t *s);
 int serial_read(serial_t *s, char *buf, int len);
-const char *serial_readline(serial_t *s);
+const char *serial_readline(serial_t *s, membuf_t *buffer);
 
 // returns 0: no error, -1: error
 // These functions are not protected by a mutex. 
@@ -26,9 +28,10 @@ int serial_printf(serial_t *s, const char *format, ...);
 // readline. The sending and reading are performed as a single
 // operation protected by a mutex to avoid being interrupted by
 // another thread.
-const char *serial_command_send(serial_t *s, const char *cmd);
-const char *serial_command_sendf(serial_t *s, const char *format, ...);
+const char *serial_command_send(serial_t *s, membuf_t *message, const char *cmd);
+const char *serial_command_sendf(serial_t *s, membuf_t *message, const char *format, ...);
 
+int serial_flush(serial_t *s);
 
 void serial_lock(serial_t *s);
 void serial_unlock(serial_t *s);

@@ -4,9 +4,9 @@
 
 #include "rcom/log.h"
 #include "rcom/addr.h"
+#include "rcom/util.h"
 
 #include "mem.h"
-#include "util.h"
 
 addr_t *new_addr0()
 {
@@ -31,6 +31,11 @@ addr_t *addr_clone(addr_t *addr)
         if (clone == NULL) return NULL;
         memcpy(clone, addr, sizeof(addr_t));
         return clone;
+}
+
+void addr_copy(addr_t *src, addr_t *dest)
+{
+        memcpy(dest, src, sizeof(addr_t));
 }
 
 void delete_addr(addr_t *addr)
@@ -101,7 +106,7 @@ int addr_eq(addr_t *addr1, addr_t *addr2)
         char b1[64], b2[64];;
         if (addr_port(addr1) != addr_port(addr2))
                 return 0;
-        if (streq(addr_ip(addr1, b1, 64),
+        if (rstreq(addr_ip(addr1, b1, 64),
                   addr_ip(addr2, b2, 64)))
                 return 1;
         return 0;            
@@ -145,7 +150,7 @@ addr_t *addr_parse(const char* s)
                 return NULL;
         }
 
-        log_debug("addr_parse: %s -> %s", s, addr_string(addr, ip, 64));
+        //log_debug("addr_parse: %s -> %s", s, addr_string(addr, ip, 64));
 
         return addr;
 }       

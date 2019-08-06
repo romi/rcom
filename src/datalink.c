@@ -1,19 +1,14 @@
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <sys/time.h>
-#include <sys/types.h>
 
 #include "rcom/json.h"
 #include "rcom/log.h"
 #include "rcom/app.h"
 #include "rcom/addr.h"
+#include "rcom/thread.h"
+#include "rcom/util.h"
+#include "rcom/clock.h"
 
 #include "mem.h"
-#include "util.h"
 #include "net.h"
-#include "thread.h"
 #include "datalink_priv.h"
 
 struct _datalink_t {
@@ -105,20 +100,18 @@ void delete_datalink(datalink_t* link)
         }
 }
 
-static int datalink_handle_input(datalink_t* link)
+static void datalink_handle_input(datalink_t* link)
 {
-        int i, ret;
-        
         if (link->remote_addr == NULL) {
                 // waiting for remote node
-                log_debug("datalink_handle_input: remote_addr == NULL");
-                sleep(1);
-                return 0;
+                //log_debug("datalink_handle_input: remote_addr == NULL");
+                clock_sleep(1);
+                return;
         }
         
         data_t *data = datalink_read(link, 1);
         if (data == NULL) // FIXME: error? timeout?
-                return 0;
+                return;
         
         if (link->ondata) {
                 // Initilize the timestamp and reset the length of the
@@ -127,29 +120,20 @@ static int datalink_handle_input(datalink_t* link)
                 data_set_timestamp(link->out);
                 data_set_len(link->out, 0);
                 
-                ret = link->ondata(link->userdata, link, link->in, link->out);
+                link->ondata(link->userdata, link, link->in, link->out);
                 
-                if (ret == 0 && data_len(link->out) > 0) {
+                if (data_len(link->out) > 0) {
                         datalink_send(link, link->out);
                 }
         }
-        
-        return ret;
 }
 
 static void datalink_run(void* d)
 {
         datalink_t* link = (datalink_t*) d;
-        int r;
 
-        while (!link->thread_quit && !app_quit()) {
-                r = datalink_handle_input(link);
-                if (r != 0) {
-                        log_info("datalink_run: datalink_handle_input "
-                                 "returned non-zero. Quitting.");
-                        break;
-                }
-        }
+        while (!link->thread_quit && !app_quit())
+                datalink_handle_input(link);
 }
 
 data_t *datalink_get_output(datalink_t* link)
@@ -165,16 +149,30 @@ json_object_t datalink_parse(datalink_t* link, data_t* data)
 int datalink_start_thread(datalink_t *link)
 {
         int ret;
-        link->thread_quit = 0;
-        link->thread = new_thread(datalink_run, (void*) link, 0);
+        
+        mutex_lock(link->mutex);
+        if (link->thread == NULL) {
+                link->thread_quit = 0;
+                link->thread = new_thread(datalink_run, (void*) link, 0, 0);
+        }
+        mutex_unlock(link->mutex);
+        
         return (link->thread == NULL)? -1 : 0;
 }
 
 void datalink_stop_thread(datalink_t* link)
 {
+        mutex_lock(link->mutex);
         link->thread_quit = 1;
-        if (link->thread)
+        mutex_unlock(link->mutex);
+        
+        if (link->thread) {
                 thread_join(link->thread);
+                mutex_lock(link->mutex);
+                delete_thread(link->thread);
+                link->thread = NULL;
+                mutex_unlock(link->mutex);
+        }
 }
 
 addr_t *datalink_addr(datalink_t* link)
@@ -189,7 +187,7 @@ addr_t *datalink_remote_addr(datalink_t* link)
 
 void datalink_set_remote_addr(datalink_t *link, addr_t *addr)
 {
-        log_debug("datalink_set_remote_addr");
+        //log_debug("datalink_set_remote_addr");
 
         mutex_lock(link->mutex);
         if (link->remote_addr != NULL && addr != NULL && addr_eq(link->remote_addr, addr)) {

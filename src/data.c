@@ -6,9 +6,9 @@
 #include "rcom/log.h"
 #include "rcom/data.h"
 #include "rcom/clock.h"
+#include "rcom/util.h"
 
 #include "mem.h"
-#include "util.h"
 
 struct _data_t {
         int len;

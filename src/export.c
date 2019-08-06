@@ -1,10 +1,8 @@
-#include <stdlib.h>
-#include <string.h>
-#include <stdio.h>
-#include <unistd.h>
+
+#include "rcom/clock.h"
+#include "rcom/util.h"
 
 #include "mem.h"
-#include "util.h"
 #include "export.h"
 
 typedef struct _export_t
@@ -12,7 +10,6 @@ typedef struct _export_t
         char* name;
         char* mimetype_in;
         char* mimetype_out;
-        //int registered;
         
         // Used by service
         void *userdata;
@@ -105,12 +102,12 @@ const char* export_mimetype_in(export_t* e)
 
 int export_json_in(export_t* e)
 {
-        return e->mimetype_in != NULL && streq(e->mimetype_in, "application/json");
+        return e->mimetype_in != NULL && rstreq(e->mimetype_in, "application/json");
 }
 
 int export_json_out(export_t* e)
 {
-        return e->mimetype_out != NULL && streq(e->mimetype_out, "application/json");
+        return e->mimetype_out != NULL && rstreq(e->mimetype_out, "application/json");
 }
 
 /* int export_registered(export_t* e) */

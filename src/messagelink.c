@@ -1,19 +1,17 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include <unistd.h>
-#include <errno.h>
 
 #include "rcom/log.h"
 #include "rcom/app.h"
 #include "rcom/messagehub.h"
 #include "rcom/addr.h"
 #include "rcom/clock.h"
+#include "rcom/thread.h"
+#include "rcom/membuf.h"
 
-#include "util.h"
+#include "util_priv.h"
 #include "mem.h"
-#include "thread.h"
-#include "membuf.h"
 #include "list.h"
 #include "http.h"
 #include "http_parser.h"
@@ -155,7 +153,7 @@ static int messagelink_send_pong(messagelink_t *link, membuf_t *payload);
 // Receive messages If an error occurs, the function returns
 // json_null(). In that case, the connection will have been closed and
 // should no longer be used.
-static json_object_t messagelink_read(messagelink_t *link);
+static json_object_t _messagelink_read(messagelink_t *link);
 static void messagelink_stop_background(messagelink_t *link);
 
 
@@ -198,7 +196,7 @@ messagelink_t *new_messagelink(messagelink_onmessage_t onmessage,
 
 void delete_messagelink(messagelink_t *link)
 {
-        log_debug("delete_messagelink");
+        //log_debug("delete_messagelink");
         if (link) {
                 if (link->hub)
                         messagehub_remove_link(link->hub, link);
@@ -222,6 +220,11 @@ void delete_messagelink(messagelink_t *link)
                         delete_mutex(link->send_mutex);
                 if (link->state_mutex)
                         delete_mutex(link->state_mutex);
+                for (list_t *l = link->headers; l != NULL; l = list_next(l)) {
+                        http_header_t *h = list_get(l, http_header_t);
+                        delete_http_header(h);
+                }
+                delete_list(link->headers);
                 delete_obj(link);
         }
 }
@@ -305,7 +308,7 @@ static http_header_t *messagelink_get_header(messagelink_t *link, const char *na
         list_t * l = link->headers;
         while (l) {
                 http_header_t *h = list_get(l, http_header_t);
-                if (streq(name, h->name))
+                if (rstreq(name, h->name))
                         return h;
                 l = list_next(l);
         }
@@ -353,7 +356,7 @@ static void messagelink_close_socket(messagelink_t *link)
 // the owner of this link.
 static void owner_messagelink_close(messagelink_t *link, int code)
 {
-        log_debug("owner_messagelink_close: code %d", code);
+        //log_debug("owner_messagelink_close: code %d", code);
 
         if (link->state == WS_CLOSED
             || link->state == WS_CLOSING)
@@ -362,7 +365,7 @@ static void owner_messagelink_close(messagelink_t *link, int code)
         link->state = WS_CLOSING;
         messagelink_stop_background(link);
 
-        log_info("owner_messagelink_close: sending close");
+        //log_info("owner_messagelink_close: sending close");
         int err = owner_messagelink_send_close(link, code);
         if (err) {
                 log_warn("owner_messagelink_close: failed to send close. Not waiting for a reply");
@@ -372,19 +375,20 @@ static void owner_messagelink_close(messagelink_t *link, int code)
                         log_warn("owner_messagelink_close: error while reading reply");
                 else if (err == -2)
                         log_warn("owner_messagelink_close: time-out while reading reply");
-                else 
-                        log_warn("owner_messagelink_close: got close reply");
+                else {
+                        //log_debug("owner_messagelink_close: got close reply");
+                }
         }
         
         if (link->is_client)
-                sleep(4);
+                clock_sleep(4);
         
         messagelink_close_socket(link);
 }
 
 static int owner_messagelink_send_close(messagelink_t *link, int code)
 {
-        log_debug("owner_messagelink_send_close");
+        //log_debug("owner_messagelink_send_close");
         link->close_code = code;
         return messagelink_send_close(link, code);
 }
@@ -395,7 +399,7 @@ static int owner_messagelink_send_close(messagelink_t *link, int code)
 // -2: time-out, waiting too long for reply
 static int owner_messagelink_wait_close(messagelink_t *link)
 {
-        log_debug("owner_messagelink_wait_close");
+        //log_debug("owner_messagelink_wait_close");
         
         double start_time = clock_time();
         ws_frame_t frame;
@@ -418,11 +422,11 @@ static int owner_messagelink_wait_close(messagelink_t *link)
 // close message.
 static void owner_messagelink_close_oneway(messagelink_t *link, int code)
 {
-        log_debug("owner_messagelink_close_oneway: code %d", code);
+        //log_debug("owner_messagelink_close_oneway: code %d", code);
         link->state = WS_CLOSED;
         messagelink_send_close(link, code);
         if (link->is_client)
-                sleep(4);
+                clock_sleep(4);
         messagelink_close_socket(link);
 }
 
@@ -442,7 +446,7 @@ static int remote_messagelink_close_code(messagelink_t *link)
 
 static int remote_messagelink_close(messagelink_t *link)
 {
-        log_debug("remote_messagelink_close");
+        //log_debug("remote_messagelink_close");
         
         if (link->state == WS_OPEN)  {
                 // If the connection is in the open state, the remote
@@ -450,18 +454,18 @@ static int remote_messagelink_close(messagelink_t *link)
                 // close code and send a close message back.
                 link->close_code = remote_messagelink_close_code(link);
                 messagelink_send_close(link, link->close_code);
-                log_debug("remote_messagelink_close: code %d", link->close_code);
+                //log_debug("remote_messagelink_close: code %d", link->close_code);
         }
 
         // If this is a client link, wait a bit so that the server
         // shuts down the tcp connection first.
         if (link->is_client)
-                sleep(4);
+                clock_sleep(4);
 
         link->state = WS_CLOSED;
         messagelink_close_socket(link);
         if (link->onclose)
-                link->onclose(link, link->userdata);
+                link->onclose(link->userdata, link);
 
         messagelink_stop_background(link);
 
@@ -479,7 +483,7 @@ static int messagelink_read_frame(messagelink_t *link, ws_frame_t *frame)
 {
         unsigned char b[2];
 
-        log_debug("messagelink_read_frame");
+        //log_debug("messagelink_read_frame");
         int received = tcp_socket_read(link->socket, (char*) b, 2);
         if (received != 2) {
                 return -1;
@@ -632,7 +636,52 @@ static int messagelink_try_read_message(messagelink_t *link, ws_frame_t *frame)
         }
 }
 
-static json_object_t messagelink_read(messagelink_t *link)
+json_object_t messagelink_send_command_f(messagelink_t *link, const char *format, ...)
+{
+        int err;
+        va_list ap;
+        int len;
+        json_object_t r = json_null();
+        
+        va_start(ap, format);
+        len = vsnprintf(NULL, 0, format, ap);
+        va_end(ap);
+
+        membuf_lock(link->out);
+        membuf_clear(link->out);
+
+        err = membuf_assure(link->out, len+1);
+
+        if (err == 0) {
+                va_start(ap, format);
+                err = membuf_vprintf(link->out, format, ap);
+                va_end(ap);
+        }
+
+        if (err == 0) 
+                err = messagelink_send_text(link,
+                                            membuf_data(link->out),
+                                            membuf_len(link->out));
+
+        if (err == 0) 
+                r = messagelink_read(link);
+        
+        membuf_unlock(link->out);
+        
+        return r;
+}
+
+json_object_t messagelink_read(messagelink_t *link)
+{
+        if (link->onmessage != NULL
+            || link->thread != NULL) {
+                log_err("messagelink_read called on a link with background event thread");
+                return json_null();
+        }
+        return _messagelink_read(link);
+}
+
+static json_object_t _messagelink_read(messagelink_t *link)
 {
         if (link->state != WS_OPEN) {
                 log_warn("messagelink_read: link not in open or closing state (state=%s).",
@@ -657,7 +706,7 @@ static json_object_t messagelink_read(messagelink_t *link)
                         return json_null();
                 }
                 if (err == -3 || err == -4) {
-                        log_warn("messagelink_read: connection close or app quitting.");
+                        //log_debug("messagelink_read: connection close or app quitting.");
                         return json_null();
                 }
         
@@ -677,10 +726,10 @@ static json_object_t messagelink_read(messagelink_t *link)
                 
                 switch (frame.opcode) {
                 case WS_TEXT:
-                        log_warn("messagelink_read: received text event.");
+                        //log_debug("messagelink_read: received text event.");
                         
                         membuf_append_zero(link->in);
-                        log_warn("messagelink_read: %s", membuf_data(link->in));
+                        //log_debug("messagelink_read: %s", membuf_data(link->in));
 
                         json_object_t evt = json_parse(membuf_data(link->in));
                         if (json_isnull(evt)) {
@@ -696,7 +745,7 @@ static json_object_t messagelink_read(messagelink_t *link)
                         return json_null();
                         
                 case WS_CLOSE:
-                        log_warn("messagelink_read: Received close event.");
+                        //log_debug("messagelink_read: Received close event.");
                         remote_messagelink_close(link);
                         return json_null();
                         
@@ -728,14 +777,13 @@ static json_object_t messagelink_read(messagelink_t *link)
 
 static void messagelink_run(messagelink_t *link)
 {
-        log_debug("messagelink_run");
+        //log_debug("messagelink_run");
         
         while (link->state == WS_OPEN && !app_quit()) {
                 
-                json_object_t message = messagelink_read(link);
-
+                json_object_t message = _messagelink_read(link);
                 if (!json_isnull(message)) {
-                        link->onmessage(link, link->userdata, message);
+                        link->onmessage(link->userdata, link, message);
                         json_unref(message);
                 }
         }
@@ -743,19 +791,19 @@ static void messagelink_run(messagelink_t *link)
 
 void messagelink_read_in_background(messagelink_t *link)
 {
-        log_debug("messagelink_read_in_background");
-        if (link->thread == NULL) {
-                link->thread = new_thread((thread_run_t) messagelink_run, link, 0);
+        //log_debug("messagelink_read_in_background");
+        if (link->thread == NULL && link->onmessage != NULL) {
+                link->thread = new_thread((thread_run_t) messagelink_run, link, 0, 0);
         }
 }
 
 static void messagelink_stop_background(messagelink_t *link)
 {
-        log_debug("messagelink_stop_background");
+        //log_debug("messagelink_stop_background");
         if (link->thread) {
-                log_debug("messagelink_stop_background: joining read thread");
+                //log_debug("messagelink_stop_background: joining read thread");
                 thread_join(link->thread);
-                log_debug("messagelink_stop_background: joined");
+                //log_debug("messagelink_stop_background: joined");
                 delete_thread(link->thread);
                 link->thread = NULL;
         }
@@ -924,7 +972,7 @@ static int messagelink_send_pong(messagelink_t *link, membuf_t *payload)
 
 static int messagelink_send_locked(messagelink_t *link, data_t* data)
 {
-        log_debug("messagelink_send_packet");
+        //log_debug("messagelink_send_packet");
         
         if (link->socket == INVALID_TCP_SOCKET
             || link->state != WS_OPEN) {
@@ -941,7 +989,7 @@ int messagelink_send_text(messagelink_t *link, const char *data, int length)
         uint8_t mask[4];
         int n, err;
 
-        log_debug("messagelink_send_text: %.*s", length, data);
+        //log_debug("messagelink_send_text: %.*s", length, data);
 
         if (link->socket == INVALID_TCP_SOCKET
             || link->state != WS_OPEN) {
@@ -966,7 +1014,7 @@ int messagelink_send_text(messagelink_t *link, const char *data, int length)
 
         while (sent < length) {
                 
-                log_debug("messagelink_send_message: sent=%llu, length=%llu", sent, length);
+                //log_debug("messagelink_send_message: sent=%llu, length=%llu", sent, length);
                 
                 uint64_t n = sizeof(buffer); 
                 if (sent + n > length)
@@ -1128,7 +1176,7 @@ static int server_messagelink_open_socket(messagelink_t *link,
                                           messagehub_t *hub,
                                           tcp_socket_t socket)
 {
-        log_debug("server_messagelink_open_socket");
+        //log_debug("server_messagelink_open_socket");
         link->is_client = 0;
         link->hub = hub;
         link->socket = socket;
@@ -1140,7 +1188,7 @@ static int server_messagelink_open_socket(messagelink_t *link,
 
 static int server_messagelink_open_websocket(messagelink_t *link)
 {
-        log_debug("server_messagelink_open_websocket");
+        //log_debug("server_messagelink_open_websocket");
         
         int err = server_messagelink_parse_request(link);
         if (err != 0) {
@@ -1150,13 +1198,13 @@ static int server_messagelink_open_websocket(messagelink_t *link)
 
         err = server_messagelink_validate_request(link);
         if (err != 0) {
-                log_debug("server_messagelink_open_websocket: it's not a valid websocket request");
+                log_info("server_messagelink_open_websocket: it's not a valid websocket request");
                 http_send_error_headers(link->socket, 400);
                 return -1;
         }
                         
         if (server_messagelink_upgrade_connection(link) != 0) {
-                log_debug("server_messagelink_open_websocket: failed to upgrade the websocket");
+                log_info("server_messagelink_open_websocket: failed to upgrade the websocket");
                 return -1;
         }
 
@@ -1229,11 +1277,11 @@ static int server_messagelink_validate_request(messagelink_t *r)
         
         http_header_t *version = messagelink_get_header(r, "Sec-WebSocket-Version");
         if (version == NULL) return -1;
-        if (!streq(version->value, "13")) return 0;
+        if (!rstreq(version->value, "13")) return 0;
         
         http_header_t *upgrade = messagelink_get_header(r, "Upgrade");
         if (upgrade == NULL) return -1;
-        if (!streq(upgrade->value, "websocket")) return 0;
+        if (!rstreq(upgrade->value, "websocket")) return 0;
 
         http_header_t *connection = messagelink_get_header(r, "Connection");
         if (connection == NULL) return -1;
@@ -1292,7 +1340,7 @@ static int client_messagelink_validate_response(messagelink_t *link, const char 
 
 static int client_messagelink_open_socket(messagelink_t *link, addr_t *addr)
 {
-        log_debug("client_messagelink_open_socket");
+        //log_debug("client_messagelink_open_socket");
         
         link->socket = open_tcp_socket(addr);
         if (link->socket == INVALID_TCP_SOCKET) {
@@ -1312,7 +1360,7 @@ static int client_messagelink_open_websocket(messagelink_t *link, const char *ho
         if (key == NULL || accept == NULL)
                 goto cleanup;
 
-        log_debug("client_messagelink_open_websocket");
+        //log_debug("client_messagelink_open_websocket");
         
         int err = client_messagelink_send_request(link, host, key);
         if (err != 0)
@@ -1339,7 +1387,7 @@ static int client_messagelink_send_request(messagelink_t *link,
                                            const char *host,
                                            const char *key)
 {
-        log_debug("client_messagelink_send_request");
+        //log_debug("client_messagelink_send_request");
 
         char header[2048];
         int len = snprintf(header, 2048,
@@ -1429,7 +1477,7 @@ static int client_messagelink_validate_response(messagelink_t *link, const char 
                 log_warn("client_messagelink_validate_response: missing Connection header");
                 return -1;
         }
-        if (!streq(h->value, "Upgrade")) {
+        if (!rstreq(h->value, "Upgrade")) {
                 log_warn("client_messagelink_validate_response: unknown value of Connection header: %s", h->value);
                 return -1;
         }
@@ -1439,7 +1487,7 @@ static int client_messagelink_validate_response(messagelink_t *link, const char 
                 log_warn("client_messagelink_validate_response: missing Upgrade header");
                 return -1;
         }
-        if (!streq(h->value, "websocket")) {
+        if (!rstreq(h->value, "websocket")) {
                 log_warn("client_messagelink_validate_response: unknown value of Upgrade header: %s", h->value);
                 return -1;
         }
@@ -1449,7 +1497,7 @@ static int client_messagelink_validate_response(messagelink_t *link, const char 
                 log_warn("client_messagelink_validate_response: missing Sec-WebSocket-Accept header");
                 return -1;
         }
-        if (!streq(h->value, accept)) {
+        if (!rstreq(h->value, accept)) {
                 log_warn("client_messagelink_validate_response: Sec-WebSocket-Accept value doesn't match");
                 return -1;
         }

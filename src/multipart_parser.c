@@ -4,10 +4,10 @@
 #include "rcom/log.h"
 #include "rcom/dump.h"
 #include "rcom/multipart_parser.h"
+#include "rcom/membuf.h"
+#include "rcom/util.h"
 
 #include "mem.h"
-#include "membuf.h"
-#include "util.h"
 
 enum {
         k_read_header,
@@ -96,7 +96,7 @@ static int multipart_parser_parse_header(multipart_parser_t *m)
                 if (end_of_line()) {
                         s[end-1] = 0;
                         s[end] = 0;
-                        if (streq(s+start, "--nextimage")) {
+                        if (rstreq(s+start, "--nextimage")) {
                                 // Do nothing
                                 
                         } else if (strncmp(s+start, "Content-Type: ", 14) == 0) {

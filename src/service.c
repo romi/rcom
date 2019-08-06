@@ -1,16 +1,12 @@
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
-#include <unistd.h>
 
 #include "rcom/log.h"
 #include "rcom/app.h"
 #include "rcom/addr.h"
+#include "rcom/thread.h"
+#include "rcom/util.h"
 
 #include "mem.h"
 #include "list.h"
-#include "util.h"
-#include "thread.h"
 #include "request_priv.h"
 #include "service_priv.h"
 
@@ -23,8 +19,10 @@ struct _service_t {
         list_t* exports;
         mutex_t *mutex;
         thread_t *thread;
+        int cont;
 };
 
+static void service_run(service_t *service);
 static void service_lock(service_t* s);
 static void service_unlock(service_t* s);
 static void service_index_html(service_t* service, request_t *request);  
@@ -73,8 +71,13 @@ service_t* new_service(const char *name, int port)
         log_info("Service listening at http://%s",
                  addr_string(service->addr, b, sizeof(b)));
 
-	service_run_in_thread(service);
-
+        service->cont = 1;
+        service->thread = new_thread((thread_run_t) service_run, service, 0, 0);
+        if (service->thread == NULL) {
+                delete_service(service);
+                return NULL;
+        }
+ 
         return service;
 }
 
@@ -84,6 +87,12 @@ void delete_service(service_t* service)
         export_t *e;
 
         if (service) {
+                service->cont = 0;
+                if (service->thread) {
+                        thread_join(service->thread);
+                        delete_thread(service->thread);
+                }
+                
                 service_lock(service);
                 l = service->exports;
                 while (l) {
@@ -153,7 +162,7 @@ static void service_index_html(service_t* service, request_t *request)
                 e = list_get(l, export_t);
                 const char* name = export_name(e);
 
-                if (streq(name, "*"))
+                if (rstreq(name, "*"))
                     ; // skip
                 else if (name[0] == '/')
                         request_reply_printf(request, 
@@ -178,8 +187,8 @@ static void service_index_json(service_t* service, request_t *request)
         list_t *l;
         export_t *e;
         char b[52];
-        
-        request_reply_printf(request, "{\"exports\": [");
+        int count = 0;
+        request_reply_printf(request, "{\"resources\": [");
 
         addr_string(service->addr, b, 52);
         
@@ -190,14 +199,16 @@ static void service_index_json(service_t* service, request_t *request)
                 const char* name = export_name(e);
                 const char* s = (name[0] == '/')? name + 1 : name;
 
-                if (streq(name, "*"))
+                if (rstreq(name, "*"))
                     ; // skip
-                else
+                else {
+                        if (count) request_reply_printf(request, ", ");
                         request_reply_printf(request, 
                                              "{\"name\": \"%s\", \"uri\": \"http://%s/%s\"}",
                                              name, b, s);
+                        count++;
+                }
                 l = list_next(l);
-                if (l) request_reply_printf(request, ", ");
         }
         service_unlock(service);
 
@@ -217,7 +228,7 @@ int service_export(service_t* service,
         export_set_onrequest(e, data, onrequest);
         
         service_lock(service);
-        service->exports = list_append(service->exports, e);
+        service->exports = list_prepend(service->exports, e);
         service_unlock(service);
 
         return 0;
@@ -227,11 +238,16 @@ void service_run(service_t* service)
 {
         tcp_socket_t client_socket;
         
-        while (!app_quit()) {
+        while (!app_quit() && service->cont) {
                 client_socket = server_socket_accept(service->socket);
                 
-                if (client_socket == INVALID_TCP_SOCKET) {
-                        log_err("accept failed"); // Server socket is probably being closed // FIXME: is this true?
+                if (client_socket == TCP_SOCKET_TIMEOUT) {
+                        continue;
+                        
+                } else if (client_socket == INVALID_TCP_SOCKET) {
+                        // Server socket is probably being closed //
+                        // FIXME: is this true?
+                        log_err("accept failed"); 
                         continue;
                 }
 
@@ -241,13 +257,12 @@ void service_run(service_t* service)
                         continue;
                 }
                 
-                service->thread = new_thread((thread_run_t) request_handle, r, 0);
+                new_thread((thread_run_t) request_handle, r, 0, 1);
         }
 }
 
 void service_run_in_thread(service_t *service)
 {
-        service->thread = new_thread((thread_run_t) service_run, service, 0);
 }
 
 export_t *service_get_export(service_t *service, const char *name)
@@ -260,8 +275,8 @@ export_t *service_get_export(service_t *service, const char *name)
         while (l) {
                 export_t* r = list_get(l, export_t);
                 //log_debug("export '%s', name '%s'", export_name(r), name);
-                if (streq(name, export_name(r))
-                    || (name[0] == '/' && streq(name+1, export_name(r)))) {
+                if (rstreq(name, export_name(r))
+                    || (name[0] == '/' && rstreq(name+1, export_name(r)))) {
                         //log_debug("found export matching '%s'", name);
                         n = export_clone(r);
                         break;
@@ -273,7 +288,7 @@ export_t *service_get_export(service_t *service, const char *name)
                 l = service->exports;
                 while (l) {
                         export_t* r = list_get(l, export_t);
-                        if (streq("*", export_name(r))) {
+                        if (rstreq("*", export_name(r))) {
                                 n = export_clone(r);
                                 break;
                         }

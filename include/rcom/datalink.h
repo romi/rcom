@@ -12,10 +12,10 @@ extern "C" {
 
 typedef struct _datalink_t datalink_t;
 
-typedef int (*datalink_ondata_t)(void *userdata,
-                                 datalink_t *datalink,
-                                 data_t *input,
-                                 data_t *output);
+typedef void (*datalink_ondata_t)(void *userdata,
+                                  datalink_t *datalink,
+                                  data_t *input,
+                                  data_t *output);
 
 
 int datalink_send(datalink_t *datalink, data_t *data);

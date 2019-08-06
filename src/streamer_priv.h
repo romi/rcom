@@ -5,7 +5,9 @@
 
 // Pass a port equal to 0 to open the streamer on any available port.
 streamer_t *new_streamer(const char *name,
+                         const char *topic,
                          int port,
+                         const char *mimetype,
                          streamer_onclient_t onclient,
                          streamer_onbroadcast_t onbroadcast,
                          void *userdata);

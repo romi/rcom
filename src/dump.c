@@ -4,8 +4,8 @@
 #include "rcom/log.h"
 #include "rcom/dump.h"
 #include "rcom/clock.h"
+#include "rcom/util.h"
 
-#include "util.h"
 #include "mem.h"
 #include "registry_priv.h"
 

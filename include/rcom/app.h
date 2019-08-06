@@ -17,6 +17,8 @@ const char *app_ip();
 void app_set_logdir(const char *logdir);
 const char *app_get_logdir();
 
+const char *app_get_config();
+
 int app_print();
 int app_standalone();
 

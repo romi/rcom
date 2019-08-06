@@ -14,6 +14,7 @@ typedef struct sockaddr_in addr_t;
 addr_t *new_addr(const char *ip, int port);
 addr_t *new_addr0();
 addr_t *addr_clone(addr_t *addr);
+void addr_copy(addr_t *src, addr_t *dest);
 void delete_addr(addr_t *addr);
 
 int addr_set(addr_t *addr, const char *ip, int port);

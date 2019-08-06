@@ -27,8 +27,6 @@
 #include "rcom/log.h"
 #include "rcom/json.h"
 
-
-
 #define HASHTABLE_MIN_SIZE 7
 #define HASHTABLE_MAX_SIZE 13845163
 
@@ -43,61 +41,20 @@ static base_t* _true = NULL;
 static base_t* _false = NULL;
 static base_t* _undefined = NULL;
 
-//#define CHECK_MEMORY 0 // check mem.h
+/* #define JSON_NEW(_type)            (_type*) calloc(1, sizeof(_type)) */
+/* #define JSON_NEW_ARRAY(_type, _n)  (_type*) calloc(_n, sizeof(_type)) */
+/* #define JSON_FREE(_p)              free(_p) */
 
-//#if CHECK_MEMORY
-#if MEM_DIAGNOSTICS
-#include <sgc.h>
-#define JSON_NEW(_type)            (_type*) sgc_new_object(sizeof(_type), SGC_ZERO, 0)
-#define JSON_NEW_ARRAY(_type, _n)  (_type*) sgc_new_object(_n * sizeof(_type), SGC_ZERO, 0)
-#define JSON_FREE(_p)              sgc_free_object((void*)_p)
+#define JSON_NEW(_type)            ((_type*)safe_malloc(sizeof(_type), 1))
+#define JSON_NEW_ARRAY(_type, _n)  ((_type*)safe_malloc((_n)*sizeof(_type), 1))
+#define JSON_FREE(_p)              mem_free(_p)
+
 #define JSON_MEMCPY(_dst,_src,_n)  memcpy(_dst,_src,_n)
 #define JSON_MEMSET(_ptr,_c,_n)    memset(_ptr,_c,_n)
 #define JSON_MEMCMP(_s,_t,_n)      memcmp(_s,_t,_n)
 #define JSON_STRLEN(_s)            strlen(_s)
 #define JSON_STRCMP(_s,_t)         strcmp(_s,_t)
 #define JSON_STRCPY(_dst,_src)     strcpy(_dst,_src)
-
-#else
-#define JSON_NEW(_type)            (_type*) calloc(1, sizeof(_type))
-#define JSON_NEW_ARRAY(_type, _n)  (_type*) calloc(_n, sizeof(_type))
-#define JSON_FREE(_p)              free(_p)
-#define JSON_MEMCPY(_dst,_src,_n)  memcpy(_dst,_src,_n)
-#define JSON_MEMSET(_ptr,_c,_n)    memset(_ptr,_c,_n)
-#define JSON_MEMCMP(_s,_t,_n)      memcmp(_s,_t,_n)
-#define JSON_STRLEN(_s)            strlen(_s)
-#define JSON_STRCMP(_s,_t)         strcmp(_s,_t)
-#define JSON_STRCPY(_dst,_src)     strcpy(_dst,_src)
-
-#endif
-
-
-
-
-#if CHECK_MEMORY
-static int32 memory_leak_callback(int32 op, void* ptr, int32 type, int32 counter, int32 size)
-{
-        if (op == 3) {
-                printf("Memory leak: counter=%d, size=%d\n", counter, size);
-        } 
-        return 1;
-}
-
-void __attribute__ ((constructor))  json_init()
-{
-        int32 dummy;
-	if (sgc_init(0, &dummy, 0, 0) != 0) {
-                fprintf(stderr, "Failed the initialise the SGC memory heap\n");
-                exit(1);
-        }
-}
-
-void __attribute__ ((destructor)) json_atexit()
-{
-        sgc_search_memory_leaks(memory_leak_callback);
-        sgc_cleanup();
-}
-#endif
 
 /******************************************************************************/
 
@@ -1360,6 +1317,11 @@ int32 json_serialise_text(json_serialise_t* serialise,
 
 	case k_json_false: {
                 r = json_write(fun, userdata, "false");
+		if (r != 0) return r;
+	} break;
+
+	case k_json_undefined: {
+                r = json_write(fun, userdata, "undefined");
 		if (r != 0) return r;
 	} break;
 

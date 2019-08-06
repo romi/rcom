@@ -216,6 +216,11 @@ int32 json_array_setstr(json_object_t object, const char* value, int32 index);
 // json_cleanup frees up the space use by the static variables.
 void json_cleanup();
 
+// falsy
+#define json_falsy(_x) (json_isnull(_x) || json_isfalse(_x) || json_isundefined(_x) \
+                        || (json_isstring(_x) && json_string_length(_x) == 0) \
+                        || (json_isnumber(_x) && json_number_value(_x) == 0))
+
 #ifdef __cplusplus
 }
 #endif

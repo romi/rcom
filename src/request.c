@@ -1,21 +1,20 @@
-#include <unistd.h>
-#include <errno.h>
 #include <string.h>
 
 #include "rcom/log.h"
+#include "rcom/membuf.h"
+#include "rcom/thread.h"
+#include "rcom/util.h"
 
-#include "util.h"
 #include "mem.h"
-#include "membuf.h"
 #include "list.h"
 #include "sha1.h"
 #include "http.h"
 #include "net.h"
 #include "export.h"
-#include "thread.h"
 #include "http_parser.h"
 #include "service_priv.h"
 #include "request_priv.h"
+#include "util_priv.h"
 
 /******************************************************************************/
 
@@ -34,7 +33,7 @@ typedef struct _ws_frame_t {
 struct _request_t
 {
         service_t *service;
-        char *name;
+        char *uri;
         char *arg;
         char *mimetype;
         tcp_socket_t socket;
@@ -52,6 +51,8 @@ struct _request_t
 
 static const char *request_mimetype(request_t *r, export_t *e);
 
+void delete_request(request_t *r);
+
 request_t *new_request(service_t *service, tcp_socket_t socket)
 {
         request_t *r = new_obj(request_t);
@@ -63,6 +64,12 @@ request_t *new_request(service_t *service, tcp_socket_t socket)
         r->status = 200;
         r->addr = tcp_socket_addr(r->socket);
 
+        r->out = new_membuf();
+        if (r->out == NULL) {
+                delete_request(r);
+                return NULL;
+        }
+        
         return r;
 }
 
@@ -75,8 +82,8 @@ void delete_request(request_t *r)
                         delete_membuf(r->in);
                 if (r->out)
                         delete_membuf(r->out);
-                if (r->name)
-                        mem_free(r->name);
+                if (r->uri)
+                        mem_free(r->uri);
                 if (r->mimetype)
                         mem_free(r->mimetype);
                 if (r->thread)
@@ -87,9 +94,9 @@ void delete_request(request_t *r)
         }
 }
 
-const char *request_name(request_t *r)
+const char *request_uri(request_t *r)
 {
-        return r->name;
+        return r->uri;
 }
 
 const char *request_args(request_t *r)
@@ -140,11 +147,6 @@ json_object_t request_parse(request_t *r)
 int request_reply_append(request_t *r, const char *data, int len)
 {
         int ret;
-        if (r->out == NULL) {
-                r->out = new_membuf();
-                if (r->out == NULL)
-                        return -1;
-        }
         ret = membuf_append(r->out, data, len);
         if (ret != 0)
                 return -1;
@@ -159,12 +161,6 @@ static int32 request_serialise(request_t *r, const char *s, int32 len)
 
 int request_reply_json(request_t *r, json_object_t obj)
 {
-        if (r->out == NULL) {
-                r->out = new_membuf();
-                if (r->out == NULL)
-                        return -1;
-        }
-
         return json_serialise(obj, 0, (json_writer_t) request_serialise, r); 
 }
 
@@ -174,12 +170,6 @@ int request_reply_printf(request_t *r, const char *format, ...)
         va_list ap;
         int ret;
         
-        if (r->out == NULL) {
-                r->out = new_membuf();
-                if (r->out == NULL)
-                        return -1;
-        }
-
         va_start(ap, format);
         len = vsnprintf(NULL, 0, format, ap);
         va_end(ap);
@@ -235,14 +225,26 @@ static int request_on_body(http_parser *parser, const char *data, size_t length)
 
 static int request_on_url(http_parser *parser, const char *data, size_t length)
 {
-        char *s = mem_alloc(length+1);
-        memcpy(s, data, length);
-        s[length] = 0;
-        
         request_t *r = (request_t *) parser->data;
-        r->name = s;
 
-        s = strchr(r->name, '?');
+        /* membuf_t *buf = new_membuf(); */
+        /* int err = urldecode(data, length, buf); */
+        /* if (err == -1) */
+        /*         return -1; */
+
+        /* int len = membuf_len(buf); */
+        /* r->uri = mem_alloc(length + 1); */
+        /* memcpy(r->uri, membuf_data(buf), len); */
+        /* r->uri[len] = '\0'; */
+        /* delete_membuf(buf); */
+
+        r->uri = mem_alloc(length + 1);
+        memcpy(r->uri, data, length);
+        r->uri[length] = '\0';
+
+        // FIXME: shouldn't we seek the question mark before the URI
+        // is decoded?
+        char *s = strchr(r->uri, '?');
         if (s != NULL) {
                 *s = '\0';
                 r->arg = s+1;
@@ -334,21 +336,6 @@ static int request_parse_html(request_t *r)
         return 0;
 }
 
-static int request_read(request_t *r, char *buffer, int len)
-{
-        int received = 0;
-        while (received < len) {
-                int n = recv(r->socket, buffer + received, len - received, 0);
-                if (n < 0) {
-                        log_err("request_read: recv failed: %s",
-                                strerror(errno));
-                        return -1;
-                }
-                received += n;
-        }
-        return len;
-}
-
 static int request_send_headers(request_t *r, int status, const char *mimetype, int len)
 {
         return http_send_headers(r->socket, status, mimetype, len);
@@ -359,30 +346,32 @@ void request_handle(request_t* r)
         int err;
         export_t *export = NULL;
 
+        membuf_clear(r->out);
+        
         err = request_parse_html(r);
         if (err != 0) {
                 log_err("request_handle: parsing failed");
                 goto cleanup;
         }
 
-        log_debug("request_handle: request for %s", r->name);
+        log_debug("request_handle: request for %s", r->uri);
 
-        if (r->name == NULL) {
-                log_err("request_handle: requested path/name == NULL!?");
+        if (r->uri == NULL) {
+                log_err("request_handle: requested uri == NULL!?");
                 err = request_send_headers(r, 400, "text/plain", 0);
                 goto cleanup;
         }
 
-        export = service_get_export(r->service, r->name);
+        export = service_get_export(r->service, r->uri);
         if (export == NULL) {
-                log_err("request_handle: export == NULL: resource '%s'", r->name);
+                log_err("request_handle: export == NULL: resource '%s'", r->uri);
                 err = request_send_headers(r, 404, "text/plain", 0);
                 goto cleanup;
         }
 
         err = export_callback(export, r);
         if (err != 0) {
-                log_err("Request handler returned non-zero (%d) for request '%s'", err, r->name);
+                log_err("Request handler returned non-zero (%d) for request '%s'", err, r->uri);
                 err = request_send_headers(r, 500, "text/plain", 0);
                 goto cleanup;
         }
@@ -393,14 +382,14 @@ void request_handle(request_t* r)
                 goto cleanup;
                 
         } else {
-	  log_debug("request_handle: sending response, mimetype '%s'", request_mimetype(r, export));
+                //log_debug("request_handle: sending response, mimetype '%s'", request_mimetype(r, export));
                 err = request_send_headers(r, 200, request_mimetype(r, export),
                                            membuf_len(r->out));
                 if (err != 0) {
                         log_err("request_handle: request_send_headers failed");
                         goto cleanup;
                 }
-                log_debug("request_handle: sending body");
+                //log_debug("request_handle: sending body");
                 err = tcp_socket_send(r->socket,
                                       membuf_data(r->out),
                                       membuf_len(r->out));
@@ -417,7 +406,7 @@ cleanup:
 
 void request_set_mimetype(request_t *r, const char *mimetype)
 {
-  log_debug("request_set_mimetype: settings mimetype to '%s'", mimetype);
+        //log_debug("request_set_mimetype: settings mimetype to '%s'", mimetype);
         if (r->mimetype)
                 mem_free(r->mimetype);
         r->mimetype = NULL;
@@ -435,7 +424,7 @@ static http_header_t *request_get_header(request_t *r, const char *name)
         list_t * l = r->headers;
         while (l) {
                 http_header_t *h = list_get(l, http_header_t);
-                if (streq(name, h->name))
+                if (rstreq(name, h->name))
                         return h;
                 l = list_next(l);
         }

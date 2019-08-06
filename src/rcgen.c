@@ -3,9 +3,6 @@
 
 #include <rcom.h>
 
-#include "membuf.h"
-#include "util.h"
-
 /*
 enum {
         OP_CODE,
@@ -41,10 +38,14 @@ static int parse_args(int *argc, char **argv)
 }
 */
 
-int print_headers(membuf_t *buf, const char *name)
+int print_headers(membuf_t *buf, const char *name, const char *header)
 {
+        membuf_printf(buf, "#include <string.h>\n");
         membuf_printf(buf, "#include <rcom.h>\n");
-        membuf_printf(buf, "#include \"%s.h\"\n", name);
+        if (header)
+                membuf_printf(buf, "#include \"%s\"\n", header);
+        else
+                membuf_printf(buf, "#include \"%s.h\"\n", name);
         membuf_printf(buf, "\n");
         return 0;
 }
@@ -99,14 +100,15 @@ int check_com_i(membuf_t *buf, json_object_t obj)
                 return -1;
         }
 
-        if (!streq(type, "datahub")
-            && !streq(type, "datalink")
-            && !streq(type, "messagehub")
-            && !streq(type, "messagelink")
-            && !streq(type, "messagehub")
-            && !streq(type, "service")
-            && !streq(type, "streamer")
-            && !streq(type, "streamerlink")) {
+        if (!rstreq(type, "datahub")
+            && !rstreq(type, "datalink")
+            && !rstreq(type, "messagehub")
+            && !rstreq(type, "messagelink")
+            && !rstreq(type, "messagehub")
+            && !rstreq(type, "controller")
+            && !rstreq(type, "service")
+            && !rstreq(type, "streamer")
+            && !rstreq(type, "streamerlink")) {
                 fprintf(stderr, "Com: Invalid type: %s\n", type);
                 return -1;
         }
@@ -129,14 +131,31 @@ int print_com_decl_i(membuf_t *buf, const char *name, json_object_t obj)
 {
         const char *type = json_object_getstr(obj, "type");
         const char *topic = json_object_getstr(obj, "topic");
-        membuf_printf(buf, "static %s_t *%s_%s = NULL;\n\n", type, type, topic);
-        membuf_printf(buf,
-                      "%s_t *get_%s_%s() {\n"
-                      "        return %s_%s;\n"
-                      "}\n\n",
-                      type,
-                      type, topic,
-                      type, topic);
+        
+        if (rstreq(type, "controller")) {
+                membuf_printf(buf, "static messagehub_t *messagehub_%s = NULL;\n\n", topic);
+                membuf_printf(buf,
+                              "messagehub_t *get_messagehub_%s() {\n"
+                              "        return messagehub_%s;\n"
+                              "}\n\n",
+                              topic, topic);
+                membuf_printf(buf, "static int messagehub_%s_onconnect(messagehub_t *hub,\n"
+                              "        messagelink_t *link,\n"
+                              "        void *userdata);\n", topic);
+                membuf_printf(buf, "static void messagehub_%s_onmessage(void *userdata,\n"
+                              "        messagelink_t *link,\n"
+                              "        json_object_t message);\n\n", topic);
+        } else {
+                membuf_printf(buf, "static %s_t *%s_%s = NULL;\n\n", type, type, topic);
+                membuf_printf(buf,
+                              "%s_t *get_%s_%s() {\n"
+                              "        return %s_%s;\n"
+                              "}\n\n",
+                              type,
+                              type, topic,
+                              type, topic);
+
+        }
         return 0;
 }
 
@@ -232,8 +251,11 @@ int print_new_messagehub(membuf_t *buf,
                 userdata = "NULL";
         
         membuf_printf(buf,
-                      "        messagehub_%s = registry_open_messagehub(\"%s\", \"%s\",\n"
-                      "                %d, (messagehub_onconnect_t) %s, %s);\n",
+                      "        messagehub_%s = registry_open_messagehub(\n"
+                      "                \"%s\",\n"
+                      "                \"%s\",\n"
+                      "                %d, (messagehub_onconnect_t) %s,\n"
+                      "                %s);\n",
                       topic, name, topic, (int) port, onconnect, userdata);
         membuf_printf(buf,
                       "        if (messagehub_%s == NULL) {\n"
@@ -267,6 +289,47 @@ int print_new_messagelink(membuf_t *buf,
                       "                return -1;\n"
                       "        };\n",
                       topic);
+        return 0;
+}
+
+int print_new_controller(membuf_t *buf,
+                         const char *name,
+                         const char *topic,
+                         json_object_t obj)
+{
+        const char *userdata = json_object_getstr(obj, "userdata");
+        double port = 0;
+        
+        if (json_object_has(obj, "port")) {
+                port = json_object_getnum(obj, "port");
+                if (isnan(port)) {
+                        fprintf(stderr, "Invalid port\n");
+                        return -1;
+                }
+        }
+
+        if (userdata == NULL)
+                userdata = "NULL";
+        
+        membuf_printf(buf, 
+                      "        messagehub_%s = registry_open_messagehub(\n"
+                      "                \"%s\",\n"
+                      "                \"%s\",\n"
+                      "                %d, messagehub_%s_onconnect, %s);\n",
+                      topic, name, topic, (int) port, topic, userdata);
+        membuf_printf(buf,
+                      "        if (messagehub_%s == NULL) {\n"
+                      "                log_err(\"Failed to create the messagehub\");\n"
+                      "                return -1;\n"
+                      "        };\n\n",
+                      topic);
+
+        /* membuf_printf(buf, */
+        /*               "int messagehub_%s_onconnect(messagehub_t *hub, " */
+        /*               "        messagelink_t *link, " */
+        /*               "        void *userdata)\n\{" */
+        /*               "                %d, (messagehub_onconnect_t) %s, %s);\n", */
+        /*               topic, name, topic, (int) port, onconnect, userdata); */
         return 0;
 }
 
@@ -324,14 +387,24 @@ int print_new_service(membuf_t *buf,
                         return -1;
                 }
                 const char *min = json_object_getstr(d, "mimetype_in");
-                if (min == NULL)
-                        min = "NULL";
+                
                 membuf_printf(buf,
                               "        err = service_export(service_%s,\n"
-                              "               \"%s\",\n"
-                              "               \"%s\");\n"
+                              "               \"%s\",\n",
+                              topic, n);
+                
+                if (min == NULL)
+                        membuf_printf(buf, "               NULL,\n");
+                else
+                        membuf_printf(buf, "               \"%s\",\n", min);
+                
+                membuf_printf(buf, "               \"%s\",\n", mout);
+                
+                membuf_printf(buf,
+                              "               %s,\n"
+                              "               %s);\n"
                               "        if (err) return -1;\n",
-                              topic, n, min, mout, userdata, onrequest);
+                              userdata, onrequest);
         }
         return 0;
 }
@@ -344,6 +417,7 @@ int print_new_streamer(membuf_t *buf,
         const char *onclient = json_object_getstr(obj, "onclient");
         const char *onbroadcast = json_object_getstr(obj, "onbroadcast");
         const char *userdata = json_object_getstr(obj, "userdata");
+        const char *mimetype = json_object_getstr(obj, "mimetype");
         json_object_t resources;
         double port = 0;
 
@@ -355,12 +429,14 @@ int print_new_streamer(membuf_t *buf,
                 }
         }
 
-        if (onclient == NULL)
-                onclient = "NULL";
-        if (onbroadcast == NULL) {
-                fprintf(stderr, "Missing 'onbroadcast' handler\n");
+        if (mimetype == NULL) {
+                fprintf(stderr, "Missing mimetype for streamer %s:%s\n", name, topic);
                 return -1;
         }
+        if (onclient == NULL)
+                onclient = "NULL";
+        if (onbroadcast == NULL)
+                onbroadcast = "NULL";
         if (userdata == NULL)
                 userdata = "NULL";
         
@@ -368,44 +444,18 @@ int print_new_streamer(membuf_t *buf,
                       "        streamer_%s = registry_open_streamer(\"%s\",\n"
                       "                \"%s\",\n"
                       "                %d,\n"
+                      "                \"%s\",\n"
                       "                (streamer_onclient_t) %s,\n"
                       "                (streamer_onbroadcast_t) %s,\n"
                       "                %s);\n",
-                      topic, name, topic, (int) port, onclient, onbroadcast, userdata);
+                      topic, name, topic, (int) port, mimetype,
+                      onclient, onbroadcast, userdata);
         membuf_printf(buf,
                       "        if (streamer_%s == NULL) {\n"
                       "                log_err(\"Failed to create the streamer\");\n"
                       "                return -1;\n"
                       "        };\n",
                       topic);
-        resources = json_object_get(obj, "resources");
-        if (json_isnull(resources)) {
-                        fprintf(stderr, "Streamer is not exporting any resources\n");
-                        return -1;
-        }
-        if (!json_isarray(resources)) {
-                fprintf(stderr, "Expected an array for the resources\n");
-                return -1;
-        }
-        for (int i = 0; i < json_array_length(resources); i++) {
-                json_object_t d = json_array_get(resources, i);
-                if (!json_isobject(d)) {
-                        fprintf(stderr, "Invalid resources description\n");
-                        return -1;
-                }
-                const char *n = json_object_getstr(d, "name");
-                const char *m = json_object_getstr(d, "mime");
-                if (n == NULL || m == NULL) {
-                        fprintf(stderr, "Incomplete resources description\n");
-                        return -1;
-                }
-                membuf_printf(buf,
-                              "        err = streamer_export(streamer_%s,\n"
-                              "               \"%s\",\n"
-                              "               \"%s\");\n"
-                              "        if (err) return -1;\n",
-                              topic, n, m);
-        }
         return 0;
 }
 
@@ -414,26 +464,26 @@ int print_new_streamerlink(membuf_t *buf,
                            const char *topic,
                            json_object_t obj)
 {
-        const char *resource = json_object_getstr(obj, "resource");
         const char *ondata = json_object_getstr(obj, "ondata");
         const char *userdata = json_object_getstr(obj, "userdata");
+        int autoconnect = json_object_getbool(obj, "autoconnect");
 
-        if (resource == NULL) {
-                fprintf(stderr, "Missing 'resource' field\n");
-                return -1;
-        }
+        
         if (ondata == NULL) {
                 fprintf(stderr, "Missing 'ondata' handler\n");
                 return -1;
         }
         if (userdata == NULL)
                 userdata = "NULL";
+        if (autoconnect == -1)
+                autoconnect = 1;
         
         membuf_printf(buf,
                       "        streamerlink_%s = registry_open_streamerlink(\"%s\","
-                      "                \"%s\", \"%s\",\n"
-                      "                (streamerlink_ondata_t) %s, %s);\n",
-                      topic, name, topic, resource, ondata, userdata);
+                      "                \"%s\",\n"
+                      "                (streamerlink_ondata_t) %s, "
+                      "                %s, %d);\n",
+                      topic, name, topic, ondata, userdata, autoconnect);
         membuf_printf(buf,
                       "        if (streamerlink_%s == NULL) {\n"
                       "                log_err(\"Failed to create the streamerlink\");\n"
@@ -449,21 +499,21 @@ int print_com_init_i(membuf_t *buf, const char *name, json_object_t obj)
         const char *topic = json_object_getstr(obj, "topic");
         int err = 0;
         
-        if (streq(type, "datahub")) {
+        if (rstreq(type, "datahub")) {
                 err = print_new_datahub(buf, name, topic, obj);
-        } else if (streq(type, "datalink")) {
+        } else if (rstreq(type, "datalink")) {
                 err = print_new_datalink(buf, name, topic, obj);
-        } else if (streq(type, "messagehub")) {
+        } else if (rstreq(type, "messagehub")) {
                 err = print_new_messagehub(buf, name, topic, obj);
-        } else if (streq(type, "messagelink")) {
+        } else if (rstreq(type, "messagelink")) {
                 err = print_new_messagelink(buf, name, topic, obj);
-        } else if (streq(type, "messagehub")) {
-                err = print_new_messagehub(buf, name, topic, obj);
-        } else if (streq(type, "service")) {
+        } else if (rstreq(type, "controller")) {
+                err = print_new_controller(buf, name, topic, obj);
+        } else if (rstreq(type, "service")) {
                 err = print_new_service(buf, name, topic, obj);
-        } else if (streq(type, "streamer")) {
+        } else if (rstreq(type, "streamer")) {
                 err = print_new_streamer(buf, name, topic, obj);
-        } else if (streq(type, "streamerlink")) {
+        } else if (rstreq(type, "streamerlink")) {
                 err = print_new_streamerlink(buf, name, topic, obj);
         } else {
                 fprintf(stderr, "Com: Invalid type: %s\n", type);
@@ -490,14 +540,121 @@ int print_com_init(membuf_t *buf, const char *name, json_object_t com)
         return 0;
 }
 
+int print_com_controller_handlers(membuf_t *buf, const char *name, json_object_t obj)
+{
+        const char *topic = json_object_getstr(obj, "topic");
+        json_object_t commands = json_object_get(obj, "commands");
+        
+        if (json_isnull(commands)) {
+                        fprintf(stderr, "Controller is not exporting any commands\n");
+                        return 0;
+        }
+        if (!json_isarray(commands)) {
+                fprintf(stderr, "Expected an array for the commands\n");
+                return -1;
+        }
+        
+        membuf_printf(buf,
+                      "static void messagehub_%s_onmessage(void *userdata,\n"
+                      "        messagelink_t *link,\n"
+                      "        json_object_t message)\n{\n", topic);
+        membuf_printf(buf,
+                      "        static membuf_t *buffer = NULL;\n");
+        membuf_printf(buf,
+                      "        const char *cmd = json_object_getstr(message, \"command\");\n");
+        membuf_printf(buf,
+                      "        int status = 0;\n");
+        membuf_printf(buf,
+                      "        if (buffer == NULL) buffer = new_membuf();\n"
+                      "        else membuf_clear(buffer);\n");
+        membuf_printf(buf,
+                      "        if (cmd == NULL) {\n"
+                      "                log_warn(\"Message doesn't contain a command\");\n"
+                      "                messagelink_send_f(link, \"{\\\"status\\\":\\\"error\\\", \\\"message\\\": \\\"no command given\\\"}\");\n"
+                      "                return;\n"
+                      "        }\n");
+
+        for (int i = 0; i < json_array_length(commands); i++) {
+                json_object_t d = json_array_get(commands, i);
+                if (!json_isobject(d)) {
+                        fprintf(stderr, "Invalid commands description\n");
+                        return -1;
+                }
+                const char *n = json_object_getstr(d, "name");
+                const char *oncommand = json_object_getstr(d, "oncommand");
+                if (n == NULL) {
+                        fprintf(stderr, "Incomplete commands description\n");
+                        return -1;
+                }
+
+                if (i == 0) 
+                        membuf_printf(buf,
+                                      "        if (strcmp(cmd, \"%s\") == 0)\n"
+                                      "               status = %s(userdata, link, message, buffer);\n",
+                                      n, oncommand);
+                else
+                        membuf_printf(buf,
+                                      "        else if (strcmp(cmd, \"%s\") == 0)\n"
+                                      "               status = %s(userdata, link, message, buffer);\n",
+                                      n, oncommand);
+        }
+        
+        membuf_printf(buf,
+                      "        else {\n"
+                      "                log_warn(\"Unknown command: %%s\", cmd);\n"
+                      "                messagelink_send_f(link, \"{\\\"status\\\":\\\"error\\\", \\\"message\\\": \\\"unknown command: %%s\\\"}\", cmd);\n"
+                      "                return;\n"
+                      "        }\n");
+        membuf_printf(buf,
+                      "        if (status == 0) \n"
+                      "                messagelink_send_f(link, \"{\\\"status\\\":\\\"ok\\\"}\");\n"
+                      "        else {\n"
+                      "                membuf_append_zero(buffer);\n"
+                      "                messagelink_send_f(link, \"{\\\"status\\\":\\\"error\\\", \\\"message\\\": \\\"%%s\\\"}\", membuf_data(buffer));\n"
+                      "        }\n");
+        membuf_printf(buf,
+                      "}\n\n");
+
+        membuf_printf(buf,
+                      "static int messagehub_%s_onconnect(messagehub_t *hub,\n"
+                      "        messagelink_t *link,\n"
+                      "        void *userdata)\n{\n", topic);
+        membuf_printf(buf, "        messagelink_set_userdata(link, userdata);\n");
+        membuf_printf(buf, "        messagelink_set_onmessage(link, messagehub_%s_onmessage);\n", topic);
+        membuf_printf(buf, "        return 0;\n");
+        membuf_printf(buf, "}\n\n");
+}
+
+int print_com_handlers(membuf_t *buf, const char *name, json_object_t com)
+{
+        int err = 0;
+        for (int i = 0; i < json_array_length(com); i++) {
+                json_object_t obj = json_array_get(com, i);
+                const char *type = json_object_getstr(obj, "type");
+                if (rstreq(type, "controller")) {
+                        err = print_com_controller_handlers(buf, name, obj);
+                        if (err != 0)
+                                return err;
+                }
+        }
+        return 0;
+}
+
 int print_com_cleanup_i(membuf_t *buf, json_object_t obj)
 {
         const char *type = json_object_getstr(obj, "type");
         const char *topic = json_object_getstr(obj, "topic");
-        membuf_printf(buf,
-                      "        if (%s_%s)\n"
-                      "                registry_close_%s(%s_%s);\n",
-                      type, topic, type, type, topic);
+        if (rstreq(type, "controller")) {
+                membuf_printf(buf,
+                              "        if (messagehub_%s)\n"
+                              "                registry_close_messagehub(messagehub_%s);\n",
+                              topic, topic);
+        } else {
+                membuf_printf(buf,
+                              "        if (%s_%s)\n"
+                              "                registry_close_%s(%s_%s);\n",
+                              type, topic, type, type, topic);
+        }
         return 0;
 }
 
@@ -526,6 +683,9 @@ int print_com(membuf_t *buf, const char *name, json_object_t com)
         err = print_com_init(buf, name, com);
         if (err != 0) return -1;
 
+        err = print_com_handlers(buf, name, com);
+        if (err != 0) return -1;
+
         err = print_com_cleanup(buf, com);
         if (err != 0) return -1;
 
@@ -547,7 +707,7 @@ int print_init(membuf_t *buf, const char *name, const char *init_func)
                               "                return err;\n"
                               "\n", name);
                 
-        } else if (streq(init_func, "null")) {
+        } else if (rstreq(init_func, "null")) {
                 ; // no init function
                 
         } else {
@@ -574,7 +734,7 @@ int print_cleanup(membuf_t *buf, const char *name, const char *cleanup_func)
         membuf_printf(buf, "static void cleanup()\n{\n");
         if (cleanup_func == NULL) {
                 membuf_printf(buf, "        %s_cleanup();\n", name);
-        } else if (streq(cleanup_func, "null")) {
+        } else if (rstreq(cleanup_func, "null")) {
                 ; // no cleanup function                
         } else {
                 membuf_printf(buf, "        %s();\n", cleanup_func);
@@ -616,18 +776,12 @@ int generate_code(const char *inputfile, const char *outputfile)
         const char *init_func = NULL;
         const char *cleanup_func = NULL;
         const char *code_output = NULL;
+        const char *header = NULL;
         json_object_t def;
         json_object_t com;
         int err;
         char errmsg[256];        
         membuf_t *buf = new_membuf();
-
-        def = json_load(inputfile, &err, errmsg, sizeof(errmsg));
-        if (err != 0) {
-                fprintf(stderr, "Failed to load the definition file: %s\n", errmsg);
-                return 1;
-        }
-
         
         def = json_load(inputfile, &err, errmsg, sizeof(errmsg));
         if (err != 0) {
@@ -641,14 +795,16 @@ int generate_code(const char *inputfile, const char *outputfile)
                 code_output = json_object_getstr(def, "output");
                 if (code_output == NULL) {
                         fprintf(stderr, "Missing output file\n");
-                        return 1;
+                        err = 1;
+                        goto cleanup_and_return;
                 }
         }
         
         name = json_object_getstr(def, "name");
         if (name == NULL) {
                 fprintf(stderr, "Missing name\n");
-                return 1;
+                err = 1;
+                goto cleanup_and_return;
         }
         
         idle_func = json_object_getstr(def, "idle");
@@ -674,50 +830,48 @@ int generate_code(const char *inputfile, const char *outputfile)
         com = json_object_get(def, "com");
         if (json_isnull(com)) {
                 fprintf(stderr, "Missing com section\n");
-                return 1;
+                err = 1;
+                goto cleanup_and_return;
         }
         if (!json_isarray(com)) {
                 fprintf(stderr, "Com section should be an array\n");
-                return 1;
+                err = 1;
+                goto cleanup_and_return;
         }
         if (json_array_length(com) == 0) {
                 fprintf(stderr, "Empty com section\n");
-                return 1;
+                err = 1;
+                goto cleanup_and_return;
         }
         err = check_com(buf, com);
-        if (err != 0)
-                return 1;
-
-        err = print_headers(buf, name);
-        if (err != 0)
-                return 1;
+        if (err != 0) goto cleanup_and_return;
+        
+        header = json_object_getstr(def, "header");
+        err = print_headers(buf, name, header);
+        if (err != 0) goto cleanup_and_return;
         
         err = print_com(buf, name, com);
-        if (err != 0)
-                return 1;
-
+        if (err != 0) goto cleanup_and_return;
+        
         err = print_init(buf, name, init_func);
-        if (err != 0)
-                return 1;
-
+        if (err != 0) goto cleanup_and_return;
+        
         err = print_cleanup(buf, name, cleanup_func);
-        if (err != 0)
-                return 1;
-
+        if (err != 0) goto cleanup_and_return;
+        
         err = print_idle(buf, idle_func);
-        if (err != 0)
-                return 1;
+        if (err != 0) goto cleanup_and_return;
         
         err = print_main(buf);
-        if (err != 0)
-                return 1;
+        if (err != 0) goto cleanup_and_return;
 
         err = wite_code(code_output, buf);
-        if (err != 0)
-                return 1;
+        if (err != 0) goto cleanup_and_return;
 
+cleanup_and_return:
+        json_unref(def);
         delete_membuf(buf);
-        return 0;
+        return err;
 }
 
 int write_cmakelists(const char *exec, const char *codefile,
@@ -813,7 +967,7 @@ int main(int argc, char **argv)
         const char *inputfile = NULL;
         const char *outputfile = NULL;
 
-        //parse_args(argc, argv);
+        app_init(&argc, argv);
         
         if (argc < 2) {
                 print_usage();
@@ -821,17 +975,17 @@ int main(int argc, char **argv)
         }
 
         op = argv[1];
-        if (!streq(op, "code") && !streq(op, "cmakelists")
-            && !streq(op, "help") && !streq(op, "-h")) {
+        if (!rstreq(op, "code") && !rstreq(op, "cmakelists")
+            && !rstreq(op, "help") && !rstreq(op, "-h")) {
                 fprintf(stderr, "Unknown operation: %s\n", op);
                 return 1;
         }
         
-        if (streq(op, "help") || streq(op, "-h")) {
+        if (rstreq(op, "help") || rstreq(op, "-h")) {
                 print_usage();
                 return 0;
                 
-        } else if (streq(op, "code")) {
+        } else if (rstreq(op, "code")) {
                 if (argc == 3) {
                         outputfile = argv[2];
                         inputfile = "rcgen.json";
@@ -844,7 +998,7 @@ int main(int argc, char **argv)
                 }
                 err = generate_code(inputfile, outputfile);
                 
-        } else if (streq(op, "cmakelists")) {
+        } else if (rstreq(op, "cmakelists")) {
                 if (argc == 2) {
                         outputfile = "CMakeLists.txt";
                         inputfile = "rcgen.json";

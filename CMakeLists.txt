@@ -21,7 +21,8 @@ set(SOURCES
   src/addr.c 
   src/net.c 
   src/util.c 
-  src/clock.c 
+  src/util_posix.c 
+  src/clock_posix.c 
   src/http.c 
   src/thread_pthread.c 
   src/http_parser.c 
@@ -32,7 +33,7 @@ set(SOURCES
   src/list.c 
   src/log.c 
   src/mem.c 
-  src/serial.c
+  src/serial_posix.c
   src/circular.c 
   src/data.c 
   src/datalink.c 
@@ -46,6 +47,7 @@ set(SOURCES
   src/export.c 
   src/request.c 
   src/service.c 
+  src/client.c 
   src/streamer.c 
   src/streamerlink.c 
   src/multipart_parser.c 
@@ -58,7 +60,7 @@ add_library(rcom SHARED ${SOURCES})
 target_link_libraries(rcom m)
 target_link_libraries(rcom uuid)
 target_link_libraries(rcom pthread)
-##target_link_libraries(rcom debug sgc)
+target_link_libraries(rcom debug sgc)
 
 # Main rcom apps
 add_executable(rcregistry src/rcregistry_main.c)
@@ -70,17 +72,21 @@ target_link_libraries(rcregistry rcom)
 add_executable(rcgen src/rcgen.c)
 target_link_libraries(rcgen rcom)
 
-#add_executable(rcquery src/rcquery.c)
-#target_link_libraries(rcquery rcom)
+add_executable(rcom-bin src/rcquery.c)
+target_link_libraries(rcom-bin rcom)
+set_target_properties(rcom-bin PROPERTIES OUTPUT_NAME rcom)
 
-#add_executable(rcmonitor src/rcmonitor.c src/run.c)
-#target_link_libraries(rcmonitor rcom)
+add_executable(rclaunch src/rclaunch.c src/run.c)
+target_link_libraries(rclaunch rcom)
 
 #add_executable(rcreplay src/rcreplay.c)
 #target_link_libraries(rcreplay rcom)
 
 #add_executable(rcconvert src/rcconvert.c)
 #target_link_libraries(rcconvert rcom)
+
+add_executable(rcdev src/rcdev.c)
+target_link_libraries(rcdev rcom usb-1.0)
 
 ## Example apps
 
@@ -112,9 +118,9 @@ ADD_CUSTOM_COMMAND(
   DEPENDS rcgen ${CMAKE_SOURCE_DIR}/examples/camera/camera.json
   )
 
-add_executable(camera examples/camera/camera.c examples/camera/camera_v4l.c examples/camera/camera_main.c)
-target_link_libraries(camera rcom)
-target_link_libraries(camera jpeg)
+add_executable(video4linux examples/camera/video4linux.c examples/camera/camera_impl.c examples/camera/camera_main.c)
+target_link_libraries(video4linux rcom)
+target_link_libraries(video4linux jpeg)
 
 
 # camera_listener
@@ -152,10 +158,10 @@ target_link_libraries(wheel_odometry rcom)
 
 ## Installed files
 INSTALL(TARGETS rcom DESTINATION "lib")
+INSTALL(TARGETS rcom-bin DESTINATION "bin")
 INSTALL(TARGETS rcregistry DESTINATION "bin")
 INSTALL(TARGETS rcgen DESTINATION "bin")
-#INSTALL(TARGETS rcquery DESTINATION "bin")
-#INSTALL(TARGETS rcmonitor DESTINATION "bin")
+INSTALL(TARGETS rclaunch DESTINATION "bin")
 #INSTALL(TARGETS rcreplay DESTINATION "bin")
 #INSTALL(TARGETS rcconvert DESTINATION "bin")
 #

@@ -1,8 +1,9 @@
 
 #include "rcom/log.h"
+#include "rcom/membuf.h"
+#include "rcom/thread.h"
+
 #include "mem.h"
-#include "membuf.h"
-#include "thread.h"
 
 struct _membuf_t
 {

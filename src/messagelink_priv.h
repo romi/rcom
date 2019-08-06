@@ -25,7 +25,6 @@ int client_messagelink_connect(messagelink_t *link, addr_t *addr);
 int client_messagelink_disconnect(messagelink_t *link);
 
 void messagelink_read_in_background(messagelink_t *link);
-/* void messagelink_stop_background(messagelink_t *link); */
 
 int messagelink_send_ping(messagelink_t *link, const char *data, int len);
 

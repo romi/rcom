@@ -1,29 +1,21 @@
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <sys/time.h>
-#include <sys/types.h>
-#include <pthread.h>
-#include <errno.h>
 
 #include "rcom/log.h"
 #include "rcom/app.h"
 #include "rcom/messagelink.h"
+#include "rcom/membuf.h"
+#include "rcom/thread.h"
 
+#include "util_priv.h"
 #include "mem.h"
-#include "membuf.h"
 #include "list.h"
-#include "util.h"
 #include "net.h"
 #include "http.h"
-#include "thread.h"
 #include "http_parser.h"
 #include "messagelink_priv.h"
 #include "messagehub_priv.h"
 
 struct _messagehub_t {
-        pthread_t thread;
+        thread_t *thread;
         addr_t *addr;
         tcp_socket_t socket;
 
@@ -40,7 +32,7 @@ struct _messagehub_t {
 static void messagehub_add_link(messagehub_t *hub, messagelink_t *link);
 static void messagehub_lock_links(messagehub_t* hub);
 static void messagehub_unlock_links(messagehub_t* hub);
-static void *_messagehub_run(void *p);
+static void messagehub_run(messagehub_t* hub);
 
 messagehub_t* new_messagehub(int port,
                              messagehub_onconnect_t onconnect,
@@ -71,7 +63,11 @@ messagehub_t* new_messagehub(int port,
         log_info("Messagehub listening at http://%s:%d",
                  addr_ip(hub->addr, b, 64), addr_port(hub->addr));
 
-        pthread_create(&hub->thread, NULL, _messagehub_run, (void*) hub);
+        hub->thread = new_thread((thread_run_t) messagehub_run, hub, 0, 0);
+        if (hub->thread == NULL) {
+                delete_messagehub(hub);
+                return NULL;
+        }
         
         return hub;
 }
@@ -84,8 +80,11 @@ void delete_messagehub(messagehub_t*hub)
         
         if (hub) {
                 hub->quit = 1;
-                pthread_join(hub->thread, NULL);
-
+                if (hub->thread) {
+                        thread_join(hub->thread);
+                        delete_thread(hub->thread);
+                }
+                
                 if (hub->mem)
                         delete_membuf(hub->mem);
                 
@@ -119,11 +118,14 @@ void delete_messagehub(messagehub_t*hub)
                         }
                         delete_mutex(hub->links_mutex);
                 }
+
+                if (hub->addr)
+                        delete_addr(hub->addr);
                 
                 delete_obj(hub);
         }
 
-        log_debug("delete_messagehub: done");
+        //log_debug("delete_messagehub: done");
 }
 
 addr_t *messagehub_addr(messagehub_t *hub)
@@ -139,21 +141,21 @@ static void messagehub_handle_connect(messagehub_t *hub)
 {
         messagelink_t *link;
         tcp_socket_t link_socket;
-        pthread_t thread;
 
-        log_err("messagehub_handle_connect");
+        //log_debug("messagehub_handle_connect");
         
         link_socket = server_socket_accept(hub->socket);
-        if (link_socket == INVALID_TCP_SOCKET)
+        if (link_socket == INVALID_TCP_SOCKET
+            || link_socket == TCP_SOCKET_TIMEOUT)
                 return;
 
-        log_debug("messagehub_handle_connect: new http client");
+        //log_debug("messagehub_handle_connect: new http client");
 
         link = server_messagelink_connect(hub, link_socket);
         if (link == NULL)
                 return;
                                 
-        log_debug("messagehub_handle_connect: new link");
+        //log_debug("messagehub_handle_connect: new link");
 
         if (hub->onconnect)
                 if (hub->onconnect(hub, link, hub->userdata) != 0) {
@@ -167,35 +169,10 @@ static void messagehub_handle_connect(messagehub_t *hub)
 
 static void messagehub_run(messagehub_t *hub)
 {
-        struct timeval timev;
-        fd_set readset;
-        
         while (!hub->quit && !app_quit() && hub->socket != -1) {
-                timev.tv_sec = 1;
-                timev.tv_usec = 0;
-
-                FD_ZERO(&readset);
-                FD_SET(hub->socket, &readset);
-                
-                int num = select(hub->socket + 1, &readset, NULL, NULL, &timev);
-                if (num < 0) {
-                        log_err("messagehub_run: error: %s", strerror(errno));
-                } else if (num == 0) {
-                        // do nothing: select() timed out
-                        //log_debug("messagehub_run: time-out");
-                } else if (num == 1) {
-                        messagehub_handle_connect(hub);
-                }
+                messagehub_handle_connect(hub);
         }
-        log_debug("messagehub_run: no longer accepting connections");
-}
-
-static void *_messagehub_run(void *p)
-{
-        messagehub_t *hub = (messagehub_t *) p;
-        messagehub_run(hub);
-        pthread_exit(NULL);
-        return NULL;
+        log_info("messagehub_run: no longer accepting connections");
 }
 
 static void messagehub_lock_links(messagehub_t *hub)

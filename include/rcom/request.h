@@ -10,7 +10,7 @@ extern "C" {
         
 typedef struct _request_t request_t;
 
-const char *request_name(request_t *r);
+const char *request_uri(request_t *r);
 const char *request_args(request_t *r);
 addr_t *request_addr(request_t *r);
 const char *request_data(request_t *r);

@@ -12,6 +12,7 @@
 #include <rcom/messagelink.h>
 #include <rcom/messagehub.h>
 #include <rcom/service.h>
+#include <rcom/client.h>
 #include <rcom/streamer.h>
 #include <rcom/streamerlink.h>
 #include <rcom/multipart_parser.h>
@@ -20,5 +21,8 @@
 #include <rcom/json.h>
 #include <rcom/log.h>
 #include <rcom/clock.h>
+#include <rcom/thread.h>
+#include <rcom/membuf.h>
+#include <rcom/util.h>
 
 #endif // _RCOM_RCOM_H_

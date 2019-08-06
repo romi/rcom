@@ -1,11 +1,12 @@
 
 #include "rcom/log.h"
 #include "rcom/app.h"
+#include "rcom/thread.h"
+#include "rcom/util.h"
+#include "rcom/clock.h"
 
 #include "mem.h"
-#include "util.h"
 #include "list.h"
-#include "thread.h"
 #include "datalink_priv.h"
 #include "datahub_priv.h"
 #include "messagelink_priv.h"
@@ -16,21 +17,28 @@
 #include "registry_priv.h"
 #include "proxy.h"
 
-typedef struct _proxy_t
+enum {
+        PROXY_INITIALIZING,
+        PROXY_READY,
+        PROXY_ERROR
+};
+
+struct _proxy_t
 {
         registry_t *registry;
         messagelink_t *link;
         mutex_t *mutex;
-} proxy_t;
+        int status;
+};
 
 static proxy_t* new_proxy(addr_t *addr);
 static void delete_proxy(proxy_t* proxy);
 
 // callbacks
-static void _proxy_onmessage(messagelink_t *link,
-                             void *userdata,
+static void _proxy_onmessage(void *userdata,
+                             messagelink_t *link,
                              json_object_t message);
-static void _proxy_onclose(messagelink_t *link, void *userdata);
+static void _proxy_onclose(void *userdata, messagelink_t *link);
 
 static void proxy_onmessage(proxy_t* proxy,
                             messagelink_t *link,
@@ -92,9 +100,19 @@ void set_registry_ip(const char* addr)
         _default_ip = addr? mem_strdup(addr) : NULL;
 }
 
+const char *get_registry_ip()
+{
+        return _default_ip? _default_ip : app_ip();
+}
+
 void set_registry_port(int port)
 {
         _default_port = port;
+}
+
+int get_registry_port()
+{
+        return _default_port? _default_port : 10101;
 }
 
 void set_registry_standalone(int standalone)
@@ -102,19 +120,14 @@ void set_registry_standalone(int standalone)
         _standalone = standalone;
 }
 
+int get_registry_standalone()
+{
+        return _standalone;
+}
+
 const char *get_registry_name()
 {
         return _default_name? _default_name : "registry";
-}
-
-const char *get_registry_ip()
-{
-        return _default_ip? _default_ip : app_ip();
-}
-
-int get_registry_port()
-{
-        return _default_port? _default_port : 10101;
 }
 
 void proxy_init()
@@ -128,17 +141,19 @@ void proxy_cleanup()
                 mem_free(_default_name);
         if (_default_ip != NULL)
                 mem_free(_default_ip);
+        if (_registry_addr)
+                delete_addr(_registry_addr);
         if (_proxy)
                 delete_proxy(_proxy);
 }
 
-static proxy_t *proxy_get()
+proxy_t *proxy_get()
 {
         if (_proxy != NULL)
                 return _proxy;
 
-        if (!_standalone) {
-                _registry_addr = new_addr(get_registry_ip(), _default_port);
+        if (!app_standalone()) {
+                _registry_addr = new_addr(get_registry_ip(), get_registry_port());
                 if (_registry_addr == NULL) {
                         log_err("proxy_create: failed to create the registry address!");
                         return NULL;
@@ -164,12 +179,14 @@ static proxy_t* new_proxy(addr_t *addr)
         proxy = new_obj(proxy_t);
         if (proxy == NULL)
                 return NULL;
-        
+
         proxy->registry = new_registry();
         if (proxy->registry == NULL) {
                 delete_proxy(proxy);
                 return NULL;
         }
+        
+        proxy->status = PROXY_INITIALIZING;
         
         proxy->mutex = new_mutex();
         if (proxy->mutex == NULL) {
@@ -192,6 +209,18 @@ static proxy_t* new_proxy(addr_t *addr)
                 err = proxy_send_list_request(proxy);
                 if (err != 0) {
                         log_err("new_proxy: failed to send the list request");
+                        delete_proxy(proxy);
+                        return NULL;
+                }
+
+                double time = clock_time();
+                while (proxy->status == PROXY_INITIALIZING
+                        && clock_time() - time < 10) {
+                        clock_sleep(0.1);
+                }
+
+                if (proxy->status != PROXY_READY) {
+                        log_err("new_proxy: failed to update the list of nodes");
                         delete_proxy(proxy);
                         return NULL;
                 }
@@ -222,7 +251,7 @@ static void proxy_onmessage(proxy_t *proxy,
                             messagelink_t *link,
                             json_object_t message)
 {
-        log_debug("proxy_onmessage");
+        //log_debug("proxy_onmessage");
         
         const char *request;
         
@@ -237,41 +266,41 @@ static void proxy_onmessage(proxy_t *proxy,
                 return;
 
         
-        log_debug("proxy_onmessage: request=%s", request);
+        //log_debug("proxy_onmessage: request=%s", request);
         
-        if (streq(request, "register-response")) {
+        if (rstreq(request, "register-response")) {
                 int success = json_object_getbool(message, "success");
                 if (!success) {
                         log_panic("register failed: %s. Quitting.",
                                 json_object_getstr(message, "message"));
                         app_set_quit();
                 }
-                else log_debug("register succeeded");
+                //else log_debug("register succeeded");
                 
-        } else if (streq(request, "unregister-response")) {
+        } else if (rstreq(request, "unregister-response")) {
                 int success = json_object_getbool(message, "success");
                 if (!success)
                         log_err("unregister failed: %s",
                                 json_object_getstr(message, "message"));
-                else log_debug("unregister succeeded");
+                //else log_debug("unregister succeeded");
                 
-        } else if (streq(request, "update-address-response")) {
+        } else if (rstreq(request, "update-address-response")) {
                 int success = json_object_getbool(message, "success");
                 if (!success)
                         log_err("updating of address failed: %s",
                                 json_object_getstr(message, "message"));
-                else log_debug("updating of address succeeded");
+                //else log_debug("updating of address succeeded");
                 
-        } else if (streq(request, "proxy-add")) {
+        } else if (rstreq(request, "proxy-add")) {
                 proxy_handle_register_add(proxy, link, message);
                 
-        } else if (streq(request, "proxy-remove")) {
+        } else if (rstreq(request, "proxy-remove")) {
                 proxy_handle_register_remove(proxy, link, message);
                 
-        } else if (streq(request, "proxy-update-address")) {
+        } else if (rstreq(request, "proxy-update-address")) {
                 proxy_handle_update_address(proxy, link, message);
                 
-        } else if (streq(request, "proxy-update-list")) {
+        } else if (rstreq(request, "proxy-update-list")) {
                 proxy_handle_update_list(proxy, link, message);
                 
         } else {
@@ -283,15 +312,15 @@ static void proxy_onclose(proxy_t *proxy, messagelink_t *link)
 {
 }
 
-static void _proxy_onmessage(messagelink_t *link,
-                             void *userdata,
+static void _proxy_onmessage(void *userdata,
+                             messagelink_t *link,
                              json_object_t message)
 {
         proxy_t *proxy = (proxy_t *) userdata;
         proxy_onmessage(proxy, link, message);
 }
 
-static void _proxy_onclose(messagelink_t *link, void *userdata)
+static void _proxy_onclose(void *userdata, messagelink_t *link)
 {
         proxy_t *proxy = (proxy_t *) userdata;
         proxy_onclose(proxy, link);
@@ -305,7 +334,7 @@ static void proxy_handle_register_add(proxy_t* proxy,
         registry_entry_t *entry;
         int err = 0;
 
-        log_debug("proxy_handle_register_add");
+        //log_debug("proxy_handle_register_add");
 
         json_object_t obj = json_object_get(message, "entry");
         if (json_isnull(obj))
@@ -346,7 +375,7 @@ static void proxy_handle_register_remove(proxy_t* proxy,
         int err;
         const char *id;
         
-        log_debug("proxy_handle_register_remove");
+        //log_debug("proxy_handle_register_remove");
         
         id = json_object_getstr(message, "id");
         if (id == NULL) {
@@ -376,7 +405,7 @@ static void proxy_handle_update_address(proxy_t* proxy,
         const char *id;
         const char *addr;
         
-        log_debug("proxy_handle_update_address");
+        //log_debug("proxy_handle_update_address");
         
         id = json_object_getstr(message, "id");
         if (id == NULL) {
@@ -395,23 +424,11 @@ static void proxy_handle_update_address(proxy_t* proxy,
                 ; // do something?
 }
 
-static void proxy_update_connections(proxy_t* proxy)
-{
-        mutex_lock(proxy->mutex);
-
-        list_t *entries = registry_select_all(proxy->registry);
-        for (list_t *l = entries; l != NULL; l = list_next(l)) {
-                registry_entry_t *entry = list_get(l, registry_entry_t);
-        }
-
-        mutex_unlock(proxy->mutex);
-}
-
 static int _entry_equals(registry_entry_t* entry, registry_entry_t* e) 
 {
         return (e->type == entry->type
-                && streq(e->name, entry->name)
-                && streq(e->topic, entry->topic)
+                && rstreq(e->name, entry->name)
+                && rstreq(e->topic, entry->topic)
                 && addr_eq(e->addr, entry->addr));
 }
 
@@ -431,21 +448,24 @@ static void proxy_handle_update_list(proxy_t* proxy,
 {
         int err;
 
-        log_debug("proxy_handle_update_list");
+        //log_debug("proxy_handle_update_list");
         
         json_object_t obj = json_object_get(message, "list");
         if (json_isnull(obj) || !json_isarray(obj)) {
                 log_err("proxy_handle_update_list: 'list' value is not an array");
+                proxy->status = PROXY_ERROR;
                 return;
         }
         if (json_array_length(obj) == 0) {
                 log_err("proxy_handle_update_list: empty 'list' value");
+                proxy->status = PROXY_READY;
                 return;
         }
 
         list_t *remote_entries = registry_entry_parse_list(obj);
         if (remote_entries == NULL) {
                 log_err("proxy_handle_update_list: failed to parse the 'list' value");
+                proxy->status = PROXY_ERROR;
                 return;
         }
         
@@ -487,7 +507,9 @@ static void proxy_handle_update_list(proxy_t* proxy,
                 proxy_add_connection(proxy, entry);
         }
         delete_registry_entry_list(entries);
-        
+
+        proxy->status = PROXY_READY;
+
         mutex_unlock(proxy->mutex);
 }
 
@@ -577,7 +599,7 @@ static void proxy_connect_streamer(proxy_t* proxy, registry_entry_t *entry)
                 registry_entry_t *e = list_get(l, registry_entry_t);
                 if (proxy_is_local(e)) {
                         streamerlink_t *link = (streamerlink_t *) e->endpoint;
-                        int err = streamerlink_connect(link, entry->addr);
+                        int err = streamerlink_set_remote(link, entry->addr);
                         if (err != 0) {
                                 log_err("proxy_connect_streamer: failed to make the connection.");
                         }
@@ -686,6 +708,10 @@ static int proxy_send_register_request(proxy_t* proxy, registry_entry_t *entry)
         // TODO: register to remote registry
         int r;
         char b[64];
+        
+        if (app_standalone())
+                return 0;
+        
         r = messagelink_send_f(proxy->link,
                                "{\"request\": \"register\","
                                "\"entry\": {"
@@ -702,6 +728,8 @@ static int proxy_send_register_request(proxy_t* proxy, registry_entry_t *entry)
 
 static int proxy_send_unregister_request(proxy_t* proxy, registry_entry_t *entry)
 {
+        if (app_standalone())
+                return 0;
         return messagelink_send_f(proxy->link,
                                   "{\"request\": \"unregister\", \"id\": \"%s\"}",
                                   entry->id);
@@ -710,6 +738,8 @@ static int proxy_send_unregister_request(proxy_t* proxy, registry_entry_t *entry
 static int proxy_send_update_address_request(proxy_t* proxy, const char *id,
                                              const char *addr)
 {
+        if (app_standalone())
+                return 0;
         return messagelink_send_f(proxy->link,
                                   "{\"request\": \"update-address\", "
                                   "\"id\": \"%s\", \"addr\": \"%s\"}", id, addr);
@@ -717,6 +747,8 @@ static int proxy_send_update_address_request(proxy_t* proxy, const char *id,
 
 static int proxy_send_list_request(proxy_t* proxy)
 {
+        if (app_standalone())
+                return 0;
         return messagelink_send_f(proxy->link, "{\"request\": \"list\"}");
 }
 
@@ -731,11 +763,11 @@ static registry_entry_t *proxy_new_entry(proxy_t *proxy,
         int r;
         
         if (!registry_valid_name(name)) {
-                log_warn("proxy_new_entry: Invalid name");
+                log_warn("proxy_new_entry: Invalid name: '%s'", name);
                 return NULL;
         }
         if (!registry_valid_topic(topic)) {
-                log_warn("proxy_new_entry: Invalid topic name");
+                log_warn("proxy_new_entry: Invalid topic name: '%s'", topic);
                 return NULL;
         }
         
@@ -793,7 +825,7 @@ static datalink_t *proxy_open_datalink(proxy_t *proxy,
         datalink_t *link;
         registry_entry_t *entry;
 
-        log_debug("proxy_open_datalink: %s:%s", name, topic);
+        //log_debug("proxy_open_datalink: %s:%s", name, topic);
 
         link = new_datalink(callback, userdata);
         if (link == NULL)
@@ -820,7 +852,8 @@ static datalink_t *proxy_open_datalink(proxy_t *proxy,
         mutex_unlock(proxy->mutex);
 
         delete_registry_entry_list(entries);
-        
+        delete_registry_entry(entry);
+
         return link;
 }
 
@@ -864,6 +897,7 @@ static datahub_t *proxy_open_datahub(proxy_t *proxy,
         mutex_unlock(proxy->mutex);
 
         delete_registry_entry_list(entries);
+        delete_registry_entry(entry);
         
         return hub;
 }
@@ -909,6 +943,7 @@ static messagelink_t *proxy_open_messagelink(proxy_t *proxy,
         mutex_unlock(proxy->mutex);
 
         delete_registry_entry_list(entries);
+        delete_registry_entry(entry);
 
         return link;
 }
@@ -940,6 +975,7 @@ static messagehub_t *proxy_open_messagehub(proxy_t *proxy,
                 return NULL;
         }
 
+        delete_registry_entry(entry);
         return hub;
 }
 
@@ -967,11 +1003,7 @@ static service_t *proxy_open_service(proxy_t *proxy, const char *name,
                 return NULL;
         }
         
-        if (entry == NULL) {
-                delete_service(service);
-                return NULL;
-        }
-
+        delete_registry_entry(entry);
         return service;
 }
 
@@ -994,12 +1026,12 @@ static addr_t *proxy_get_service(proxy_t *proxy, const char *topic)
 
         if (list) {
                 e = list_get(list, registry_entry_t);
-                service = (service_t *) e->endpoint;
-                addr = service_addr(service);
+                addr = e->addr;
         }
         
         mutex_unlock(proxy->mutex);
         
+        delete_registry_entry_list(list);
         return addr;
 }
 
@@ -1007,6 +1039,7 @@ static streamer_t *proxy_open_streamer(proxy_t *proxy,
                                        const char *name,
                                        const char *topic,
                                        int port,
+                                       const char *mimetype,
                                        streamer_onclient_t onclient,
                                        streamer_onbroadcast_t onbroadcast,
                                        void* userdata)
@@ -1014,7 +1047,8 @@ static streamer_t *proxy_open_streamer(proxy_t *proxy,
         streamer_t *streamer;
         registry_entry_t *entry;
 
-        streamer = new_streamer(name, port, onclient, onbroadcast, userdata);
+        streamer = new_streamer(name, topic, port, mimetype,
+                                onclient, onbroadcast, userdata);
         if (streamer == NULL)
                 return NULL;
 
@@ -1024,7 +1058,8 @@ static streamer_t *proxy_open_streamer(proxy_t *proxy,
                 delete_streamer(streamer);
                 return NULL;
         }
-
+        
+        delete_registry_entry(entry);
         return streamer;
 }
 
@@ -1034,17 +1069,40 @@ static void proxy_close_streamer(proxy_t *proxy, streamer_t *streamer)
         delete_streamer(streamer);
 }
 
+static addr_t *proxy_get_streamer(proxy_t *proxy, const char *topic)
+{
+        list_t *list;
+        registry_entry_t *e;
+        service_t *service;
+        addr_t *addr = NULL;
+        
+        mutex_lock(proxy->mutex);
+        
+        list = registry_select(proxy->registry, 0, NULL, topic, TYPE_STREAMER, NULL, NULL);
+
+        if (list) {
+                e = list_get(list, registry_entry_t);
+                addr = e->addr;
+        }
+        
+        mutex_unlock(proxy->mutex);
+        
+        delete_registry_entry_list(list);
+        return addr;
+}
+
+
 static streamerlink_t *proxy_open_streamerlink(proxy_t *proxy,
-                                                const char *name,
-                                                const char *topic,
-                                                const char *resource,
-                                                streamerlink_ondata_t ondata,
-                                                void* userdata)
+                                               const char *name,
+                                               const char *topic,
+                                               streamerlink_ondata_t ondata,
+                                               void* userdata,
+                                               int autoconnect)
 {
         streamerlink_t *link;
         registry_entry_t *entry;
 
-        link = new_streamerlink(resource, ondata, userdata);
+        link = new_streamerlink(ondata, userdata, autoconnect);
         if (link == NULL)
                 return NULL;
 
@@ -1055,6 +1113,23 @@ static streamerlink_t *proxy_open_streamerlink(proxy_t *proxy,
                 return NULL;
         }
 
+        mutex_lock(proxy->mutex);
+
+        // Let's check whether there already is a streamer
+        list_t *entries = registry_select(proxy->registry, 0, NULL, entry->topic,
+                                          TYPE_STREAMER, NULL, NULL);
+        if (entries != NULL) {
+                registry_entry_t *e = list_get(entries, registry_entry_t);
+                int err = streamerlink_set_remote(link, e->addr);
+                if (err)
+                        log_err("proxy_open_streamerlink: failed to make the connection.");
+        }
+
+        mutex_unlock(proxy->mutex);
+
+        delete_registry_entry_list(entries);
+        delete_registry_entry(entry);
+        
         return link;
 }
 
@@ -1171,13 +1246,16 @@ addr_t *registry_get_service(const char *topic)
 streamer_t *registry_open_streamer(const char *name,
                                    const char *topic,
                                    int port,
+                                   const char *mimetype,
                                    streamer_onclient_t onclient,
                                    streamer_onbroadcast_t onbroadcast,
                                    void* userdata)
 {
         proxy_t *proxy = proxy_get();
         if (proxy == NULL) return NULL;
-        return proxy_open_streamer(proxy, name, topic, port, onclient, onbroadcast, userdata);
+        return proxy_open_streamer(proxy, name, topic, port,
+                                   mimetype, onclient, onbroadcast,
+                                   userdata);
 }
 
 void registry_close_streamer(streamer_t *streamer)
@@ -1189,15 +1267,22 @@ void registry_close_streamer(streamer_t *streamer)
         }
 }
 
-streamerlink_t *registry_open_streamerlink(const char *name,
-                                           const char *topic,
-                                           const char *resource,
-                                           streamerlink_ondata_t ondata,
-                                           void* userdata)
+addr_t *registry_get_streamer(const char *topic)
 {
         proxy_t *proxy = proxy_get();
         if (proxy == NULL) return NULL;
-        return proxy_open_streamerlink(proxy, name, topic, resource, ondata, userdata);
+        return proxy_get_streamer(proxy, topic);
+}
+
+streamerlink_t *registry_open_streamerlink(const char *name,
+                                           const char *topic,
+                                           streamerlink_ondata_t ondata,
+                                           void* userdata,
+                                           int autoconnect)
+{
+        proxy_t *proxy = proxy_get();
+        if (proxy == NULL) return NULL;
+        return proxy_open_streamerlink(proxy, name, topic, ondata, userdata, autoconnect);
 }
 
 void registry_close_streamerlink(streamerlink_t *link)
@@ -1209,3 +1294,15 @@ void registry_close_streamerlink(streamerlink_t *link)
         }
 }
 
+int proxy_count_nodes(proxy_t *proxy)
+{
+        return registry_count(proxy->registry, NULL, NULL,
+                              NULL, TYPE_ANY, NULL, NULL);
+}
+
+int proxy_get_node(proxy_t *proxy, int i,
+                   membuf_t *name, membuf_t *topic,
+                   int *type, addr_t *addr)
+{
+        return registry_geti(proxy->registry, i, name, topic, type, addr);
+}

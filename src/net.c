@@ -177,17 +177,22 @@ int tcp_socket_wait_data(tcp_socket_t socket, int timeout)
         return posix_wait_data(socket, timeout);
 }
 
+// Returns:
+// -2: timeout
+// -1: error
+// 0: shutdown
+// >0: amount of data received
 int tcp_socket_recv(tcp_socket_t socket, char *data, int len)
 {
         int received = recv(socket, data, len, 0);
         if (received < 0) {
                 log_err("tcp_socket_recv: recv failed: %s", strerror(errno));
-                return -1;
+                return (errno == EAGAIN)? -2 : -1;
         } else if (received == 0) {
                 log_err("tcp_socket_recv: socket shut down");
                 return 0;
         }
-        //log_debug("http_recv: len=%d data='%.*s'", received, received, buffer);        
+        //log_debug("http_recv: len=%d data='%.*s'", received, received, data);        
         return received;
 }
 
@@ -196,6 +201,7 @@ int tcp_socket_read(tcp_socket_t socket, char *data, int len)
         int received = 0;
         while (received < len) {
                 int n = tcp_socket_recv(socket, data + received, len - received);
+                if (n == -2) continue;
                 if (n < 0) return -1;
                 if (n == 0) return received;
                 received += n;
@@ -243,27 +249,21 @@ tcp_socket_t server_socket_accept(tcp_socket_t s)
         int client = -1;
 
         // The code waits for incoming connections for one
-        // second. Then it checks whether it should return because the
-        // app is quitting. If not, it waits for incoming connections
-        // again, and so on.
-        while (!app_quit()) {
-                if (posix_wait_data(s, 1)) {
-                        log_debug("server_socket_accept: calling accept");
-                        client =  accept(s, (struct sockaddr*) &addr, &addrlen);
-                        if (client == -1) {
-                                // Server socket is probably being
-                                // closed
-                                // FIXME: is this true?
-                                log_err("server_socket_accept: "
-                                        "accept failed: %s (socket %d)",
-                                        strerror(errno), s); 
-                                return INVALID_TCP_SOCKET;
-                        }
-                        log_debug("server_socket_accept: new connection");
-                        return client;
+        // second. 
+        if (posix_wait_data(s, 1)) {
+                //log_debug("server_socket_accept: calling accept");
+                client =  accept(s, (struct sockaddr*) &addr, &addrlen);
+                if (client == -1) {
+                        // Server socket is probably being closed
+                        // FIXME: is this true?
+                        log_err("server_socket_accept: accept failed: %s (socket %d)",
+                                strerror(errno), s); 
+                        return INVALID_TCP_SOCKET;
                 }
-        }
-        return INVALID_TCP_SOCKET;
+                //log_debug("server_socket_accept: new connection");
+                return client;
+        } else
+                return TCP_SOCKET_TIMEOUT;
 }
 
 

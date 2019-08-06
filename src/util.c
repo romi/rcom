@@ -1,17 +1,8 @@
 #include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <string.h>
-#include <math.h>
-#include <time.h>
-#include <sys/time.h>
-#include <sys/types.h>
-#include <sys/syscall.h>
-#include <uuid/uuid.h>
 
 #include "rcom/log.h"
 
-#include "util.h"
+#include "util_priv.h"
 #include "mem.h"
 #include "sha1.h"
 
@@ -107,11 +98,6 @@ char *encode_base64(const unsigned char *s)
         return t;
 }
 
-int rcom_getrandom(void *buf, size_t buflen, unsigned int flags)
-{
-    return (int)syscall(SYS_getrandom, buf, buflen, flags);
-}
-
 void generate_random_buffer(uint8_t *buffer, ssize_t len)
 {
         ssize_t n = 0;
@@ -121,12 +107,97 @@ void generate_random_buffer(uint8_t *buffer, ssize_t len)
         }
 }
 
-char *generate_uuid()
+char *rprintf(char *buffer, int buflen, const char *format, ...)
 {
-        uuid_t uuid;
-        char s[37];
-        uuid_generate(uuid);
-        uuid_unparse_lower(uuid, s);
-        return mem_strdup(s);
+        int len;
+        va_list ap;
+        int ret;
+        
+        va_start(ap, format);
+        len = vsnprintf(NULL, 0, format, ap);
+        va_end(ap);
+
+        if (len < 0 || buflen < len+1)
+                return NULL;
+        
+        va_start(ap, format);
+        len = vsnprintf(buffer, buflen, format, ap);
+        va_end(ap);
+
+        if (len < 0)
+                return NULL;
+        
+        return buffer;
 }
 
+int urlencode(const unsigned char* s, membuf_t *buf)
+{
+        membuf_clear(buf);
+        for (; *s; s++) {
+                unsigned char c = *s;
+                if (c < 32 || c >= 127) {
+                        log_err("urlencode: unhandled character. Sorry.");
+                        membuf_append_zero(buf);
+                        return -1;
+                        
+                } else if (('0' <= c && c <= '9')
+                    || ('a' <= c && c <= 'z')
+                    || ('A' <= c && c <= 'Z')
+                    || c == '-' || c == '_' || c == '.' || c == '~') {
+                        membuf_append(buf, (char*) &c, 1);
+                        
+                } else {
+                        char hex[4];
+                        rprintf(hex, 4, "%%%02X", c);
+                        membuf_append(buf, hex, 3);
+                }
+        }
+        membuf_append_zero(buf);
+        return 0;
+}
+
+int hex2c(char c)
+{
+        if ('0' <= c && c <= '9')
+                return c - '0';
+        else if ('a' <= c && c <= 'f')
+                return 10 + c - 'a';
+        else if ('A' <= c && c <= 'F')
+                return 10 + c - 'A';
+        return -1;
+}
+
+int urldecode(const char* s, int len, membuf_t *buf)
+{
+        int i = 0;
+        
+        membuf_clear(buf);
+        while (i < len) {
+                char c = s[i];
+                if (c == '%') {
+                        if (i + 2 >= len) {
+                                log_err("urldecode: unexpected end.");
+                                return -1;
+                        }
+                        int a = hex2c(s[i+1]);
+                        if (a == -1) {
+                                log_err("urldecode: unexpected character ('%%%c').",
+                                        s[i+1]);
+                                return -1;
+                        }
+                        int b = hex2c(s[i+2]);
+                        if (b == -1) {
+                                log_err("urldecode: unexpected character ('%%%c%c').",
+                                        s[i+1], s[i+2]);
+                                return -1;
+                        }
+                        int d = 16 * a + b;
+                        c = d & 0xff;
+                        i += 2;
+                }
+                membuf_append(buf, &c, 1);
+                i++;
+        }
+        membuf_append_zero(buf);
+        return 0;        
+}

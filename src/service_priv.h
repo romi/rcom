@@ -13,9 +13,6 @@ service_t *new_service(const char *name, int port);
 
 void delete_service(service_t *service);
 
-void service_run(service_t *service);
-void service_run_in_thread(service_t *service);
-
 export_t *service_get_export(service_t *service, const char *name);
                 
 #ifdef __cplusplus

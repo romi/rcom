@@ -1,14 +1,14 @@
 
 #include "rcom/log.h"
 #include "rcom/app.h"
+#include "rcom/membuf.h"
+#include "rcom/thread.h"
 
+#include "util_priv.h"
 #include "datalink_priv.h"
 #include "datahub_priv.h"
 #include "list.h"
 #include "mem.h"
-#include "membuf.h"
-#include "thread.h"
-#include "util.h"
 #include "net.h"
 
 struct _datahub_t {
@@ -68,14 +68,14 @@ datahub_t *new_datahub(datahub_onbroadcast_t onbroadcast,
                 goto error_recovery;
 
         if (hub->ondata)  {
-                hub->data_thread = new_thread((thread_run_t) datahub_run_data, hub, 1);
+                hub->data_thread = new_thread((thread_run_t) datahub_run_data, hub, 1, 0);
                 if (hub->data_thread == NULL)
                         goto error_recovery;
         }
 
         if (hub->onbroadcast)  {
                 hub->broadcast_thread = new_thread((thread_run_t) datahub_run_broadcast,
-                                                   hub, 1);
+                                                   hub, 1, 0);
                 if (hub->broadcast_thread == NULL)
                         goto error_recovery;
         }
@@ -158,7 +158,7 @@ int datahub_add_link(datahub_t* hub, addr_t *addr)
         int ret = 0;
 
         char b[64];
-        log_debug("datahub_add_link: %s", addr_string(addr, b, sizeof(b)));
+        //log_debug("datahub_add_link: %s", addr_string(addr, b, sizeof(b)));
 
         datahub_lock(hub);
         addr_t *a = datahub_find(hub, addr);
@@ -186,7 +186,7 @@ int datahub_remove_link(datahub_t* hub, addr_t *addr)
         int ret = 0;
 
         char b[64];
-        log_debug("datahub_remove_link: %s", addr_string(addr, b, sizeof(b)));
+        //log_debug("datahub_remove_link: %s", addr_string(addr, b, sizeof(b)));
 
         datahub_lock(hub);
         addr_t *a = datahub_find(hub, addr);

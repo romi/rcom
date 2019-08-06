@@ -1,23 +1,14 @@
-#include <string.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <arpa/inet.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <errno.h>
 
 #include "rcom/log.h"
 #include "rcom/app.h"
 #include "rcom/registry.h"
+#include "rcom/membuf.h"
+#include "rcom/thread.h"
+#include "rcom/util.h"
 
 #include "mem.h"
-#include "membuf.h"
-#include "util.h"
 #include "list.h"
 #include "http.h"
-#include "thread.h"
 #include "http_parser.h"
 #include "streamerlink_priv.h"
 
@@ -33,21 +24,22 @@ typedef struct _streamerlink_t {
         mutex_t *mutex;
         thread_t *thread;
         int cont;
+        int autoconnect;
 } streamerlink_t;
 
 
-static int streamerlink_disconnect(streamerlink_t *link, int join);
+static int streamerlink_stop_thread(streamerlink_t *link);
+static int streamerlink_close_connection(streamerlink_t *link);
 static int streamerlink_lock(streamerlink_t *link);
 static int streamerlink_unlock(streamerlink_t *link);
 
 
-streamerlink_t *new_streamerlink(const char *resource,
-                                 streamerlink_ondata_t ondata,
-                                 void* userdata)
+streamerlink_t *new_streamerlink(streamerlink_ondata_t ondata,
+                                 void* userdata, int autoconnect)
 {
         streamerlink_t* link;
 
-        if (resource == NULL || ondata == NULL) {
+        if (ondata == NULL) {
                 log_err("new_streamerlink: invalid arguments");
                 return NULL;
         }
@@ -55,12 +47,6 @@ streamerlink_t *new_streamerlink(const char *resource,
         link = new_obj(streamerlink_t);
         if (link == NULL)
                 return NULL;
-
-        link->resource = mem_strdup(resource);
-        if (link->resource == NULL) {
-                delete_streamerlink(link);
-                return NULL;
-        }
 
         link->mutex = new_mutex();
         if (link->mutex == NULL) {
@@ -73,6 +59,7 @@ streamerlink_t *new_streamerlink(const char *resource,
         link->remote_addr = NULL;
         link->userdata = userdata;
         link->ondata = ondata;
+        link->autoconnect = autoconnect;
         
         return link;
 }
@@ -82,14 +69,25 @@ void delete_streamerlink(streamerlink_t *link)
         if (link) {
                 
                 if (link->mutex) {
+                        streamerlink_stop_thread(link);
+                        
                         streamerlink_lock(link);
-                        streamerlink_disconnect(link, 1);
+                        streamerlink_close_connection(link);
+                        if (link->remote_addr) {
+                                delete_addr(link->remote_addr);
+                                link->remote_addr = NULL;
+                        }                        
                         streamerlink_unlock(link);
                         delete_mutex(link->mutex);
                 }
-                
-                if (link->resource)
-                        mem_free(link->resource);
+                if (link->addr) {
+                        delete_addr(link->addr);
+                }
+                for (list_t *l = link->headers; l != NULL; l = list_next(l)) {
+                        http_header_t *h = list_get(l, http_header_t);
+                        delete_http_header(h);
+                }
+                delete_list(link->headers);
                 
                 delete_obj(link);
         }
@@ -155,7 +153,7 @@ http_header_t *streamerlink_get_header(streamerlink_t *listener, const char *nam
         list_t * l = listener->headers;
         while (l) {
                 http_header_t *h = list_get(l, http_header_t);
-                if (streq(name, h->name))
+                if (rstreq(name, h->name))
                         return h;
                 l = list_next(l);
         }
@@ -168,17 +166,23 @@ static int streamerlink_on_headers_complete(http_parser *parser)
         return 0;
 }
 
-static int streamerlink_disconnect(streamerlink_t *link, int join)
+int streamerlink_disconnect(streamerlink_t *link)
 {
-        log_debug("streamerlink_disconnect");
+        //log_debug("streamerlink_disconnect");
+        int err = streamerlink_stop_thread(link);
+        if (err != 0)
+                return -1;
         
-        link->cont = 0;
-        
-        if (join && link->thread) {
-                thread_join(link->thread);
-                delete_thread(link->thread);
-                link->thread = NULL;
-        }
+        streamerlink_lock(link);        
+        err = streamerlink_close_connection(link);
+        streamerlink_unlock(link);
+
+        return err;
+}
+
+static int streamerlink_close_connection(streamerlink_t *link)
+{
+        //log_debug("streamerlink_close_connection");
         if (link->socket != INVALID_TCP_SOCKET) {
                 close_tcp_socket(link->socket);
                 link->socket = INVALID_TCP_SOCKET;
@@ -187,17 +191,28 @@ static int streamerlink_disconnect(streamerlink_t *link, int join)
                 delete_addr(link->addr);
                 link->addr = new_addr0();
         }
-        if (link->remote_addr) {
-                delete_addr(link->remote_addr);
-                link->remote_addr = NULL;
-        }
-                
         return 0;
 }
 
-static int streamerlink_open(streamerlink_t *link, addr_t *addr)
+static int streamerlink_stop_thread(streamerlink_t *link)
 {
-        link->socket = open_tcp_socket(addr);
+        //log_debug("streamerlink_stop_thread");
+        link->cont = 0;
+        
+        streamerlink_lock(link);
+        if (link->thread) {
+                streamerlink_unlock(link);
+                thread_join(link->thread);
+                streamerlink_lock(link);
+        }
+        streamerlink_unlock(link);
+        
+        return 0;
+}
+
+static int streamerlink_open(streamerlink_t *link)
+{
+        link->socket = open_tcp_socket(link->remote_addr);
         if (link->socket == INVALID_TCP_SOCKET) {
                 log_err("streamerlink_open: failed to connect the socket");
                 return -1;
@@ -205,7 +220,7 @@ static int streamerlink_open(streamerlink_t *link, addr_t *addr)
         if (link->addr != NULL)
                 delete_addr(link->addr);
         link->addr = tcp_socket_addr(link->socket);
-        link->remote_addr = addr_clone(addr);
+        //link->remote_addr = addr_clone(addr);
         return 0;
 }
 
@@ -219,19 +234,11 @@ static int streamerlink_send_request(streamerlink_t *link)
         addr_ip(link->remote_addr, b, 64);
 
         // send the http request
-        if (link->resource[0] == '/') {
-                request_length = snprintf(request, 1024,
-                                          "GET %s HTTP/1.1\r\n"
-                                          "Host: %s\r\n"
-                                          "Connection: close\r\n\r\n",
-                                          link->resource, b);
-        } else {
-                request_length = snprintf(request, 1024,
-                                          "GET /%s HTTP/1.1\r\n"
-                                          "Host: %s\r\n"
-                                          "Connection: close\r\n\r\n",
-                                          link->resource, b);
-        }
+        request_length = snprintf(request, 1024,
+                                  "GET /stream.html HTTP/1.1\r\n"
+                                  "Host: %s\r\n"
+                                  "Connection: close\r\n\r\n",
+                                  b);
 
         ret = tcp_socket_send(link->socket, request, request_length);
         if (ret == -1) {
@@ -252,19 +259,19 @@ static void streamerlink_run(streamerlink_t *link)
         http_parser_settings settings;
         int ret;
 
-        log_debug("streamerlink_run: sending request");
+        //log_debug("streamerlink_run: sending request");
         
         ret = streamerlink_send_request(link);
         if (ret != 0) {
                 streamerlink_lock(link);        
-                streamerlink_disconnect(link, 0);
+                streamerlink_close_connection(link);
                 delete_thread(link->thread);
                 link->thread = NULL;
                 streamerlink_unlock(link);
                 return;
         }
 
-        log_debug("streamerlink_run: parsing response");
+        //log_debug("streamerlink_run: parsing response");
         
         http_parser_settings_init(&settings);
         settings.on_body = streamerlink_on_body;
@@ -279,10 +286,10 @@ static void streamerlink_run(streamerlink_t *link)
         if (parser == NULL) {
                 log_err("streamerlink_start: out of memory");
                 streamerlink_lock(link);        
-                streamerlink_disconnect(link, 0);
-                streamerlink_unlock(link);
+                streamerlink_close_connection(link);
                 delete_thread(link->thread);
                 link->thread = NULL;
+                streamerlink_unlock(link);
                 return;
         }
         http_parser_init(parser, HTTP_RESPONSE);
@@ -298,7 +305,7 @@ static void streamerlink_run(streamerlink_t *link)
 
                 // we got a timeout. This allows us to check whether
                 // app_quit has been set, and then try again.
-                if (received == -1 && errno == EAGAIN) {
+                if (received == -2) {
                         continue;
                 }
                 
@@ -324,47 +331,100 @@ static void streamerlink_run(streamerlink_t *link)
                 }
         }
 
-        log_debug("streamerlink_run: ending connection");
+        //log_debug("streamerlink_run: ending connection");
         
         // CLEANUP
         delete_obj(parser);
 
         streamerlink_lock(link);        
-        streamerlink_disconnect(link, 0);
         delete_thread(link->thread);
         link->thread = NULL;
         streamerlink_unlock(link);
 }
 
-int streamerlink_connect(streamerlink_t *link, addr_t *addr)
+int streamerlink_connect(streamerlink_t *link)
 {
         int ret = 0;
-
         char b[64];
-        log_debug("streamerlink_connect: %s", addr_string(addr, b, 64));
+        
+        //log_debug("streamerlink_connect");
+
+        if (streamerlink_disconnect(link) != 0)
+                return -1;
+        
+        //log_debug("streamerlink_connect @0");
         
         streamerlink_lock(link);
-        
-        ret = streamerlink_disconnect(link, 1);
-        if (ret != 0)
-                goto unlock_and_return;
 
-        ret = streamerlink_open(link, addr);
-        if (ret != 0) {
-                streamerlink_disconnect(link, 0);
+        //log_debug("streamerlink_connect @1");
+
+        if (link->remote_addr == NULL) {
+                log_debug("streamerlink_connect: no remote address");
                 goto unlock_and_return;
         }
 
-        link->thread = new_thread((thread_run_t) streamerlink_run, link, 0);
+        //log_debug("streamerlink_connect @2: %s", addr_string(link->remote_addr, b, 64));
+
+        ret = streamerlink_open(link);
+        if (ret != 0) {
+                streamerlink_close_connection(link);
+                goto unlock_and_return;
+        }
+
+        //log_debug("streamerlink_connect @3");
+                
+        link->thread = new_thread((thread_run_t) streamerlink_run, link, 0, 0);
         if (link->thread == NULL) {
-                streamerlink_disconnect(link, 0);
+                streamerlink_close_connection(link);
                 ret = -1;
                 goto unlock_and_return;
         }
 
-        streamerlink_unlock(link);
-
 unlock_and_return:
         
+        //log_debug("streamerlink_connect @4");
+                
+        streamerlink_unlock(link);
+        return ret;
+}
+
+int streamerlink_set_remote(streamerlink_t *link, addr_t *addr)
+{
+        int ret = -1;
+
+        char b[52];
+        log_debug("streamerlink_set_remote: %s", addr_string(addr, b, 52));
+
+        ret = streamerlink_stop_thread(link);
+        if (ret != 0)
+                return -1;
+
+        streamerlink_lock(link);
+        
+        ret = streamerlink_close_connection(link);
+        if (ret != 0)
+                goto unlock_and_return;
+
+        if (link->remote_addr) {
+                delete_addr(link->remote_addr);
+                link->remote_addr = NULL;
+        }
+        if (addr != NULL) {
+                link->remote_addr = addr_clone(addr);
+                if (link->remote_addr == NULL) {
+                        ret = -1;
+                        goto unlock_and_return;
+                }
+        }
+        
+        streamerlink_unlock(link);
+
+        if (link->remote_addr != NULL && link->autoconnect)
+                return streamerlink_connect(link);
+        else return 0;
+
+        
+unlock_and_return:        
+        streamerlink_unlock(link);
         return ret;
 }

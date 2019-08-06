@@ -1,9 +1,9 @@
 #include <stdlib.h>
-#include <unistd.h>
 #include <string.h>
-#include <pthread.h>
+
+#include <rcom.h>
+
 #include "mem.h"
-#include "rcom/circular.h"
 
 typedef struct _circular_buffer_t
 {
@@ -11,7 +11,7 @@ typedef struct _circular_buffer_t
         int length;
         int readpos;
         int writepos;
-        pthread_mutex_t mutex;
+        mutex_t *mutex;
 } circular_buffer_t;
 
 circular_buffer_t* new_circular_buffer(int size)
@@ -28,7 +28,7 @@ circular_buffer_t* new_circular_buffer(int size)
         r->length = size;
         r->readpos = 0;
         r->writepos = 0;
-        pthread_mutex_init(&r->mutex, NULL);
+        r->mutex = new_mutex();
 
         return r;        
 }
@@ -36,20 +36,22 @@ circular_buffer_t* new_circular_buffer(int size)
 void delete_circular_buffer(circular_buffer_t* r)
 {
         if (r) {
-                if (r->buffer) mem_free(r->buffer);
-                pthread_mutex_destroy(&r->mutex);
+                if (r->buffer)
+                        mem_free(r->buffer);
+                if (r->mutex)
+                        delete_mutex(r->mutex);
                 delete_obj(r);
         }
 }
 
 static void circular_buffer_lock(circular_buffer_t* r)
 {
-        pthread_mutex_lock(&r->mutex);
+        mutex_lock(r->mutex);
 }
 
 static void circular_buffer_unlock(circular_buffer_t* r)
 {
-        pthread_mutex_unlock(&r->mutex);
+        mutex_unlock(r->mutex);
 }
 
 int circular_buffer_available(circular_buffer_t* r)

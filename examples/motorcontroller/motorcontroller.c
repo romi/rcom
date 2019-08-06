@@ -6,9 +6,10 @@ static double encoders[] = { 0.0, 0.0 };
 static double speed = 0.0;
 
 messagehub_t *get_messagehub_encoders();
+datahub_t *get_datahub_encoders();
 
-void motorcontroller_onmessage(messagelink_t *link,
-                               void *userdata,
+void motorcontroller_onmessage(void *userdata,
+                               messagelink_t *link,
                                json_object_t message)
 {
         const char *request = json_object_getstr(message, "request");
@@ -35,6 +36,7 @@ void motorcontroller_broadcast()
         if (start_time == 0)
                 start_time = clock_time();
 
+        double timestamp = clock_time();
         double position;
         double t = clock_time();
         t = fmod((t - start_time), 240.0);
@@ -43,6 +45,9 @@ void motorcontroller_broadcast()
         else
                 position = 3.6 - 3.6 * t / 120;
         messagehub_broadcast_f(hub, NULL, "[%f,%f]", position, position);
+        datahub_broadcast_f(get_datahub_encoders(), NULL, 
+                            "{\"encoders\":[%d,%d], \"timestamp\": %f}",
+                            encoders[0], encoders[1], timestamp);
         //messagehub_broadcast_f(hub, NULL, "[%f,%f]", encoders[0], encoders[1]);
         clock_sleep(1);
 }

@@ -7,13 +7,12 @@
 extern "C" {
 #endif
 
-streamerlink_t *new_streamerlink(const char *resource,
-                                 streamerlink_ondata_t ondata,
-                                 void* data);
+streamerlink_t *new_streamerlink(streamerlink_ondata_t ondata,
+                                 void* data, int autoconnect);
         
 void delete_streamerlink(streamerlink_t *link);
 
-int streamerlink_connect(streamerlink_t *link, addr_t *addr);
+int streamerlink_set_remote(streamerlink_t *link, addr_t *addr);
 
 #ifdef __cplusplus
 }

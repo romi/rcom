@@ -13,6 +13,9 @@
 extern "C" {
 #endif
 
+const char *get_registry_ip();
+int get_registry_port();
+
 // datalink
 datalink_t *registry_open_datalink(const char *name,
                                    const char *topic,
@@ -54,26 +57,28 @@ void registry_close_messagelink(messagelink_t *hub);
 // service
 service_t *registry_open_service(const char *name, const char *topic, int port);
 void registry_close_service(service_t *service);
-addr_t *registry_get_service(const char *name);
+addr_t *registry_get_service(const char *topic);
 
 
 // streamer
 streamer_t *registry_open_streamer(const char *name,
                                    const char *topic,
                                    int port,
+                                   const char *mimetype,
                                    streamer_onclient_t onclient,
                                    streamer_onbroadcast_t onbroadcast,
                                    void* userdata);
 
 void registry_close_streamer(streamer_t *streamer);
+addr_t *registry_get_streamer(const char *topic);
 
 
 // streamerlink
 streamerlink_t *registry_open_streamerlink(const char *name,
                                            const char *topic,
-                                           const char *resource,
                                            streamerlink_ondata_t ondata,
-                                           void* userdata);
+                                           void* userdata,
+                                           int autoconnect);
 
 void registry_close_streamerlink(streamerlink_t *link);
 

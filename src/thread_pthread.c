@@ -1,17 +1,18 @@
 #include <pthread.h>
 #include "rcom/log.h"
-#include "thread.h"
+#include "rcom/thread.h"
 #include "mem.h"
 
 struct _thread_t {
         pthread_t thread;
         thread_run_t run;
         void *data;
+        int autodelete;
 };
 
 static void* _run(void* data);
 
-thread_t* new_thread(thread_run_t run, void *data, int realtime)
+thread_t* new_thread(thread_run_t run, void *data, int realtime, int autodelete)
 {
         thread_t* thread = new_obj(thread_t);
         if (thread == NULL)
@@ -19,6 +20,7 @@ thread_t* new_thread(thread_run_t run, void *data, int realtime)
 
         thread->run = run;
         thread->data = data;
+        thread->autodelete = autodelete;
 
         int ret = pthread_create(&thread->thread, NULL, _run, (void*) thread);
         if (ret != 0) {
@@ -34,6 +36,8 @@ static void* _run(void* data)
 {
         thread_t* thread = (thread_t*) data;
         thread->run(thread->data);
+        if (thread->autodelete)
+                delete_thread(thread);
         pthread_exit(NULL);
         return NULL;
 }

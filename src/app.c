@@ -9,17 +9,15 @@
 #include <netdb.h>
 #include <ifaddrs.h>
 #include <libgen.h>
-
-#if MEM_DIAGNOSTICS
-#include <sgc.h>
-#endif
+#include <unistd.h>
 
 #include "rcom/log.h"
 #include "rcom/app.h"
 #include "rcom/dump.h"
+#include "rcom/util.h"
 
-#include "util.h"
 #include "mem.h"
+#include "log_priv.h"
 #include "registry_priv.h"
 #include "proxy.h"
 
@@ -30,12 +28,14 @@ static void app_update_logfile();
 static int diagnostics_set_signal_handlers(); 
 static int diagnostics_set_signal_handler(int signum); 
 static void diagnostics_scan_memory();
-static void diagnostics_cleanup();
+static void rcom_cleanup();
+static void app_set_config(const char *path);
 
 static int _quit = 0;
 static char *_ip = NULL;
 static char *_logdir = NULL;
 static char *_name = NULL;
+static char *_config = NULL;
 static int _print = 0;
 
 int app_quit()
@@ -67,7 +67,7 @@ int app_parse_args(int *argc, char **argv)
 
         //opterr = 0;
 
-        static char *optchars = "A:N:P:L:I:R:D::pa";
+        static char *optchars = "A:N:P:L:I:R:D::C:pa";
         static struct option long_options[] = {
                 {"registry-name", required_argument, 0, 'N'},
                 {"registry-addr", required_argument, 0, 'A'},
@@ -78,6 +78,7 @@ int app_parse_args(int *argc, char **argv)
                 {"replay", required_argument, 0, 'R'},
                 {"print", no_argument, 0, 'p'},
                 {"stand-alone", no_argument, 0, 'a'},
+                {"config", required_argument, 0, 'C'},
                 {0, 0, 0, 0}
         };
 
@@ -109,6 +110,9 @@ int app_parse_args(int *argc, char **argv)
                         break;
                 case 'L':
                         app_set_logdir(optarg);
+                        break;
+                case 'C':
+                        app_set_config(optarg);
                         break;
                 case 'D':
                         set_dumping(1);
@@ -170,7 +174,7 @@ static int app_check_ip_OLD()
                         continue;
 
                 if (ifa->ifa_addr->sa_family == AF_INET) {
-                        if (!streq(host, "127.0.0.1")) {
+                        if (!rstreq(host, "127.0.0.1")) {
                                 log_warn("app_check_ip: Using '%s' by default",
                                          host);
                                 log_warn("app_check_ip: Consider using "
@@ -194,17 +198,30 @@ const char *app_ip()
         return _ip;
 }
 
+int app_standalone()
+{
+        return get_registry_standalone();
+}
+
 void app_init(int *argc, char **argv)
 {
         int ret;
 
+        if (mem_init(argc) != 0)
+                exit(1);
+
         //_logdir = mem_strdup(".");
         app_set_name(argv[0]);
 
+        if (log_init() != 0) {
+		log_panic("log_init failed");
+                exit(1);
+        }
+                
         proxy_init();
         
         ret = diagnostics_set_signal_handlers();
-        atexit(diagnostics_cleanup);
+        atexit(rcom_cleanup);
         
         if (setjmp(env) != 0) {
 		log_panic("Abort (longjmp)");
@@ -219,13 +236,6 @@ void app_init(int *argc, char **argv)
                 app_set_quit();
                 exit(1);
         }
-
-#if MEM_DIAGNOSTICS
-	if (sgc_init(argc, 0) != 0) {
-                log_err("Failed the initialise the SGC memory heap");
-                exit(1);
-        }
-#endif
 }
 
 static void app_update_logfile()
@@ -256,6 +266,47 @@ const char *app_get_logdir()
         return _logdir;
 }
 
+// FIXME!
+static int make_absolute_path(const char *path, char *buffer, int len)
+{
+        int r;
+        
+        if (path[0] == '/') {
+                r = snprintf(buffer, len, "%s", path);
+        } else {
+                char *wd = getcwd(NULL, 0);
+                if (wd == NULL) return -1;
+                r = snprintf(buffer, len, "%s/%s", wd, path);
+                free(wd);
+        }
+        
+        buffer[len-1] = 0;
+        return r > len;
+}
+
+static void app_set_config(const char *path)
+{
+        if (_config != NULL) {
+                mem_free(_config);
+                _config = NULL;
+        }
+
+        char buffer[1024];
+        int r = make_absolute_path(path, buffer, sizeof(buffer));
+        if (r != 0) {
+                log_err("app_set_config failed: make_absolute_path != 0");
+                app_set_quit();
+                return;
+        }
+        
+        _config = mem_strdup(buffer);
+}
+
+const char *app_get_config()
+{
+        return _config;
+}
+
 void app_set_name(const char *path)
 {
         // The call to basename() may change the contents of the
@@ -273,6 +324,18 @@ void app_set_name(const char *path)
 const char *app_get_name()
 {
         return _name;
+}
+
+void app_cleanup()
+{
+        if (_name != NULL)
+                mem_free(_name);
+        if (_ip != NULL)
+                mem_free(_ip);
+        if (_logdir != NULL)
+                mem_free(_logdir);
+        if (_config != NULL)
+                mem_free(_config);
 }
 
 static void diagnostics_print_backtrace()
@@ -368,29 +431,11 @@ static int diagnostics_set_signal_handlers()
 	return ret;
 }
 
-#if MEM_DIAGNOSTICS
-static int diagnostics_print_memory_leak(int op, void* ptr, unsigned char type,
-                                         int counter, int size)
-{
-        if (op == 3) {
-                printf("Memory leak: counter=%d, size=%d\n", counter, size);
-        } 
-        return 1;
-}
-#endif
-
-static void diagnostics_scan_memory()
-{
-#if MEM_DIAGNOSTICS
-        log_info("Scanning for memory leaks");
-        sgc_search_memory_leaks(diagnostics_print_memory_leak);
-        sgc_cleanup();
-#endif
-}
-
-static void diagnostics_cleanup()
+static void rcom_cleanup()
 {
         proxy_cleanup();
         json_cleanup();
-        diagnostics_scan_memory();
+        app_cleanup();
+        log_cleanup();
+        mem_cleanup();
 }

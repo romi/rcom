@@ -5,13 +5,12 @@
         "cleanup": null,
         "com": [
                 {
-                        "type": "messagehub",
+                        "type": "datahub",
                         "topic": "encoders"
                 },
                 {
                         "type": "messagehub",
-                        "topic": "motorcontroller",
-                        "onconnect": "motorcontroller_onconnect"
+                        "topic": "encoders"
                 }
         ]
 }

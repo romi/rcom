@@ -3,6 +3,7 @@
 
 #include "rcom/registry.h"
 #include "rcom/addr.h"
+#include "rcom/membuf.h"
 #include "list.h"
 
 #ifdef __cplusplus
@@ -70,6 +71,10 @@ list_t *registry_select_all(registry_t* registry);
 
 int registry_count(registry_t* registry, const char *id, const char *name,
                    const char *topic, int type, addr_t *addr, void *endpoint);
+
+int registry_geti(registry_t* registry, int i,
+                  membuf_t *name, membuf_t *topic,
+                  int *type, addr_t *addr);
 
 int registry_update_addr(registry_t* registry, const char *id, const char *addr);
 //int registry_update_id(registry_t* registry, int old_id, int new_id);
