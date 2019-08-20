@@ -60,7 +60,7 @@ add_library(rcom SHARED ${SOURCES})
 target_link_libraries(rcom m)
 target_link_libraries(rcom uuid)
 target_link_libraries(rcom pthread)
-target_link_libraries(rcom debug sgc)
+#target_link_libraries(rcom debug sgc)
 
 # Main rcom apps
 add_executable(rcregistry src/rcregistry_main.c)
