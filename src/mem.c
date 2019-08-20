@@ -2,8 +2,8 @@
 #include "rcom/log.h"
 #include "mem.h"
 
-//#define MEM_DIAGNOSTICS 0
-#define MEM_DIAGNOSTICS 1
+#define MEM_DIAGNOSTICS 0
+//#define MEM_DIAGNOSTICS 1
 
 #if MEM_DIAGNOSTICS
 #define SGC_USE_THREADS 1
