@@ -85,8 +85,8 @@ target_link_libraries(rclaunch rcom)
 #add_executable(rcconvert src/rcconvert.c)
 #target_link_libraries(rcconvert rcom)
 
-add_executable(rcdev src/rcdev.c)
-target_link_libraries(rcdev rcom usb-1.0)
+#add_executable(rcdev src/rcdev.c)
+#target_link_libraries(rcdev rcom usb-1.0)
 
 ## Example apps
 
