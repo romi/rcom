@@ -26,6 +26,7 @@ struct _run_t {
         /* int attach; */
         thread_t *thread;
         run_status_t status;
+        int disabled;
         //int dump;
         //int replay;
 };
@@ -37,6 +38,7 @@ run_t *run_parse(json_object_t node)
         const char *host = json_object_getstr(node, "host");
         const char *username = json_object_getstr(node, "username");
         json_object_t args = json_object_get(node, "args");
+        int disabled = json_object_getbool(node, "disabled");
         /* int attach = json_object_getbool(node, "attach"); */
         /* int replay = json_object_getbool(node, "replay"); */
         /* int dump = json_object_getbool(node, "dump"); */
@@ -76,6 +78,9 @@ run_t *run_parse(json_object_t node)
         r = new_run(s, path, host, username/* , attach */);
         if (r == NULL) return NULL;
 
+        if (disabled == 1)
+                run_set_disabled(r, 1);
+        
         /* r->replay = (replay == 1); */
         /* r->dump = (dump == 1); */
         
@@ -104,7 +109,6 @@ run_t *new_run(const char *name,
 {
         run_t *r = new_obj(run_t);
         if (r == NULL) return NULL;
-        memset(r, 0, sizeof(run_t));
         
         r->name = mem_strdup(name);
         if (r->name == NULL)
@@ -143,6 +147,12 @@ void delete_run(run_t *r)
         list_t *l;
         
         if (r) {
+                if (r->thread) {
+                        log_warn("delete_run: thread is not NULL?!");
+                        thread_join(r->thread);
+                        delete_thread(r->thread);
+                        r->thread = NULL;
+                }
                 l = r->args;
                 while (l) {
                         mem_free(list_get(l, char));
@@ -171,6 +181,16 @@ run_status_t run_status(run_t *r)
 const char *run_name(run_t *r)
 {
         return r->name;
+}
+
+void run_set_disabled(run_t *r, int value)
+{
+        r->disabled = value;
+}
+
+int run_disabled(run_t *r)
+{
+        return r->disabled;
 }
 
 /* int run_is_replay(run_t *r) */
@@ -404,6 +424,11 @@ int run_start(run_t *r, pid_t gpid)
         /*         return 0; */
         /* } */
         log_debug("run_start %s", run_name(r));
+        if (r->disabled) {
+                r->pid = -1;
+                log_debug("run_start %s: disabled", run_name(r));
+                return 0;
+        }
         r->status = k_starting;
         r->gpid = gpid;
         r->thread = new_thread(_run, (void*) r, 0, 0);
@@ -417,8 +442,9 @@ int run_send_stop(run_t *r)
         if (r->pid == -1)
                 return 0;
 
-        log_info("Sending signal to '%s', pid %d", r->name, r->pid);
+        log_info("*** run_send_stop: Sending signal to '%s', pid %d", r->name, r->pid);
         err = kill(r->pid, SIGHUP);
+        log_info("*** run_send_stop: Sending signal to '%s' done", r->name, r->pid);
         if (err != 0) {
                 char buf[200];
                 strerror_r(errno, buf, 200);
@@ -441,7 +467,7 @@ int run_stop(run_t *r)
                 return 0;
 
         while (1) {
-                log_info("Sending signal %d to '%s', pid %d (count=%d)",
+                log_info("*** run_stop: Sending signal %d to '%s', pid %d (count=%d)",
                          sig, r->name, r->pid, count);
                 err = kill(r->pid, sig);
                 if (err != 0) {
@@ -452,11 +478,13 @@ int run_stop(run_t *r)
                 }
                 
                 log_info("Waiting for '%s' to quit", r->name);
-                sleep(2);
+                sleep(3);
                 
                 if (r->status == k_finished) {
                         log_err("'%s' has quit", r->name);
                         thread_join(r->thread);
+                        delete_thread(r->thread);
+                        r->thread = NULL;
                         return 0;
                 }
 

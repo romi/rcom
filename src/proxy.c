@@ -985,6 +985,29 @@ static void proxy_close_messagehub(proxy_t *proxy, messagehub_t *hub)
         delete_messagehub(hub);
 }
 
+addr_t *proxy_get_messagehub(proxy_t *proxy, const char *topic)
+{
+        list_t *list;
+        registry_entry_t *e;
+        service_t *service;
+        addr_t *addr = NULL;
+        
+        mutex_lock(proxy->mutex);
+        
+        list = registry_select(proxy->registry, 0, NULL, topic,
+                               TYPE_MESSAGEHUB, NULL, NULL);
+
+        if (list) {
+                e = list_get(list, registry_entry_t);
+                addr = addr_clone(e->addr);
+        }
+        
+        mutex_unlock(proxy->mutex);
+        
+        delete_registry_entry_list(list);
+        return addr;
+}
+
 // service
 
 static service_t *proxy_open_service(proxy_t *proxy, const char *name,
@@ -1026,7 +1049,7 @@ static addr_t *proxy_get_service(proxy_t *proxy, const char *topic)
 
         if (list) {
                 e = list_get(list, registry_entry_t);
-                addr = e->addr;
+                addr = addr_clone(e->addr);
         }
         
         mutex_unlock(proxy->mutex);
@@ -1082,7 +1105,7 @@ static addr_t *proxy_get_streamer(proxy_t *proxy, const char *topic)
 
         if (list) {
                 e = list_get(list, registry_entry_t);
-                addr = e->addr;
+                addr = addr_clone(e->addr);
         }
         
         mutex_unlock(proxy->mutex);
@@ -1218,6 +1241,13 @@ void registry_close_messagehub(messagehub_t *hub)
                 if (proxy == NULL) return;
                 return proxy_close_messagehub(proxy, hub);
         }
+}
+
+addr_t *registry_get_messagehub(const char *topic)
+{
+        proxy_t *proxy = proxy_get();
+        if (proxy == NULL) return NULL;
+        return proxy_get_messagehub(proxy, topic);
 }
 
 service_t *registry_open_service(const char *name, const char *topic, int port)

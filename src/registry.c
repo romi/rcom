@@ -226,6 +226,7 @@ json_object_t registry_entry_encode_list(list_t *list)
                 registry_entry_t *e = list_get(l, registry_entry_t);
                 json_object_t obj = registry_entry_encode(e);
                 json_array_push(a, obj);
+                json_unref(obj);
         }
         return a;
 }

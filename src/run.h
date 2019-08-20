@@ -42,6 +42,8 @@ void run_add_arg(run_t *r, const char *s);
 /* int run_count_dependencies(run_t *r); */
 /* const char *run_get_dependency(run_t *r, int n); */
 
+void run_set_disabled(run_t *r, int value);
+int run_disabled(run_t *r);
 
 int run_start(run_t *r, pid_t gpid);
 int run_send_stop(run_t *r);

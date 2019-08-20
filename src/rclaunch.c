@@ -1,3 +1,32 @@
+/*
+
+  1) The main rclaunch process starts a child process and then waits
+  for the child process to quit.
+
+  2) The child process creates a new process group.
+
+  3) The child process creates a new thread for each requested
+  application in the new process group.
+
+  4) Each thread subsequently forks to execute the execute
+  application.
+
+  5) Each thread waits for its application to quit. They will restart
+  their application again if it exits prematurely.
+
+  6) After starting the threads, the child process returns to the
+  original process group and waits for signals.
+
+  7) When the child process receives a signal it forwards the signal
+  to the applications. 
+
+  8) The application will do a clean exit upon receiving a HUP, INT,
+  or TERM signal. After four termination signals, an application will
+  do a hard exit.
+
+ */
+
+
 #include <stdlib.h>
 #include <unistd.h>
 #include <stdio.h>
@@ -258,8 +287,10 @@ static list_t *parse_nodes(json_object_t config)
         for (i = 0; i < json_array_length(nodes); i++) {
                 node = json_array_get(nodes, i);
                 r = run_parse(node);
-                if (r == NULL)
-                        return delete_nodes(list);
+                if (r == NULL) {
+                        delete_nodes(list);
+                        return NULL;
+                }
                 list = list_append(list, r);
         }
 
@@ -360,118 +391,6 @@ static int parse_registry(json_object_t config)
 
 /******************************************************/
 
-static void child_main(list_t *list, pid_t monitor_gpid)
-{
-        int ret;
-        pid_t gpid;
-        
-        gpid = getpgrp();
-
-        log_debug("child process: starting registry");
-
-        ret = start_registry(gpid);
-        if (ret != 0) {
-                log_info("Exiting!");
-                exit(1);
-        }
-
-        /* if (do_replay()) { */
-                
-        /*         log_info("Do replay? yes"); */
-
-        /*         ret = start_replay(list, gpid); */
-        /*         if (ret != 0) { */
-        /*                 log_info("Exiting!"); */
-        /*                 exit(1); */
-        /*         } */
-        /* } */
-
-        log_debug("child process: starting nodes");
-
-        ret = nodes_start(list, gpid);
-        if (ret != 0) {
-                nodes_stop(list);
-                log_info("Stopping registry node");
-                run_stop(_registry);
-                log_info("Exiting!");
-                exit(1);
-        }
-
-        // Return to the original group id
-        ret = setpgid(0, monitor_gpid);
-        if (ret == -1) {
-                log_err("Failed to return to the group id");
-                nodes_stop(list);
-                log_info("Stopping registry node");
-                run_stop(_registry);
-                log_info("Exiting!");
-                exit(1);
-        }
-
-        while (!app_quit()) {
-                clock_sleep(1);
-        }
-        
-        nodes_stop(list);
-        log_info("Stopping replay node");
-        //if (_replay) run_stop(_replay);
-        log_info("Stopping registry node");
-        run_stop(_registry);
-        delete_nodes(list);
-        delete_run(_registry);
-        log_info("Exiting!");
-        
-        exit(0);
-}
-
-// Start the nodes. This forks a child process. The child process than
-// forks for each of the nodes. The intermediate child process is
-// needed in order to put all of the nodes in the same process
-// group. By putting them in the same group, different from the
-// monitor process, only the monitor catches the signals (ctrl-c, HUP,
-// ...). It can then shut down the individual nodes orderly.
-//
-// Returns the PID of the child process, or -1 in case of error.
-static pid_t start_child(list_t *list)
-{
-        int ret;
-	pid_t pid;
-        pid_t nodes_gpid;
-        pid_t monitor_gpid;
-
-        // Fork so that the current process is no longer the group
-        // leader.
-        pid = fork();
-	switch (pid) {
-        default: return pid;
-        case -1: return -1;
-        case 0:  break;
-	}
-
-        app_set_name("rclaunch-child");
-        log_info("PID %d", getpid());
-
-        // Store a copy of the parents group id
-        monitor_gpid = getpgrp();
-        
-        // Create a new group id
-        ret = setpgid(pid, 0);
-        if (ret == -1) {
-                log_panic("Failed to set the group id");
-                perror("monitor: start_children");
-                return -1;
-        }
-        
-        nodes_gpid = getpgrp();
-        log_info("nodes group id: %d, parent group id: %d", nodes_gpid, monitor_gpid);
-
-        child_main(list, monitor_gpid);
-        
-        exit(0);
-}
-
-/******************************************************/
-
 list_t *load_config(const char *filename)
 {
         json_object_t config;
@@ -530,9 +449,129 @@ list_t *load_config(const char *filename)
         return list;
 }
 
+static void child_main(pid_t monitor_gpid)
+{
+        int ret;
+        pid_t gpid;
+        list_t *list = NULL;
+
+        app_set_name("rclaunch-child");
+        
+        log_debug("child process: loading configuration");
+        
+        list = load_config(app_get_config());
+        if (list == NULL)
+                exit(1);
+
+        gpid = getpgrp();
+
+        log_debug("child process: starting registry");
+
+        ret = start_registry(gpid);
+        if (ret != 0) {
+                log_info("Exiting!");
+                exit(1);
+        }
+
+        /* if (do_replay()) { */
+                
+        /*         log_info("Do replay? yes"); */
+
+        /*         ret = start_replay(list, gpid); */
+        /*         if (ret != 0) { */
+        /*                 log_info("Exiting!"); */
+        /*                 exit(1); */
+        /*         } */
+        /* } */
+
+        log_debug("child process: starting nodes");
+
+        ret = nodes_start(list, gpid);
+        if (ret != 0) {
+                nodes_stop(list);
+                log_info("Stopping registry node");
+                run_stop(_registry);
+                log_info("Exiting!");
+                exit(1);
+        }
+
+        // Return to the original group id
+        ret = setpgid(0, monitor_gpid);
+        if (ret == -1) {
+                log_err("Failed to return to the group id");
+                nodes_stop(list);
+                log_info("Stopping registry node");
+                run_stop(_registry);
+                log_info("Exiting!");
+                exit(1);
+        }
+
+        while (!app_quit()) {
+                clock_sleep(1);
+        }
+        
+        nodes_stop(list);
+        log_info("Stopping replay node");
+        //if (_replay) run_stop(_replay);
+        log_info("Stopping registry node");
+        run_stop(_registry);
+        delete_nodes(list);
+        delete_list(list);
+        delete_run(_registry);
+        log_info("Exiting!");
+        
+        exit(0);
+}
+
+// Start the nodes. This forks a child process. The child process than
+// forks for each of the nodes. The intermediate child process is
+// needed in order to put all of the nodes in the same process
+// group. By putting them in the same group, different from the
+// monitor process, only the monitor catches the signals (ctrl-c, HUP,
+// ...). It can then shut down the individual nodes orderly.
+//
+// Returns the PID of the child process, or -1 in case of error.
+static pid_t start_child()
+{
+        int ret;
+	pid_t pid;
+        pid_t nodes_gpid;
+        pid_t monitor_gpid;
+
+        // Fork so that the current process is no longer the group
+        // leader.
+        pid = fork();
+	switch (pid) {
+        default: return pid;
+        case -1: return -1;
+        case 0:  break;
+	}
+
+        log_info("PID %d", getpid());
+
+        // Store a copy of the parents group id
+        monitor_gpid = getpgrp();
+        
+        // Create a new group id
+        ret = setpgid(pid, 0);
+        if (ret == -1) {
+                log_panic("Failed to set the group id");
+                perror("monitor: start_children");
+                return -1;
+        }
+        
+        nodes_gpid = getpgrp();
+        log_info("nodes group id: %d, parent group id: %d", nodes_gpid, monitor_gpid);
+
+        child_main(monitor_gpid);
+        
+        exit(0);
+}
+
+/******************************************************/
+
 int main(int argc, char **argv)
 {
-        list_t *list = NULL;
         pid_t child_pid =  -1;
         pid_t monitor_pid;
         pid_t pid;
@@ -547,15 +586,11 @@ int main(int argc, char **argv)
                 exit(1);
         }
 
-        list = load_config(app_get_config());
-        if (list == NULL)
-                exit(1);
-        
         monitor_pid = getpid();
         log_info("PID %d", monitor_pid);
         
         // Start the nodes.  
-        child_pid = start_child(list);
+        child_pid = start_child();
         if (child_pid == -1) {
                 log_panic("Failed to start the nodes");
                 exit(1);
@@ -572,10 +607,11 @@ int main(int argc, char **argv)
                         app_set_quit();
         }
         
-        log_info("Sending HUP signal to child process, pid %d", child_pid);
-        kill(child_pid, SIGHUP);
+        /* log_info("Sending HUP signal to child process, pid %d", child_pid); */
+        /* kill(child_pid, SIGHUP); */
         log_info("Waiting for ltmonitor-child to exit");
         ret = waitpid(child_pid, &status, 0);
         log_info("Exiting!");
+        
         exit(0);
 }

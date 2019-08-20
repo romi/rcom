@@ -14,7 +14,7 @@ static rcregistry_t *rcregistry = NULL;
 int main(int argc, char **argv)
 {
         app_init(&argc, argv);
-
+        
         rcregistry = new_rcregistry();
         if (rcregistry == NULL)
                 return 1;
@@ -22,7 +22,7 @@ int main(int argc, char **argv)
         while (!app_quit()) {
                 clock_sleep(1);
         }
-
+        
         delete_rcregistry(rcregistry);
         return 0;
 }

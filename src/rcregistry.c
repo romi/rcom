@@ -187,11 +187,11 @@ static void rcregistry_send_list(rcregistry_t* rcregistry, messagelink_t *link)
         json_object_t message = json_object_create();
         json_object_setstr(message, "request", "proxy-update-list");
         json_object_set(message, "list", list);
-        
+        json_unref(list);
+
         messagelink_send_obj(link, message);
         
         json_unref(message);
-        json_unref(list);
         delete_registry_entry_list(entries);
 }
 

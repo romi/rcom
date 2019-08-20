@@ -361,8 +361,12 @@ static void diagnostics_print_backtrace()
 
 static void diagnostics_signal_handler(int signum, siginfo_t *info, void *unused)
 {
-        log_info("Received %s signal", strsignal(signum));
+        fprintf(stderr, "%s: Received %s signal (signal #%d)\n",
+                _name, strsignal(signum), interrupt_count+1);
+        log_info("Received %s signal (signal #%d)", strsignal(signum), interrupt_count+1);
         
+        fprintf(stderr, "COPY: %s: Received %s signal\n", _name, strsignal(signum));
+
 	if ((signum == SIGINT) || (signum == SIGHUP) || (signum == SIGTERM)) {
 		log_info("quitting");
                 diagnostics_set_signal_handler(SIGINT);

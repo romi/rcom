@@ -222,7 +222,27 @@ int service_export(service_t* service,
                    void *data,
                    service_onrequest_t onrequest)
 {
-        export_t* e = new_export(name, mimetype_in, mimetype_out);
+        export_t *e;
+        int found = 0;
+        int err = 0;
+        
+        service_lock(service);
+        for (list_t *l = service->exports; l != NULL; l = list_next(l)) {
+                e = list_get(l, export_t);
+                if (export_matches(e, name)) {
+                        if (export_set_mimetypes(e, mimetype_in, mimetype_out) == 0)
+                                export_set_onrequest(e, data, onrequest);
+                        else err = -1;
+                        found = 1;
+                        break;
+                }
+        }
+        service_unlock(service);
+
+        if (found)
+                return err;
+        
+        e = new_export(name, mimetype_in, mimetype_out);
         if (e == NULL) 
                 return -1;
         export_set_onrequest(e, data, onrequest);
@@ -275,8 +295,7 @@ export_t *service_get_export(service_t *service, const char *name)
         while (l) {
                 export_t* r = list_get(l, export_t);
                 //log_debug("export '%s', name '%s'", export_name(r), name);
-                if (rstreq(name, export_name(r))
-                    || (name[0] == '/' && rstreq(name+1, export_name(r)))) {
+                if (export_matches(r, name)) {
                         //log_debug("found export matching '%s'", name);
                         n = export_clone(r);
                         break;

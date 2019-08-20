@@ -139,12 +139,6 @@ int print_com_decl_i(membuf_t *buf, const char *name, json_object_t obj)
                               "        return messagehub_%s;\n"
                               "}\n\n",
                               topic, topic);
-                membuf_printf(buf, "static int messagehub_%s_onconnect(messagehub_t *hub,\n"
-                              "        messagelink_t *link,\n"
-                              "        void *userdata);\n", topic);
-                membuf_printf(buf, "static void messagehub_%s_onmessage(void *userdata,\n"
-                              "        messagelink_t *link,\n"
-                              "        json_object_t message);\n\n", topic);
         } else {
                 membuf_printf(buf, "static %s_t *%s_%s = NULL;\n\n", type, type, topic);
                 membuf_printf(buf,
@@ -155,6 +149,21 @@ int print_com_decl_i(membuf_t *buf, const char *name, json_object_t obj)
                               type, topic,
                               type, topic);
 
+        }
+        
+        if (rstreq(type, "controller")) {
+                membuf_printf(buf, "static int messagehub_%s_onconnect(messagehub_t *hub,\n"
+                              "        messagelink_t *link,\n"
+                              "        void *userdata);\n", topic);
+                membuf_printf(buf, "static void messagehub_%s_onmessage(void *userdata,\n"
+                              "        messagelink_t *link,\n"
+                              "        json_object_t message);\n\n", topic);
+        } else if (rstreq(type, "messagehub")) {
+                if (json_object_getstr(obj, "onmessage"))
+                        membuf_printf(buf, "static int messagehub_%s_onconnect(messagehub_t *hub,\n"
+                                      "        messagelink_t *link,\n"
+                                      "        void *userdata);\n", topic);
+                
         }
         return 0;
 }
@@ -234,6 +243,7 @@ int print_new_messagehub(membuf_t *buf,
                          json_object_t obj)
 {
         const char *onconnect = json_object_getstr(obj, "onconnect");
+        const char *onmessage = json_object_getstr(obj, "onmessage");
         const char *userdata = json_object_getstr(obj, "userdata");
         double port = 0;
         
@@ -245,18 +255,43 @@ int print_new_messagehub(membuf_t *buf,
                 }
         }
 
-        if (onconnect == NULL)
-                onconnect = "NULL";
+        if (onconnect != NULL && onmessage != NULL) {
+                fprintf(stderr, "Only one of onconnect and onmessage can be specified\n");
+                return -1;
+        }
         if (userdata == NULL)
                 userdata = "NULL";
         
-        membuf_printf(buf,
-                      "        messagehub_%s = registry_open_messagehub(\n"
-                      "                \"%s\",\n"
-                      "                \"%s\",\n"
-                      "                %d, (messagehub_onconnect_t) %s,\n"
-                      "                %s);\n",
-                      topic, name, topic, (int) port, onconnect, userdata);
+        if (onconnect != NULL) {
+                log_debug("print_new_messagehub: using onconnect provided by input file");
+                membuf_printf(buf,
+                              "        messagehub_%s = registry_open_messagehub(\n"
+                              "                \"%s\",\n"
+                              "                \"%s\",\n"
+                              "                %d, (messagehub_onconnect_t) %s,\n"
+                              "                %s);\n",
+                              topic, name, topic, (int) port, onconnect, userdata);
+        } else if (onmessage != NULL) {
+                log_debug("print_new_messagehub: using generated onconnect and "
+                          "onmessage from input file");
+                membuf_printf(buf,
+                              "        messagehub_%s = registry_open_messagehub(\n"
+                              "                \"%s\",\n"
+                              "                \"%s\",\n"
+                              "                %d, (messagehub_onconnect_t) messagehub_%s_onconnect,\n"
+                              "                %s);\n",
+                              topic, name, topic, (int) port, topic, userdata);
+        } else { 
+                log_debug("print_new_messagehub: no onconnect and "
+                          "no onmessage were given");
+                membuf_printf(buf,
+                              "        messagehub_%s = registry_open_messagehub(\n"
+                              "                \"%s\",\n"
+                              "                \"%s\",\n"
+                              "                %d, (messagehub_onconnect_t) NULL,\n"
+                              "                %s);\n",
+                              topic, name, topic, (int) port, userdata);
+        }
         membuf_printf(buf,
                       "        if (messagehub_%s == NULL) {\n"
                       "                log_err(\"Failed to create the messagehub\");\n"
@@ -615,12 +650,31 @@ int print_com_controller_handlers(membuf_t *buf, const char *name, json_object_t
         membuf_printf(buf,
                       "}\n\n");
 
+
         membuf_printf(buf,
                       "static int messagehub_%s_onconnect(messagehub_t *hub,\n"
                       "        messagelink_t *link,\n"
                       "        void *userdata)\n{\n", topic);
         membuf_printf(buf, "        messagelink_set_userdata(link, userdata);\n");
         membuf_printf(buf, "        messagelink_set_onmessage(link, messagehub_%s_onmessage);\n", topic);
+        membuf_printf(buf, "        return 0;\n");
+        membuf_printf(buf, "}\n\n");
+}
+
+int print_com_messagehub_handlers(membuf_t *buf, const char *name, json_object_t obj)
+{
+        const char *topic = json_object_getstr(obj, "topic");
+        const char *onmessage = json_object_getstr(obj, "onmessage");
+
+        if (onmessage == NULL)
+                return 0;
+        
+        membuf_printf(buf,
+                      "static int messagehub_%s_onconnect(messagehub_t *hub,\n"
+                      "        messagelink_t *link,\n"
+                      "        void *userdata)\n{\n", topic);
+        membuf_printf(buf, "        messagelink_set_userdata(link, userdata);\n");
+        membuf_printf(buf, "        messagelink_set_onmessage(link, (messagelink_onmessage_t) %s);\n", onmessage);
         membuf_printf(buf, "        return 0;\n");
         membuf_printf(buf, "}\n\n");
 }
@@ -633,6 +687,10 @@ int print_com_handlers(membuf_t *buf, const char *name, json_object_t com)
                 const char *type = json_object_getstr(obj, "type");
                 if (rstreq(type, "controller")) {
                         err = print_com_controller_handlers(buf, name, obj);
+                        if (err != 0)
+                                return err;
+                } else if (rstreq(type, "messagehub")) {
+                        err = print_com_messagehub_handlers(buf, name, obj);
                         if (err != 0)
                                 return err;
                 }

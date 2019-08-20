@@ -78,6 +78,31 @@ void export_set_onrequest(export_t* e,
         e->onrequest = onrequest;
 }
 
+int export_set_mimetypes(export_t* e,
+                          const char* mimetype_in,
+                          const char* mimetype_out)
+{
+        if (e->mimetype_in) {
+                mem_free(e->mimetype_in);
+                e->mimetype_in = NULL;
+        }
+        if (e->mimetype_out) {
+                mem_free(e->mimetype_out);
+                e->mimetype_out = NULL;
+        }
+        if (mimetype_in) {
+                e->mimetype_in = mem_strdup(mimetype_in);
+                if (e->mimetype_in == NULL)
+                        return -1;
+        }
+        if (mimetype_out) {
+                e->mimetype_out = mem_strdup(mimetype_out);
+                if (e->mimetype_out == NULL)
+                        return -1;
+        }
+        return 0;
+}
+
 int export_callback(export_t* e, request_t *request)
 {
         if (!e->onrequest)
@@ -110,12 +135,8 @@ int export_json_out(export_t* e)
         return e->mimetype_out != NULL && rstreq(e->mimetype_out, "application/json");
 }
 
-/* int export_registered(export_t* e) */
-/* { */
-/*         return e->registered; */
-/* } */
-
-/* void export_set_registered(export_t* e, int val) */
-/* { */
-/*         e->registered = val; */
-/* } */
+int export_matches(export_t* e, const char *name)
+{
+        return rstreq(name, e->name)
+                || (name[0] == '/' && rstreq(name+1, e->name));
+}

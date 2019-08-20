@@ -43,6 +43,7 @@ messagehub_t *registry_open_messagehub(const char *name,
                                        void *userdata);
 
 void registry_close_messagehub(messagehub_t *hub);
+addr_t *registry_get_messagehub(const char *topic);
 
 
 // messagelink

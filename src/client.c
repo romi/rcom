@@ -25,5 +25,7 @@ int client_get_data(const char *topic, const char *resource, membuf_t *out)
                 log_err("client_get: couldn't find no service for topic '%s'", topic);
                 return -1;
         }
-        return http_get(addr, resource, out);
+        int r = http_get(addr, resource, out);
+        delete_addr(addr);
+        return r;
 }
