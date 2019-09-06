@@ -1,9 +1,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <r.h>
 #include <rcom.h>
-
-#include "mem.h"
 
 typedef struct _circular_buffer_t
 {
@@ -16,13 +15,13 @@ typedef struct _circular_buffer_t
 
 circular_buffer_t* new_circular_buffer(int size)
 {
-        circular_buffer_t* r = new_obj(circular_buffer_t);
+        circular_buffer_t* r = r_new(circular_buffer_t);
         if (r == NULL)
                 return NULL;
 
-        r->buffer = mem_alloc(size);
+        r->buffer = r_alloc(size);
         if (r->buffer == NULL) {
-                delete_obj(r);
+                r_delete(r);
                 return NULL;
         }
         r->length = size;
@@ -37,10 +36,10 @@ void delete_circular_buffer(circular_buffer_t* r)
 {
         if (r) {
                 if (r->buffer)
-                        mem_free(r->buffer);
+                        r_free(r->buffer);
                 if (r->mutex)
                         delete_mutex(r->mutex);
-                delete_obj(r);
+                r_delete(r);
         }
 }
 

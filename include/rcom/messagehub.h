@@ -1,7 +1,7 @@
 #ifndef _RCOM_MESSAGEHUB_H_
 #define _RCOM_MESSAGEHUB_H_
 
-#include "rcom/json.h"
+#include <r.h>
 
 #ifdef __cplusplus
 extern "C" {

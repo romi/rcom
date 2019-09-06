@@ -2,13 +2,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
+#include <r.h>
 
-#include "rcom/log.h"
 #include "rcom/data.h"
-#include "rcom/clock.h"
 #include "rcom/util.h"
-
-#include "mem.h"
 
 struct _data_t {
         int len;
@@ -17,7 +14,7 @@ struct _data_t {
 
 data_t* new_data()
 {
-        data_t* m = new_obj(data_t);
+        data_t* m = r_new(data_t);
         if (m == NULL)
                 return NULL;
         m->len = 0;
@@ -27,7 +24,7 @@ data_t* new_data()
 
 void delete_data(data_t* m)
 {
-        if (m) delete_obj(m);
+        if (m) r_delete(m);
 }
 
 int data_len(data_t* m)
@@ -43,7 +40,7 @@ const char* data_data(data_t* m)
 void data_set_data(data_t* m, const char* s, int len)
 {
         if (len > DATA_MAXLEN) {
-                log_warn("Data: data truncated: max length=%d!", DATA_MAXLEN);
+                r_warn("Data: data truncated: max length=%d!", DATA_MAXLEN);
                 len = DATA_MAXLEN;
         }
         memcpy(m->p.data, s, len);
@@ -85,7 +82,7 @@ int data_vprintf(data_t* m, const char* format, va_list ap)
         m->p.data[DATA_MAXLEN-1] = 0;
 
         if (len >= DATA_MAXLEN) {
-                log_warn("data_printf: data has been truncated");
+                r_warn("data_printf: data has been truncated");
                 m->len = DATA_MAXLEN-1;
                 return -1;
         }
@@ -98,7 +95,7 @@ int data_serialise(data_t* m, json_object_t obj)
         int ret;
         ret = json_tostring(obj, m->p.data, DATA_MAXLEN);
         if (ret != 0) {
-                log_err("datasource_send: json_tostring failed");
+                r_err("datasource_send: json_tostring failed");
                 return -1;
         }
         m->len = strlen(m->p.data);

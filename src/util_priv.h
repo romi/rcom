@@ -2,7 +2,7 @@
 #define _RCOM_UTIL_H_
 
 #include <stdint.h>
-#include "rcom/membuf.h"
+#include <r.h>
 #include "rcom/util.h"
 
 #ifdef __cplusplus
@@ -13,10 +13,10 @@ membuf_t *escape_string(const char* s);
 
 char *encode_base64(const unsigned char *s);
 
-void generate_random_buffer(uint8_t *buffer, ssize_t len);
-int rcom_getrandom(void *buf, size_t buflen, unsigned int flags);
+/* void generate_random_buffer(uint8_t *buffer, ssize_t len); */
+/* int rcom_getrandom(void *buf, size_t buflen, unsigned int flags); */
 
-char *generate_uuid();
+/* char *generate_uuid(); */
         
 unsigned char *SHA1(const unsigned char* s, unsigned char *digest);
 

@@ -10,14 +10,12 @@
 #include <ifaddrs.h>
 #include <libgen.h>
 #include <unistd.h>
+#include <r.h>
 
-#include "rcom/log.h"
 #include "rcom/app.h"
 #include "rcom/dump.h"
 #include "rcom/util.h"
 
-#include "mem.h"
-#include "log_priv.h"
 #include "registry_priv.h"
 #include "proxy.h"
 
@@ -89,24 +87,24 @@ int app_parse_args(int *argc, char **argv)
 
                 switch (c) {
                 case 'N':
-                        log_info("app_parse_args: setting registry name to '%s'",
+                        r_info("app_parse_args: setting registry name to '%s'",
                                  optarg);
                         set_registry_name(optarg);
                         break;
                 case 'A':
-                        log_info("app_parse_args: setting registry address to '%s'",
+                        r_info("app_parse_args: setting registry address to '%s'",
                                  optarg);
                         set_registry_ip(optarg);
                         break;
                 case 'P':
-                        log_info("app_parse_args: setting registry port to %d",
+                        r_info("app_parse_args: setting registry port to %d",
                                  atoi(optarg));
                         set_registry_port(atoi(optarg));
                         break;
                 case 'I':
-                        log_info("app_parse_args: setting default IP address to %s",
+                        r_info("app_parse_args: setting default IP address to %s",
                                  optarg);
-                        _ip = mem_strdup(optarg);
+                        _ip = r_strdup(optarg);
                         break;
                 case 'L':
                         app_set_logdir(optarg);
@@ -145,7 +143,7 @@ int app_parse_args(int *argc, char **argv)
 static int app_check_ip()
 {
         if (_ip == NULL)
-                _ip = mem_strdup("0.0.0.0");
+                _ip = r_strdup("0.0.0.0");
         return 0;
 }
 
@@ -175,18 +173,18 @@ static int app_check_ip_OLD()
 
                 if (ifa->ifa_addr->sa_family == AF_INET) {
                         if (!rstreq(host, "127.0.0.1")) {
-                                log_warn("app_check_ip: Using '%s' by default",
-                                         host);
-                                log_warn("app_check_ip: Consider using "
-                                          "the --ip=... option");
-                                _ip = mem_strdup(host);
+                                r_warn("app_check_ip: Using '%s' by default",
+                                       host);
+                                r_warn("app_check_ip: Consider using "
+                                       "the --ip=... option");
+                                _ip = r_strdup(host);
                                 break;
                         }
                 }
         }
 
         if (_ip == NULL) {
-                _ip = mem_strdup("127.0.0.1");
+                _ip = r_strdup("127.0.0.1");
         }
         
         freeifaddrs(ifaddr);
@@ -210,11 +208,11 @@ void app_init(int *argc, char **argv)
         if (mem_init(argc) != 0)
                 exit(1);
 
-        //_logdir = mem_strdup(".");
+        //_logdir = r_strdup(".");
         app_set_name(argv[0]);
 
-        if (log_init() != 0) {
-		log_panic("log_init failed");
+        if (r_log_init() != 0) {
+		r_panic("rcom_log_init failed");
                 exit(1);
         }
                 
@@ -224,7 +222,7 @@ void app_init(int *argc, char **argv)
         atexit(rcom_cleanup);
         
         if (setjmp(env) != 0) {
-		log_panic("Abort (longjmp)");
+		r_panic("Abort (longjmp)");
                 app_set_quit();
                 exit(1);
         }
@@ -232,7 +230,7 @@ void app_init(int *argc, char **argv)
         app_parse_args(argc, argv);
 
         if (app_check_ip() != 0) {
-		log_panic("Failed to get the IP address");
+		r_panic("Failed to get the IP address");
                 app_set_quit();
                 exit(1);
         }
@@ -248,16 +246,16 @@ static void app_update_logfile()
         // Update the path of the log file
         snprintf(buf, 511, "%s/%s.log", _logdir, _name);
         buf[511] = 0;
-        log_set_file(buf);
+        r_log_set_file(buf);
 }
 
 void app_set_logdir(const char *logdir)
 {
         if (_logdir != NULL) {
-                mem_free(_logdir);
+                r_free(_logdir);
                 _logdir = NULL;
         }
-        _logdir = mem_strdup(logdir);
+        _logdir = r_strdup(logdir);
         app_update_logfile();
 }
 
@@ -266,40 +264,22 @@ const char *app_get_logdir()
         return _logdir;
 }
 
-// FIXME!
-static int make_absolute_path(const char *path, char *buffer, int len)
-{
-        int r;
-        
-        if (path[0] == '/') {
-                r = snprintf(buffer, len, "%s", path);
-        } else {
-                char *wd = getcwd(NULL, 0);
-                if (wd == NULL) return -1;
-                r = snprintf(buffer, len, "%s/%s", wd, path);
-                free(wd);
-        }
-        
-        buffer[len-1] = 0;
-        return r > len;
-}
-
 static void app_set_config(const char *path)
 {
         if (_config != NULL) {
-                mem_free(_config);
+                r_free(_config);
                 _config = NULL;
         }
 
         char buffer[1024];
         int r = make_absolute_path(path, buffer, sizeof(buffer));
         if (r != 0) {
-                log_err("app_set_config failed: make_absolute_path != 0");
+                r_err("app_set_config failed: make_absolute_path != 0");
                 app_set_quit();
                 return;
         }
         
-        _config = mem_strdup(buffer);
+        _config = r_strdup(buffer);
 }
 
 const char *app_get_config()
@@ -311,13 +291,13 @@ void app_set_name(const char *path)
 {
         // The call to basename() may change the contents of the
         // buffer. Copy it first.
-        char *s = mem_strdup(path);
+        char *s = r_strdup(path);
         char *name = basename(s);
         if (_name != NULL)
-                mem_free(_name);
-        _name = mem_strdup(name);
-        mem_free(s);
-        log_set_app(_name);
+                r_free(_name);
+        _name = r_strdup(name);
+        r_free(s);
+        r_log_set_app(_name);
         app_update_logfile();
 }
 
@@ -329,13 +309,13 @@ const char *app_get_name()
 void app_cleanup()
 {
         if (_name != NULL)
-                mem_free(_name);
+                r_free(_name);
         if (_ip != NULL)
-                mem_free(_ip);
+                r_free(_ip);
         if (_logdir != NULL)
-                mem_free(_logdir);
+                r_free(_logdir);
         if (_config != NULL)
-                mem_free(_config);
+                r_free(_config);
 }
 
 static void diagnostics_print_backtrace()
@@ -348,12 +328,12 @@ static void diagnostics_print_backtrace()
 	size = backtrace(array, 10);
 	strings = backtrace_symbols(array, size);
 	
-	log_panic("***************************");
-	log_panic("*** diagnostics ***********");
-	log_panic("*** Application crashed *** ");
-	log_panic("Backtrace: ");
+	r_panic("***************************");
+	r_panic("*** diagnostics ***********");
+	r_panic("*** Application crashed *** ");
+	r_panic("Backtrace: ");
 	for (i = 0; i < size; i++) {
-		log_panic(strings[i]);
+		r_panic(strings[i]);
 	}
 	
 	free(strings);
@@ -363,12 +343,12 @@ static void diagnostics_signal_handler(int signum, siginfo_t *info, void *unused
 {
         fprintf(stderr, "%s: Received %s signal (signal #%d)\n",
                 _name, strsignal(signum), interrupt_count+1);
-        log_info("Received %s signal (signal #%d)", strsignal(signum), interrupt_count+1);
+        r_info("Received %s signal (signal #%d)", strsignal(signum), interrupt_count+1);
         
         fprintf(stderr, "COPY: %s: Received %s signal\n", _name, strsignal(signum));
 
 	if ((signum == SIGINT) || (signum == SIGHUP) || (signum == SIGTERM)) {
-		log_info("quitting");
+		r_info("quitting");
                 diagnostics_set_signal_handler(SIGINT);
                 diagnostics_set_signal_handler(SIGHUP);
                 diagnostics_set_signal_handler(SIGTERM);
@@ -379,24 +359,24 @@ static void diagnostics_signal_handler(int signum, siginfo_t *info, void *unused
 	}
 
 	if (signum == SIGSEGV) {
-		log_panic("Segment violation");
+		r_panic("Segment violation");
 		diagnostics_print_backtrace();
                 app_set_quit();
 		exit(1);
 	}
 
 	if (signum == SIGFPE) {
-		log_panic("Floating-point exception");
+		r_panic("Floating-point exception");
 		diagnostics_print_backtrace();
 	}
 
 	if (signum == SIGPIPE) {
-		log_panic("Broken pipe exception");
+		r_panic("Broken pipe exception");
 		diagnostics_print_backtrace();
 	}
 
 	if (signum == SIGILL) {
-		log_panic("Illegal instruction");
+		r_panic("Illegal instruction");
 		diagnostics_print_backtrace();
                 app_set_quit();
 		exit(1);
@@ -440,6 +420,6 @@ static void rcom_cleanup()
         proxy_cleanup();
         json_cleanup();
         app_cleanup();
-        log_cleanup();
+        r_log_cleanup();
         mem_cleanup();
 }

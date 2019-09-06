@@ -49,21 +49,21 @@ static int _open_serial(const char *device, int speed)
         case 57600: speed_constant = B57600; break;
         case 115200: speed_constant = B115200; break;
         default:
-                log_err("open_serial: only the following speeds are valid: "
+                r_err("open_serial: only the following speeds are valid: "
                         "9600, 19200, 38400, 57600, 115200");
                 return -1;                
         }
 
         fd = open(device, O_RDWR | O_NOCTTY | O_SYNC);
         if (fd < 0) {
-                log_err("open_serial: error %d opening %s: %s",
+                r_err("open_serial: error %d opening %s: %s",
                         errno, device, strerror(errno));
                 return -1;
         }
 
         memset (&tty, 0, sizeof tty);
         if (tcgetattr (fd, &tty) != 0) {
-                log_err("open_serial: error %d from tcgetattr", errno);
+                r_err("open_serial: error %d from tcgetattr", errno);
                 close(fd);
                 return -1;
         }
@@ -98,7 +98,7 @@ static int _open_serial(const char *device, int speed)
         tcflush(fd, TCIOFLUSH);
 
         if (tcsetattr (fd, TCSANOW, &tty) != 0) {
-                log_err("open_serial: error %d from tcsetattr", errno);
+                r_err("open_serial: error %d from tcsetattr", errno);
                 close(fd);
                 return -1;
         }
@@ -114,11 +114,11 @@ serial_t *new_serial(const char *device, int speed)
         if (fd == -1) return NULL;
         
         // Create the object
-        s = new_obj(serial_t);
+        s = r_new(serial_t);
         if (s == NULL) return NULL;
         
         s->fd = fd;
-        s->device = mem_strdup(device);
+        s->device = r_strdup(device);
         s->speed = speed;
         s->out = new_membuf();
         s->nextchar = -1;
@@ -139,7 +139,7 @@ void delete_serial(serial_t *s)
         if (s) {
                 serial_lock(s);
                 if (s->device)
-                        mem_free(s->device);
+                        r_free(s->device);
                 if (s->out)
                         delete_membuf(s->out);
                 close(s->fd);
@@ -147,7 +147,7 @@ void delete_serial(serial_t *s)
                 serial_unlock(s);
                 if (s->mutex)
                         delete_mutex(s->mutex);
-                delete_obj(s);
+                r_delete(s);
         }
 }
 
@@ -292,7 +292,7 @@ int serial_printf(serial_t *s, const char *format, ...)
         va_end(ap);
 
         if (len < 0) {
-                log_err("serial_printf: vsnprintf returned an error");
+                r_err("serial_printf: vsnprintf returned an error");
                 return -1;
         }
         
@@ -323,7 +323,7 @@ const char *serial_command_send(serial_t *s, membuf_t *message, const char *cmd)
         int r;
         const char *reply = NULL;
 
-	//log_debug("serial_command_send: %s", cmd);
+	//r_debug("serial_command_send: %s", cmd);
 
         if (s == NULL)
                 return NULL;
@@ -336,19 +336,19 @@ const char *serial_command_send(serial_t *s, membuf_t *message, const char *cmd)
 
         if (r != 0) {
                 s->errors++;
-                log_err("serial_command_send: "
+                r_err("serial_command_send: "
                         "failed to send the command");
         } else if (reply == NULL) {
                 s->errors++;
-                log_err("serial_command_send: reply == NULL");
+                r_err("serial_command_send: reply == NULL");
         } else if (strncmp(reply, "ERR", 3) == 0) {
                 s->errors++;
-                log_err("serial_command_send: %s", reply);
+                r_err("serial_command_send: %s", reply);
         } 
 
         serial_unlock(s);
 
-	/* log_debug("serial_command_send: reply %.*s", */
+	/* r_debug("serial_command_send: reply %.*s", */
         /*           membuf_len(message), membuf_data(message)); */
 	
         return reply;
@@ -369,7 +369,7 @@ const char *serial_command_sendf(serial_t *s, membuf_t *message, const char *for
         va_end(ap);
 
         if (len < 0) {
-                log_err("serial_command_sendf: vsnprintf returned an error");
+                r_err("serial_command_sendf: vsnprintf returned an error");
                 return NULL;
         }
         
@@ -384,7 +384,7 @@ const char *serial_command_sendf(serial_t *s, membuf_t *message, const char *for
         membuf_vprintf(s->out, format, ap);
         va_end(ap);
 
-	//log_debug("serial_command_sendf: %s", membuf_data(s->out));
+	//r_debug("serial_command_sendf: %s", membuf_data(s->out));
 
         //printf("serial: sending command: %s\n", membuf_data(s->out));
         r = serial_println(s, membuf_data(s->out));
@@ -397,7 +397,7 @@ const char *serial_command_sendf(serial_t *s, membuf_t *message, const char *for
 unlock_and_return:
         serial_unlock(s);
 
-	//log_debug("serial_command_sendf: reply %s", reply);
+	//r_debug("serial_command_sendf: reply %s", reply);
 
         return reply;
 }
@@ -406,7 +406,7 @@ int serial_flush(serial_t *s)
 {
         int r = tcflush(s->fd, TCIOFLUSH);
         if (r != 0) {
-                log_err("serial_flush: %s", strerror(errno));
+                r_err("serial_flush: %s", strerror(errno));
         }
         return r;
 }

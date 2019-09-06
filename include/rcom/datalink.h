@@ -2,9 +2,8 @@
 #define _RCOM_DATALINK_H_
 
 #include <stdio.h>
-#include <netinet/in.h>
+#include <r.h>
 #include "rcom/data.h"
-#include "rcom/json.h"
 
 #ifdef __cplusplus
 extern "C" {

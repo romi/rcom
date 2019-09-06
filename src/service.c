@@ -1,12 +1,9 @@
+#include <r.h>
 
-#include "rcom/log.h"
 #include "rcom/app.h"
 #include "rcom/addr.h"
-#include "rcom/thread.h"
 #include "rcom/util.h"
 
-#include "mem.h"
-#include "list.h"
 #include "request_priv.h"
 #include "service_priv.h"
 
@@ -33,11 +30,11 @@ service_t* new_service(const char *name, int port)
         int ret;
         int socklen = sizeof(struct sockaddr_in);
         
-        service_t* service = new_obj(service_t);
+        service_t* service = r_new(service_t);
         if (service == NULL)
                 return NULL;
 
-        service->name = mem_strdup(name);
+        service->name = r_strdup(name);
         if (service->name == NULL) {
                 delete_service(service);
                 return NULL;
@@ -62,13 +59,13 @@ service_t* new_service(const char *name, int port)
 
         service->socket = open_server_socket(service->addr);
         if (service->socket == INVALID_TCP_SOCKET) {
-                log_err("Failed to create server socket");
+                r_err("Failed to create server socket");
                 delete_service(service);
                 return NULL;
         }
 
         char b[52];
-        log_info("Service listening at http://%s",
+        r_info("Service listening at http://%s",
                  addr_string(service->addr, b, sizeof(b)));
 
         service->cont = 1;
@@ -107,14 +104,14 @@ void delete_service(service_t* service)
                 if (service->addr)
                         delete_addr(service->addr);
                 if (service->name)
-                        mem_free(service->name);
+                        r_free(service->name);
                 if (service->socket != INVALID_TCP_SOCKET)
                         close_tcp_socket(service->socket);
 
                 if (service->mutex)
                         delete_mutex(service->mutex);
 
-                delete_obj(service);
+                r_delete(service);
         }
 }
 
@@ -267,13 +264,13 @@ void service_run(service_t* service)
                 } else if (client_socket == INVALID_TCP_SOCKET) {
                         // Server socket is probably being closed //
                         // FIXME: is this true?
-                        log_err("accept failed"); 
+                        r_err("accept failed"); 
                         continue;
                 }
 
                 request_t* r = new_request(service, client_socket);
                 if (r == NULL) {
-                        log_err("out of memory");
+                        r_err("out of memory");
                         continue;
                 }
                 
@@ -294,9 +291,9 @@ export_t *service_get_export(service_t *service, const char *name)
         l = service->exports;
         while (l) {
                 export_t* r = list_get(l, export_t);
-                //log_debug("export '%s', name '%s'", export_name(r), name);
+                //r_debug("export '%s', name '%s'", export_name(r), name);
                 if (export_matches(r, name)) {
-                        //log_debug("found export matching '%s'", name);
+                        //r_debug("found export matching '%s'", name);
                         n = export_clone(r);
                         break;
                 }

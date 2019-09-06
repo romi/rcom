@@ -17,12 +17,12 @@
 #include <rcom/streamerlink.h>
 #include <rcom/multipart_parser.h>
 #include <rcom/dump.h>
-#include <rcom/serial.h>
-#include <rcom/json.h>
-#include <rcom/log.h>
-#include <rcom/clock.h>
-#include <rcom/thread.h>
-#include <rcom/membuf.h>
+//#include <rcom/serial.h>
+//#include <rcom/json.h>
+//#include <rcom/log.h>
+//#include <rcom/clock.h>
+//#include <rcom/thread.h>
+//#include <rcom/membuf.h>
 #include <rcom/util.h>
 
 #endif // _RCOM_RCOM_H_

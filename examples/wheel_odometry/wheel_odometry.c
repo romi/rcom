@@ -12,7 +12,7 @@ void wheel_odometry_onmessage(messagelink_t *link,
         double right = json_array_getnum(message, 1);
         if (have_values) {
                 position += (left - last_encoders[0]) / 1000.0;
-                log_debug("position %f", position);
+                r_debug("position %f", position);
         }
         last_encoders[0] = left;
         last_encoders[1] = right;

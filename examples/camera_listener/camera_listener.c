@@ -10,13 +10,13 @@ static int *camera_listener_onpart(void *userdata,
                                    double timestamp)
 {
         double t = clock_time();
-        log_info("Got image. Delay %f", t - timestamp);
+        r_info("Got image. Delay %f", t - timestamp);
         if (start_time == 0) {
                 start_time = t;
         }
         count_images += 1;
         if (count_images > 10) {
-                log_info("FPS %.1f", (count_images - 1.0) / (t - start_time));
+                r_info("FPS %.1f", (count_images - 1.0) / (t - start_time));
         }
         return 0;
 }

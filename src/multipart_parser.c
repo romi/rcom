@@ -1,13 +1,10 @@
 #include <stdlib.h>
+#include <r.h>
 
 #include "rcom/registry.h"
-#include "rcom/log.h"
 #include "rcom/dump.h"
 #include "rcom/multipart_parser.h"
-#include "rcom/membuf.h"
 #include "rcom/util.h"
-
-#include "mem.h"
 
 enum {
         k_read_header,
@@ -39,7 +36,7 @@ multipart_parser_t *new_multipart_parser(void* userdata,
 {
         multipart_parser_t *m = NULL;
         
-        m = new_obj(multipart_parser_t);
+        m = r_new(multipart_parser_t);
         if (m == NULL) {
                 return NULL;
         }
@@ -68,7 +65,7 @@ void delete_multipart_parser(multipart_parser_t *m)
         if (m) {
                 if (m->header) delete_membuf(m->header);
                 if (m->body) delete_membuf(m->body);
-                delete_obj(m);
+                r_delete(m);
         }
 }
 
@@ -85,7 +82,7 @@ static int multipart_parser_parse_header(multipart_parser_t *m)
         memset(_eol, 0, 2);
         
         if (strncmp(s, "--nextimage", 11) != 0) {
-                log_err("Invalid chunk separator");
+                r_err("Invalid chunk separator");
                 return -1;
         }
         
@@ -104,7 +101,7 @@ static int multipart_parser_parse_header(multipart_parser_t *m)
                                 if (n < 128) {
                                         strcpy(m->mimetype, s+start+14);
                                 } else {
-                                        log_err("Invalid mime-type header");
+                                        r_err("Invalid mime-type header");
                                         m->status = k_error;
                                         return -1;
                                 }
@@ -113,7 +110,7 @@ static int multipart_parser_parse_header(multipart_parser_t *m)
                                 char *endptr;
                                 m->length = strtol(s+start+16, &endptr, 10);
                                 if (m->length == 0) {
-                                        log_err("Invalid length header");
+                                        r_err("Invalid length header");
                                         m->status = k_error;
                                         return -1;
                                 }
@@ -122,7 +119,7 @@ static int multipart_parser_parse_header(multipart_parser_t *m)
                                 char *endptr;
                                 m->timestamp = strtod(s+start+16, &endptr);
                                 if (m->timestamp == 0) {
-                                        log_err("Invalid timestamp");
+                                        r_err("Invalid timestamp");
                                         m->status = k_error;
                                         return -1;
                                 }

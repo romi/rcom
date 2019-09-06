@@ -1,14 +1,10 @@
 
-#include "rcom/log.h"
+#include <r.h>
 #include "rcom/app.h"
-#include "rcom/membuf.h"
-#include "rcom/thread.h"
 
 #include "util_priv.h"
 #include "datalink_priv.h"
 #include "datahub_priv.h"
-#include "list.h"
-#include "mem.h"
 #include "net.h"
 
 struct _datahub_t {
@@ -41,7 +37,7 @@ datahub_t *new_datahub(datahub_onbroadcast_t onbroadcast,
         char n[80];
         datahub_t *hub;
 
-        hub = new_obj(datahub_t);
+        hub = r_new(datahub_t);
         if (hub == NULL)
                 return NULL;
 
@@ -125,7 +121,7 @@ void delete_datahub(datahub_t *hub)
                 if (hub->mutex)
                         delete_mutex(hub->mutex);
                 
-                delete_obj(hub);
+                r_delete(hub);
         }
 }
 
@@ -158,12 +154,12 @@ int datahub_add_link(datahub_t* hub, addr_t *addr)
         int ret = 0;
 
         char b[64];
-        //log_debug("datahub_add_link: %s", addr_string(addr, b, sizeof(b)));
+        //r_debug("datahub_add_link: %s", addr_string(addr, b, sizeof(b)));
 
         datahub_lock(hub);
         addr_t *a = datahub_find(hub, addr);
         if (a != NULL) {
-                log_debug("datahub_add_link: %s is already listed", addr_string(addr, b, sizeof(b)));
+                r_debug("datahub_add_link: %s is already listed", addr_string(addr, b, sizeof(b)));
                 datahub_unlock(hub);
                 return 0;
         }
@@ -186,7 +182,7 @@ int datahub_remove_link(datahub_t* hub, addr_t *addr)
         int ret = 0;
 
         char b[64];
-        //log_debug("datahub_remove_link: %s", addr_string(addr, b, sizeof(b)));
+        //r_debug("datahub_remove_link: %s", addr_string(addr, b, sizeof(b)));
 
         datahub_lock(hub);
         addr_t *a = datahub_find(hub, addr);
@@ -227,7 +223,7 @@ int datahub_send_obj(datahub_t *hub, addr_t *link, json_object_t value)
         datahub_lock(hub);
         r = data_serialise(hub->output, value);
         if (r != 0) {
-                log_err("datahub_send: json_tostring failed");
+                r_err("datahub_send: json_tostring failed");
         } else {
                 r = datahub_send_locked(hub, link, hub->output, 1);
         }
@@ -287,7 +283,7 @@ static int datahub_send_locked(datahub_t *hub, addr_t *link, data_t *data, int s
         list_t *rm = NULL;
 
         if (link == NULL || data == NULL) {
-                log_err("datahub_send_locked: invalid arguments");
+                r_err("datahub_send_locked: invalid arguments");
                 return -1;
         }
         
@@ -297,7 +293,7 @@ static int datahub_send_locked(datahub_t *hub, addr_t *link, data_t *data, int s
         int err = udp_socket_send(hub->socket, link, data);
         if (err) {
                 char b[64];
-                log_err("datahub_send_locked: failed to send to %s",
+                r_err("datahub_send_locked: failed to send to %s",
                         addr_string(link, b, 64));
                 // FIXME: is this the proper way to handle errors?
                 hub->links = list_remove(hub->links, link);
@@ -338,7 +334,7 @@ int datahub_broadcast_obj(datahub_t *hub, addr_t *exclude, json_object_t value)
         datahub_lock(hub);
         r = data_serialise(hub->output, value);
         if (r != 0) {
-                log_err("datahub_broadcast: json_tostring failed");
+                r_err("datahub_broadcast: json_tostring failed");
         } else {
                 r = datahub_broadcast_locked(hub, exclude, hub->output, 1);
         }
@@ -407,7 +403,7 @@ static int datahub_broadcast_locked(datahub_t *hub, addr_t *exclude, data_t *dat
                         err = udp_socket_send(hub->socket, addr, data);
                 if (err) {
                         char b[64];
-                        log_err("datahub_broadcast_locked: failed to send to %s",
+                        r_err("datahub_broadcast_locked: failed to send to %s",
                                 addr_string(addr, b, 64));
                         rm = list_prepend(rm, addr);
                 }

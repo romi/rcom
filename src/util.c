@@ -1,9 +1,8 @@
 #include <stdio.h>
 
-#include "rcom/log.h"
+#include <r.h>
 
 #include "util_priv.h"
-#include "mem.h"
 #include "sha1.h"
 
 membuf_t *escape_string(const char* s)
@@ -50,9 +49,9 @@ char *encode_base64(const unsigned char *s)
         int ilen = strlen(s);
         int olen = 4 * ((ilen + 2) / 3);
 
-        char *t = mem_alloc(olen+1);
+        char *t = r_alloc(olen+1);
         if (t == NULL) {
-                log_err("encode_base64: out of memory");
+                r_err("encode_base64: out of memory");
                 return NULL;
         }
         t[olen] = 0;
@@ -98,37 +97,37 @@ char *encode_base64(const unsigned char *s)
         return t;
 }
 
-void generate_random_buffer(uint8_t *buffer, ssize_t len)
-{
-        ssize_t n = 0;
-        while (n < len) {
-                ssize_t m = rcom_getrandom((void *) &buffer[n], len - n, 0);
-                n += m;
-        }
-}
+/* void generate_random_buffer(uint8_t *buffer, ssize_t len) */
+/* { */
+/*         ssize_t n = 0; */
+/*         while (n < len) { */
+/*                 ssize_t m = rcom_getrandom((void *) &buffer[n], len - n, 0); */
+/*                 n += m; */
+/*         } */
+/* } */
 
-char *rprintf(char *buffer, int buflen, const char *format, ...)
-{
-        int len;
-        va_list ap;
-        int ret;
+/* char *rprintf(char *buffer, int buflen, const char *format, ...) */
+/* { */
+/*         int len; */
+/*         va_list ap; */
+/*         int ret; */
         
-        va_start(ap, format);
-        len = vsnprintf(NULL, 0, format, ap);
-        va_end(ap);
+/*         va_start(ap, format); */
+/*         len = vsnprintf(NULL, 0, format, ap); */
+/*         va_end(ap); */
 
-        if (len < 0 || buflen < len+1)
-                return NULL;
+/*         if (len < 0 || buflen < len+1) */
+/*                 return NULL; */
         
-        va_start(ap, format);
-        len = vsnprintf(buffer, buflen, format, ap);
-        va_end(ap);
+/*         va_start(ap, format); */
+/*         len = vsnprintf(buffer, buflen, format, ap); */
+/*         va_end(ap); */
 
-        if (len < 0)
-                return NULL;
+/*         if (len < 0) */
+/*                 return NULL; */
         
-        return buffer;
-}
+/*         return buffer; */
+/* } */
 
 int urlencode(const unsigned char* s, membuf_t *buf)
 {
@@ -136,7 +135,7 @@ int urlencode(const unsigned char* s, membuf_t *buf)
         for (; *s; s++) {
                 unsigned char c = *s;
                 if (c < 32 || c >= 127) {
-                        log_err("urlencode: unhandled character. Sorry.");
+                        r_err("urlencode: unhandled character. Sorry.");
                         membuf_append_zero(buf);
                         return -1;
                         
@@ -176,18 +175,18 @@ int urldecode(const char* s, int len, membuf_t *buf)
                 char c = s[i];
                 if (c == '%') {
                         if (i + 2 >= len) {
-                                log_err("urldecode: unexpected end.");
+                                r_err("urldecode: unexpected end.");
                                 return -1;
                         }
                         int a = hex2c(s[i+1]);
                         if (a == -1) {
-                                log_err("urldecode: unexpected character ('%%%c').",
+                                r_err("urldecode: unexpected character ('%%%c').",
                                         s[i+1]);
                                 return -1;
                         }
                         int b = hex2c(s[i+2]);
                         if (b == -1) {
-                                log_err("urldecode: unexpected character ('%%%c%c').",
+                                r_err("urldecode: unexpected character ('%%%c%c').",
                                         s[i+1], s[i+2]);
                                 return -1;
                         }

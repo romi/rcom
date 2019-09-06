@@ -1,8 +1,7 @@
 #ifndef _RCOM_MESSAGELINK_H_
 #define _RCOM_MESSAGELINK_H_
 
-#include "rcom/json.h"
-#include "rcom/membuf.h"
+#include <r.h>
 
 #ifdef __cplusplus
 extern "C" {

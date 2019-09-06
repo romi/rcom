@@ -8,8 +8,8 @@
 extern "C" {
 #endif
 
-int log_init();
-void log_cleanup();
+int rcom_log_init();
+void rcom_log_cleanup();
 
 #ifdef __cplusplus
 }

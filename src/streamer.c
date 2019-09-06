@@ -1,15 +1,11 @@
-#include "rcom/log.h"
+#include <r.h>
+
 #include "rcom/app.h"
 #include "rcom/dump.h"
-#include "rcom/thread.h"
 #include "rcom/util.h"
-#include "rcom/membuf.h"
-#include "rcom/clock.h"
 
 #include "http_parser.h"
 #include "http.h"
-#include "list.h"
-#include "mem.h"
 #include "export.h"
 #include "streamer_priv.h"
 
@@ -55,7 +51,7 @@ static streamer_client_t *new_streamer_client(streamer_t *streamer,
         streamer_client_t *client;
         circular_buffer_t *c;
 
-        client = new_obj(streamer_client_t);
+        client = r_new(streamer_client_t);
         if (client == NULL)
                 return NULL;
         
@@ -73,7 +69,7 @@ static streamer_client_t *new_streamer_client(streamer_t *streamer,
 
 static void streamer_client_set_uri(streamer_client_t *client, char *uri)
 {
-        log_info("streamer_client: uri=%s", uri);
+        r_info("streamer_client: uri=%s", uri);
         client->uri = uri;
 }
 
@@ -105,12 +101,12 @@ static void delete_streamer_client(streamer_client_t *client)
                 if (client->socket != INVALID_TCP_SOCKET)
                         close_tcp_socket(client->socket);
                 if (client->uri)
-                        mem_free(client->uri);
+                        r_free(client->uri);
                 if (client->buffer)
                         delete_circular_buffer(client->buffer);
                 if (client->context && client->del)
                         client->del(client);
-                delete_obj(client);
+                r_delete(client);
         }
 }
 
@@ -144,11 +140,11 @@ static int streamer_client_message_complete(http_parser *parser)
 
 static int streamer_client_parse_url(http_parser *parser, const char *data, size_t length)
 {
-        char *s = mem_alloc(length+1);
+        char *s = r_alloc(length+1);
         memcpy(s, data, length);
         s[length] = 0;
 
-        //log_debug("streamer_client_parse_url: uri=%.*s, len=%d", length, data, length);
+        //r_debug("streamer_client_parse_url: uri=%.*s, len=%d", length, data, length);
         
         streamer_client_t *c = (streamer_client_t *) parser->data;
         streamer_client_set_uri(c, s);
@@ -169,9 +165,9 @@ static int streamer_client_parse_request(streamer_client_t *client)
         settings.on_url = streamer_client_parse_url;
         settings.on_message_complete = streamer_client_message_complete;
         
-        parser = new_obj(http_parser);
+        parser = r_new(http_parser);
         if (parser == NULL) {
-                log_err("streamer_client_parse_request: out of memory");
+                r_err("streamer_client_parse_request: out of memory");
                 return -1;
         }
         http_parser_init(parser, HTTP_REQUEST);
@@ -181,8 +177,8 @@ static int streamer_client_parse_request(streamer_client_t *client)
         while (client->cont) {
                 received = recv(client->socket, buf, len, 0);
                 if (received < 0) {
-                        log_err("streamer_client_parse_request: recv failed");
-                        delete_obj(parser);
+                        r_err("streamer_client_parse_request: recv failed");
+                        r_delete(parser);
                         return -1;
                 }
         
@@ -196,21 +192,21 @@ static int streamer_client_parse_request(streamer_client_t *client)
 
                 if (parsed != received && parsed != received - 1) {
                         /* Handle error. Usually just close the connection. */
-                        log_err("streamer_client_parse_request: parsed != received (%d != %d)", parsed, received);
-                        //log_err("data: '%s'", buf);
-                        delete_obj(parser);
+                        r_err("streamer_client_parse_request: parsed != received (%d != %d)", parsed, received);
+                        //r_err("data: '%s'", buf);
+                        r_delete(parser);
                         return -1;
                 }
         }
 
-        delete_obj(parser);
+        r_delete(parser);
 
         return 0;
 }
 
 static int streamer_client_run(streamer_client_t *client)
 {
-        //log_debug("streamer_client_run");
+        //r_debug("streamer_client_run");
         
         int err = http_send_streaming_headers(client->socket,
                                               streamer_mimetype(client->streamer));
@@ -229,12 +225,12 @@ static int streamer_client_run(streamer_client_t *client)
 
 static void streamer_client_handle_request(streamer_client_t *client)
 {
-        //log_info("streamer_client: new thread started");
-        //log_debug("streamer_client_handle_request 1");
+        //r_info("streamer_client: new thread started");
+        //r_debug("streamer_client_handle_request 1");
         if (streamer_client_parse_request(client) != 0)
                 return;
         
-        //log_info("streamer_client: uri=%s", client->uri);
+        //r_info("streamer_client: uri=%s", client->uri);
 
         // Should not happen.
         if (client->uri == NULL) {
@@ -261,28 +257,28 @@ static void streamer_client_handle_request(streamer_client_t *client)
                 return;
         }
         
-        //log_debug("streamer_client_handle_request 3");
+        //r_debug("streamer_client_handle_request 3");
         if (streamer_onclient(client->streamer, client) != 0) {
                 http_send_error_headers(client->socket, 500);
                 delete_streamer_client(client);
                 return;
         }
 
-        //log_debug("streamer_client_handle_request 4");
+        //r_debug("streamer_client_handle_request 4");
         streamer_add_client(client->streamer, client);
 
-        //log_debug("streamer_client_handle_request 5");
+        //r_debug("streamer_client_handle_request 5");
         streamer_client_run(client);
         
-        //log_debug("streamer_client_handle_request 6");
+        //r_debug("streamer_client_handle_request 6");
         streamer_remove_client(client->streamer, client);
         
-        //log_debug("streamer_client_handle_request 7");
+        //r_debug("streamer_client_handle_request 7");
         delete_streamer_client(client);
 
-        //log_debug("streamer_client_handle_request 8");
+        //r_debug("streamer_client_handle_request 8");
         
-        log_info("streamer_client: thread finished");
+        r_info("streamer_client: thread finished");
 }
 
 /*****************************************************/
@@ -326,17 +322,17 @@ streamer_t *new_streamer(const char *name,
         int ret;
         int socklen = sizeof(struct sockaddr_in);
         
-        streamer_t *streamer = new_obj(streamer_t);
+        streamer_t *streamer = r_new(streamer_t);
         if (streamer == NULL)
                 return NULL;
 
-        streamer->name = mem_strdup(name);
-        streamer->topic = mem_strdup(topic);
-        streamer->mimetype = mem_strdup(mimetype);
+        streamer->name = r_strdup(name);
+        streamer->topic = r_strdup(topic);
+        streamer->mimetype = r_strdup(mimetype);
         if (streamer->name == NULL
             || streamer->mimetype == NULL
             || streamer->topic == NULL) {
-                delete_obj(streamer);
+                r_delete(streamer);
                 return NULL;
         }
 
@@ -347,25 +343,25 @@ streamer_t *new_streamer(const char *name,
         
         streamer->clients_mutex = new_mutex();
         if (streamer->clients_mutex == NULL) {
-                delete_obj(streamer);
+                r_delete(streamer);
                 return NULL;
         }
         
         streamer->addr = new_addr(app_ip(), port);
         if (streamer->addr == NULL) {
-                delete_obj(streamer);
+                r_delete(streamer);
                 return NULL;
         }
         
         streamer->socket = open_server_socket(streamer->addr);
         if (streamer->socket == INVALID_TCP_SOCKET) {
-                log_err("Failed to create server socket");
+                r_err("Failed to create server socket");
                 delete_streamer(streamer);
                 return NULL;
         }
 
         char b[52];
-        log_info("Streamer listening at http://%s",
+        r_info("Streamer listening at http://%s",
                  addr_string(streamer->addr, b, sizeof(b)));
 
         streamer->cont = 1;        
@@ -373,7 +369,7 @@ streamer_t *new_streamer(const char *name,
         streamer->server_thread = new_thread((thread_run_t) streamer_run_server,
                                              (void*) streamer, 0, 0);
         if (streamer->server_thread == NULL) {
-                log_err("Failed to start the server thread");
+                r_err("Failed to start the server thread");
                 delete_streamer(streamer);
                 return NULL;
         }
@@ -382,7 +378,7 @@ streamer_t *new_streamer(const char *name,
                 streamer->data_thread = new_thread((thread_run_t) streamer_run_data,
                                                    (void*) streamer, 0, 0);
                 if (streamer->data_thread == NULL) {
-                        log_err("Failed to start the server thread");
+                        r_err("Failed to start the server thread");
                         delete_streamer(streamer);
                         return NULL;
                 }
@@ -400,18 +396,18 @@ void delete_streamer(streamer_t *streamer)
                 streamer->cont = 0;
                 
                 if (streamer->server_thread) {
-                        //log_debug("delete_streamer: joining server thread");
+                        //r_debug("delete_streamer: joining server thread");
                         thread_join(streamer->server_thread);
                         delete_thread(streamer->server_thread);
                 }
                 
                 if (streamer->data_thread) {
-                        //log_debug("delete_streamer: joining data thread");
+                        //r_debug("delete_streamer: joining data thread");
                         thread_join(streamer->data_thread);
                         delete_thread(streamer->data_thread);
                 }
                 
-                //log_debug("delete_streamer: deleting clients");
+                //r_debug("delete_streamer: deleting clients");
                 
                 // delete clients
                 if (streamer->clients_mutex) {
@@ -428,17 +424,17 @@ void delete_streamer(streamer_t *streamer)
                         delete_mutex(streamer->clients_mutex);
                 }
                 if (streamer->topic)
-                        mem_free(streamer->topic);
+                        r_free(streamer->topic);
                 if (streamer->name)
-                        mem_free(streamer->name);
+                        r_free(streamer->name);
                 if (streamer->mimetype)
-                        mem_free(streamer->mimetype);
+                        r_free(streamer->mimetype);
                 if (streamer->addr)
                         delete_addr(streamer->addr);
                 if (streamer->socket != INVALID_TCP_SOCKET)
                         close_tcp_socket(streamer->socket);
 
-                delete_obj(streamer);                
+                r_delete(streamer);                
         }
 }
 
@@ -451,47 +447,47 @@ static void streamer_run_server(streamer_t *streamer)
 {
         tcp_socket_t socket;
 
-        log_info("Thread 'streamer_run_server' starting");
+        r_info("Thread 'streamer_run_server' starting");
         
         while (!app_quit() && streamer->cont) {
-                //log_info("streamer_run_server: waiting for new connection");
+                //r_info("streamer_run_server: waiting for new connection");
                 
                 socket = server_socket_accept(streamer->socket);
                 if (socket == TCP_SOCKET_TIMEOUT) {
                         continue;
                 } else if (socket == INVALID_TCP_SOCKET) {
                         // Server socket is probably being closed // FIXME: is this true?
-                        log_err("streamer_run_server: accept failed");
+                        r_err("streamer_run_server: accept failed");
                         continue;
                 }
 
-                //log_info("streamer_run_server: got connection");
+                //r_info("streamer_run_server: got connection");
                 streamer_client_t *client = new_streamer_client(streamer, socket);
                 if (client == NULL) {
-                        log_err("out of memory");
+                        r_err("out of memory");
                         http_send_error_headers(socket, 500);
                         close_tcp_socket(socket);
                         continue;
                 }
                 
-                //log_info("streamer_run_server: spinning off new thread to handle client");
+                //r_info("streamer_run_server: spinning off new thread to handle client");
                 new_thread((thread_run_t) streamer_client_handle_request, client, 0, 1);
         }
 
-        log_info("Thread 'streamer_run_server' finished");
+        r_info("Thread 'streamer_run_server' finished");
 }
 
 static void streamer_run_data(streamer_t *streamer)
 {
         tcp_socket_t socket;
 
-        log_info("Thread 'streamer_run_data' starting");
+        r_info("Thread 'streamer_run_data' starting");
         
         while (!app_quit() && streamer->cont) {
                 streamer->onbroadcast(streamer->userdata, streamer);
         }
 
-        log_info("Thread 'streamer_run_data' finished");
+        r_info("Thread 'streamer_run_data' finished");
 }
 
 static list_t *streamer_get_clients(streamer_t *s)
@@ -528,7 +524,7 @@ static int streamer_onclient(streamer_t *streamer, streamer_client_t *client)
                                              /* export_name(client->exp), */
                                              streamer);
                 if (ret != 0) {
-                        log_info("streamer_onclient: callback returned an error");
+                        r_info("streamer_onclient: callback returned an error");
                         return -1;
                 }
         }
@@ -602,7 +598,7 @@ static void streamer_send_index_html(streamer_t *streamer, tcp_socket_t s)
         char b[52];
         membuf_t *membuf = new_membuf();
 
-        //log_debug("streamer_send_index_html");
+        //r_debug("streamer_send_index_html");
 
         if (membuf == NULL) {
                 http_send_error_headers(s, 500);
@@ -635,7 +631,7 @@ static void streamer_send_index_html(streamer_t *streamer, tcp_socket_t s)
 
 cleanup:
         delete_membuf(membuf);
-        log_info("streamer_send_index_html: thread finished");
+        r_info("streamer_send_index_html: thread finished");
 }
 
 static void streamer_send_index_json(streamer_t *streamer, tcp_socket_t s)
@@ -645,7 +641,7 @@ static void streamer_send_index_json(streamer_t *streamer, tcp_socket_t s)
         char b[52];
         membuf_t *membuf = new_membuf();
 
-        //log_debug("streamer_send_index_json");
+        //r_debug("streamer_send_index_json");
 
         if (membuf == NULL) {
                 http_send_error_headers(s, 500);
@@ -670,7 +666,7 @@ static void streamer_send_index_json(streamer_t *streamer, tcp_socket_t s)
 
 cleanup:
         delete_membuf(membuf);
-        log_info("streamer_send_index: thread finished");
+        r_info("streamer_send_index: thread finished");
 }
 
 static const char *streamer_mimetype(streamer_t *streamer)
@@ -710,7 +706,7 @@ static const char *streamer_mimetype(streamer_t *streamer)
 /*         streamer_client_t *client;         */
 /*         struct sockaddr_in dummy; */
         
-/*         log_info("Starting dumper thread"); */
+/*         r_info("Starting dumper thread"); */
 /*         client = new_streamer_client(s, -1, dummy); */
 /*         client->exp = e; */
 /*         streamer_add_client(s, client); */

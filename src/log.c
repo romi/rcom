@@ -8,30 +8,30 @@
 #include "rcom/util.h"
 #include "mem.h"
 
-static int _log_level = LOG_DEBUG;
+static int _log_level = R_DEBUG;
 static FILE* _log_file = NULL;
 static char* _log_app = NULL;
 static char* _log_path = NULL;
 static mutex_t *_mutex = NULL;
-static log_writer_t _log_writer = NULL;
+static rcom_log_writer_t _log_writer = NULL;
 static void *_log_write_data = NULL;
         
-void log_set_app(const char* name)
+void rcom_log_set_app(const char* name)
 {
         if (_log_app != NULL) 
-                mem_free(_log_app);   
-        _log_app = mem_strdup(name);
+                r_free(_log_app);   
+        _log_app = r_strdup(name);
 }
 
-int log_set_file(const char* path)
+int rcom_log_set_file(const char* path)
 {
         int err = -1;
         
-        log_info("Changing log to '%s'", path);
+        r_info("Changing log to '%s'", path);
         
         mutex_lock(_mutex);
         if (_log_path != NULL) {
-                mem_free(_log_path);
+                r_free(_log_path);
                 _log_path = NULL;
         }
         if (_log_file != NULL && _log_file != stdout) {
@@ -39,7 +39,7 @@ int log_set_file(const char* path)
                 _log_file = NULL;
         }
         
-        _log_path = mem_strdup(path);
+        _log_path = r_strdup(path);
         
         if (_log_path == NULL) {
                 fprintf(stderr, "log_set_file: out of memory");
@@ -63,35 +63,30 @@ int log_set_file(const char* path)
         }
         mutex_unlock(_mutex);
         
-        log_info("Log started ----------------------------------------");
+        r_info("Log started ----------------------------------------");
 
         return err;
 }
 
-const char *log_get_file()
+const char *rcom_log_get_file()
 {
         return _log_path;
 }
 
-void log_set_filep(FILE* file)
-{
-        _log_file = file;
-}
-
-int log_init()
+int rcom_log_init()
 {
         _mutex = new_mutex();
         return (_mutex == NULL)? -1 : 0;
 }
 
-void log_cleanup()
+void rcom_log_cleanup()
 {
         if (_log_app != NULL) {
-                mem_free(_log_app);
+                r_free(_log_app);
                 _log_app = "?";
         }
         if (_log_path != NULL) {
-                mem_free(_log_path);
+                r_free(_log_path);
                 _log_path = NULL;
         }
         if (_log_file != NULL && _log_file != stdout) {
@@ -104,21 +99,21 @@ void log_cleanup()
         }
 }
 
-int log_get_level()
+int rcom_log_get_level()
 {
         return _log_level;
 }
 
-void log_set_level(int level)
+void rcom_log_set_level(int level)
 {
         _log_level = level;
-        if (_log_level < LOG_DEBUG) 
-                _log_level = LOG_DEBUG;
-        else if (_log_level > LOG_ERROR)
-                _log_level = LOG_ERROR;
+        if (_log_level < R_DEBUG) 
+                _log_level = R_DEBUG;
+        else if (_log_level > R_ERROR)
+                _log_level = R_ERROR;
 }
 
-void set_log_writer(log_writer_t callback, void *userdata)
+void rcom_log_set_writer(rcom_log_writer_t callback, void *userdata)
 {
         mutex_lock(_mutex);
         _log_write_data = userdata;
@@ -126,13 +121,12 @@ void set_log_writer(log_writer_t callback, void *userdata)
         mutex_unlock(_mutex);
 }
 
-void get_log_writer(log_writer_t *callback, void **userdata)
+void rcom_log_get_writer(rcom_log_writer_t *callback, void **userdata)
 {
         *callback = _log_writer;
         *userdata = _log_write_data;
 }
 
-// Not re-entrant!
 static const char* get_timestamp(char *buffer, int len)
 {
         struct timeval tv;
@@ -147,9 +141,9 @@ static const char* get_timestamp(char *buffer, int len)
         return buffer;
 }
 
-static void log_write(const char* s)
+static void rcom_log_write(const char* s)
 {
-        log_writer_t callback = NULL;
+        rcom_log_writer_t callback = NULL;
         void *userdata = NULL;
                 
         if (_mutex) mutex_lock(_mutex);
@@ -170,6 +164,11 @@ static void log_write(const char* s)
         if (callback) callback(userdata, s);
 }
 
+static void rcom_log_writer(void *userdata, const char* s)
+{
+        rcom_log_write(s);
+}
+
 static void log_(int level, const char* s)
 {
         static char buffer[1024];
@@ -178,28 +177,28 @@ static void log_(int level, const char* s)
         const char* type = "Unknown";
         const char* name = _log_app? _log_app : "?";
         switch (level) {
-        case LOG_DEBUG: type = "DD"; break;
-        case LOG_INFO: type = "II"; break;
-        case LOG_WARNING: type = "WW"; break;
-        case LOG_ERROR: type = "EE"; break;
-        case LOG_PANIC: type = "!!"; break;
+        case R_DEBUG: type = "DD"; break;
+        case R_INFO: type = "II"; break;
+        case R_WARNING: type = "WW"; break;
+        case R_ERROR: type = "EE"; break;
+        case RCOM_PANIC: type = "!!"; break;
         }
 
         rprintf(buffer, sizeof(buffer), "[%s] [%s] [%s] %s", time, type, name, s);
-        log_write(buffer);
+        rcom_log_write(buffer);
 
-        if (level == LOG_PANIC && _log_file != stdout) {
+        if (level == RCOM_PANIC && _log_file != stdout) {
                 fprintf(stdout, "%s\n", buffer);
                 fflush(stdout);
         }
 }
 
-void log_err(const char* format, ...)
+void r_err(const char* format, ...)
 {
         char buffer[1024];
         va_list ap;
 
-        if (_log_level > LOG_ERROR)
+        if (_log_level > R_ERROR)
                 return;
         if (_log_file == NULL)
                 _log_file = stdout;
@@ -209,15 +208,15 @@ void log_err(const char* format, ...)
         buffer[1023] = 0;
         va_end(ap);
 
-        log_(LOG_ERROR, buffer);
+        log_(R_ERROR, buffer);
 }
 
-void log_warn(const char* format, ...)
+void r_warn(const char* format, ...)
 {
         char buffer[1024];
         va_list ap;
 
-        if (_log_level > LOG_WARNING)
+        if (_log_level > R_WARNING)
                 return;
         if (_log_file == NULL)
                 _log_file = stdout;
@@ -227,15 +226,15 @@ void log_warn(const char* format, ...)
         buffer[1023] = 0;
         va_end(ap);
 
-        log_(LOG_WARNING, buffer);
+        log_(R_WARNING, buffer);
 }
 
-void log_info(const char* format, ...)
+void r_info(const char* format, ...)
 {
         char buffer[1024];
         va_list ap;
 
-        if (_log_level > LOG_INFO)
+        if (_log_level > R_INFO)
                 return;
         if (_log_file == NULL)
                 _log_file = stdout;
@@ -245,15 +244,15 @@ void log_info(const char* format, ...)
         buffer[1023] = 0;
         va_end(ap);
 
-        log_(LOG_INFO, buffer);
+        log_(R_INFO, buffer);
 }
 
-void log_debug(const char* format, ...)
+void r_debug(const char* format, ...)
 {
         char buffer[1024];
         va_list ap;
 
-        if (_log_level > LOG_DEBUG) 
+        if (_log_level > R_DEBUG) 
                 return;
         if (_log_file == NULL)
                 _log_file = stdout;
@@ -263,10 +262,10 @@ void log_debug(const char* format, ...)
         buffer[1023] = 0;
         va_end(ap);
 
-        log_(LOG_DEBUG, buffer);
+        log_(R_DEBUG, buffer);
 }
 
-void log_panic(const char* format, ...)
+void rcom_panic(const char* format, ...)
 {
         char buffer[1024];
         va_list ap;
@@ -279,6 +278,6 @@ void log_panic(const char* format, ...)
         buffer[1023] = 0;
         va_end(ap);
 
-        log_(LOG_PANIC, buffer);
+        log_(RCOM_PANIC, buffer);
 }
 

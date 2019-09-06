@@ -1,12 +1,8 @@
 
-#include "rcom/log.h"
+#include <r.h>
 #include "rcom/app.h"
-#include "rcom/thread.h"
 #include "rcom/util.h"
-#include "rcom/clock.h"
 
-#include "mem.h"
-#include "list.h"
 #include "datalink_priv.h"
 #include "datahub_priv.h"
 #include "messagelink_priv.h"
@@ -92,12 +88,12 @@ proxy_t* _proxy = NULL;
 
 void set_registry_name(const char* name)
 {
-        _default_name = name? mem_strdup(name) : NULL;
+        _default_name = name? r_strdup(name) : NULL;
 }
 
 void set_registry_ip(const char* addr)
 {
-        _default_ip = addr? mem_strdup(addr) : NULL;
+        _default_ip = addr? r_strdup(addr) : NULL;
 }
 
 const char *get_registry_ip()
@@ -138,9 +134,9 @@ void proxy_init()
 void proxy_cleanup()
 {
         if (_default_name != NULL)
-                mem_free(_default_name);
+                r_free(_default_name);
         if (_default_ip != NULL)
-                mem_free(_default_ip);
+                r_free(_default_ip);
         if (_registry_addr)
                 delete_addr(_registry_addr);
         if (_proxy)
@@ -155,14 +151,14 @@ proxy_t *proxy_get()
         if (!app_standalone()) {
                 _registry_addr = new_addr(get_registry_ip(), get_registry_port());
                 if (_registry_addr == NULL) {
-                        log_err("proxy_create: failed to create the registry address!");
+                        r_err("proxy_create: failed to create the registry address!");
                         return NULL;
                 }
         }
         
         _proxy = new_proxy(_registry_addr);
         if (_proxy == NULL) {
-                log_err("proxy_create: failed to create the proxy!");
+                r_err("proxy_create: failed to create the proxy!");
                 return NULL;
         }
         
@@ -176,7 +172,7 @@ static proxy_t* new_proxy(addr_t *addr)
         int err;
         proxy_t* proxy;
 
-        proxy = new_obj(proxy_t);
+        proxy = r_new(proxy_t);
         if (proxy == NULL)
                 return NULL;
 
@@ -201,14 +197,14 @@ static proxy_t* new_proxy(addr_t *addr)
 
                 err = client_messagelink_connect(proxy->link, addr);
                 if (err != 0) {
-                        log_err("new_proxy: failed to connect to the remote proxy");
+                        r_err("new_proxy: failed to connect to the remote proxy");
                         delete_proxy(proxy);
                         return NULL;
                 }
 
                 err = proxy_send_list_request(proxy);
                 if (err != 0) {
-                        log_err("new_proxy: failed to send the list request");
+                        r_err("new_proxy: failed to send the list request");
                         delete_proxy(proxy);
                         return NULL;
                 }
@@ -220,7 +216,7 @@ static proxy_t* new_proxy(addr_t *addr)
                 }
 
                 if (proxy->status != PROXY_READY) {
-                        log_err("new_proxy: failed to update the list of nodes");
+                        r_err("new_proxy: failed to update the list of nodes");
                         delete_proxy(proxy);
                         return NULL;
                 }
@@ -238,7 +234,7 @@ static void delete_proxy(proxy_t* proxy)
                         delete_messagelink(proxy->link);
                 if (proxy->mutex) 
                         delete_mutex(proxy->mutex);
-                delete_obj(proxy);
+                r_delete(proxy);
         }
 }
 
@@ -251,12 +247,12 @@ static void proxy_onmessage(proxy_t *proxy,
                             messagelink_t *link,
                             json_object_t message)
 {
-        //log_debug("proxy_onmessage");
+        //r_debug("proxy_onmessage");
         
         const char *request;
         
         if (json_isnull(message)) {
-                log_err("proxy_onmessage: message is null");
+                r_err("proxy_onmessage: message is null");
                 return;
         }
         
@@ -266,30 +262,30 @@ static void proxy_onmessage(proxy_t *proxy,
                 return;
 
         
-        //log_debug("proxy_onmessage: request=%s", request);
+        //r_debug("proxy_onmessage: request=%s", request);
         
         if (rstreq(request, "register-response")) {
                 int success = json_object_getbool(message, "success");
                 if (!success) {
-                        log_panic("register failed: %s. Quitting.",
+                        r_panic("register failed: %s. Quitting.",
                                 json_object_getstr(message, "message"));
                         app_set_quit();
                 }
-                //else log_debug("register succeeded");
+                //else r_debug("register succeeded");
                 
         } else if (rstreq(request, "unregister-response")) {
                 int success = json_object_getbool(message, "success");
                 if (!success)
-                        log_err("unregister failed: %s",
+                        r_err("unregister failed: %s",
                                 json_object_getstr(message, "message"));
-                //else log_debug("unregister succeeded");
+                //else r_debug("unregister succeeded");
                 
         } else if (rstreq(request, "update-address-response")) {
                 int success = json_object_getbool(message, "success");
                 if (!success)
-                        log_err("updating of address failed: %s",
+                        r_err("updating of address failed: %s",
                                 json_object_getstr(message, "message"));
-                //else log_debug("updating of address succeeded");
+                //else r_debug("updating of address succeeded");
                 
         } else if (rstreq(request, "proxy-add")) {
                 proxy_handle_register_add(proxy, link, message);
@@ -304,7 +300,7 @@ static void proxy_onmessage(proxy_t *proxy,
                 proxy_handle_update_list(proxy, link, message);
                 
         } else {
-                log_warn("proxy_onmessage: unknown request: %s", request);
+                r_warn("proxy_onmessage: unknown request: %s", request);
         }
 }
 
@@ -334,7 +330,7 @@ static void proxy_handle_register_add(proxy_t* proxy,
         registry_entry_t *entry;
         int err = 0;
 
-        //log_debug("proxy_handle_register_add");
+        //r_debug("proxy_handle_register_add");
 
         json_object_t obj = json_object_get(message, "entry");
         if (json_isnull(obj))
@@ -343,12 +339,12 @@ static void proxy_handle_register_add(proxy_t* proxy,
         entry = registry_entry_parse(obj, &err);
         switch (err) {
         case 0: break; 
-        case -1: log_err("proxy_handle_register_add: Invalid name"); return; 
-        case -2: log_err("proxy_handle_register_add: Invalid topic"); return; 
-        case -3: log_err("proxy_handle_register_add: Invalid type"); return; 
-        case -4: log_err("proxy_handle_register_add: Invalid address"); return; 
-        case -5: log_err("proxy_handle_register_add: Invalid ID"); return; 
-        default: log_err("proxy_handle_register_add: Unknown error"); return; 
+        case -1: r_err("proxy_handle_register_add: Invalid name"); return; 
+        case -2: r_err("proxy_handle_register_add: Invalid topic"); return; 
+        case -3: r_err("proxy_handle_register_add: Invalid type"); return; 
+        case -4: r_err("proxy_handle_register_add: Invalid address"); return; 
+        case -5: r_err("proxy_handle_register_add: Invalid ID"); return; 
+        default: r_err("proxy_handle_register_add: Unknown error"); return; 
         }
 
         mutex_lock(proxy->mutex);
@@ -375,11 +371,11 @@ static void proxy_handle_register_remove(proxy_t* proxy,
         int err;
         const char *id;
         
-        //log_debug("proxy_handle_register_remove");
+        //r_debug("proxy_handle_register_remove");
         
         id = json_object_getstr(message, "id");
         if (id == NULL) {
-                log_err("proxy_handle_register_remove: Invalid ID"); 
+                r_err("proxy_handle_register_remove: Invalid ID"); 
                 return;
         }
         
@@ -405,17 +401,17 @@ static void proxy_handle_update_address(proxy_t* proxy,
         const char *id;
         const char *addr;
         
-        //log_debug("proxy_handle_update_address");
+        //r_debug("proxy_handle_update_address");
         
         id = json_object_getstr(message, "id");
         if (id == NULL) {
-                log_err("proxy_handle_update_address: Invalid ID"); 
+                r_err("proxy_handle_update_address: Invalid ID"); 
                 return;
         }
 
         addr = json_object_getstr(message, "addr");
         if (addr == NULL) {
-                log_err("proxy_handle_update_address: Invalid address"); 
+                r_err("proxy_handle_update_address: Invalid address"); 
                 return;
         }
         
@@ -448,23 +444,23 @@ static void proxy_handle_update_list(proxy_t* proxy,
 {
         int err;
 
-        //log_debug("proxy_handle_update_list");
+        //r_debug("proxy_handle_update_list");
         
         json_object_t obj = json_object_get(message, "list");
         if (json_isnull(obj) || !json_isarray(obj)) {
-                log_err("proxy_handle_update_list: 'list' value is not an array");
+                r_err("proxy_handle_update_list: 'list' value is not an array");
                 proxy->status = PROXY_ERROR;
                 return;
         }
         if (json_array_length(obj) == 0) {
-                log_err("proxy_handle_update_list: empty 'list' value");
+                r_err("proxy_handle_update_list: empty 'list' value");
                 proxy->status = PROXY_READY;
                 return;
         }
 
         list_t *remote_entries = registry_entry_parse_list(obj);
         if (remote_entries == NULL) {
-                log_err("proxy_handle_update_list: failed to parse the 'list' value");
+                r_err("proxy_handle_update_list: failed to parse the 'list' value");
                 proxy->status = PROXY_ERROR;
                 return;
         }
@@ -489,7 +485,7 @@ static void proxy_handle_update_list(proxy_t* proxy,
                 if (remote_entry == NULL) {
                         // a locally registered entry is unknown to the remote registry. 
                         if (local_entry->endpoint != NULL) {
-                                log_warn("proxy_handle_update_list: central registry doesn't "
+                                r_warn("proxy_handle_update_list: central registry doesn't "
                                          "list active local node '%s:%s'.",
                                          local_entry->name, local_entry->topic);
                         } else {
@@ -573,9 +569,9 @@ static void proxy_connect_messagehub(proxy_t* proxy, registry_entry_t *entry)
                                 registry_update_addr(proxy->registry, e->id, b);
                                 proxy_send_update_address_request(proxy, e->id, b);
                         } else if (err == -2)
-                                log_err("proxy_connect_messagehub: link %s already connected.", e->name);
+                                r_err("proxy_connect_messagehub: link %s already connected.", e->name);
                         else
-                                log_err("proxy_connect_messagehub: failed to make the connection.");
+                                r_err("proxy_connect_messagehub: failed to make the connection.");
                 }
         }
 
@@ -601,7 +597,7 @@ static void proxy_connect_streamer(proxy_t* proxy, registry_entry_t *entry)
                         streamerlink_t *link = (streamerlink_t *) e->endpoint;
                         int err = streamerlink_set_remote(link, entry->addr);
                         if (err != 0) {
-                                log_err("proxy_connect_streamer: failed to make the connection.");
+                                r_err("proxy_connect_streamer: failed to make the connection.");
                         }
                 }
         }
@@ -681,7 +677,7 @@ static void proxy_remove_messagehub(proxy_t* proxy, registry_entry_t *entry)
                 messagelink_t *link = (messagelink_t *) e->endpoint;
                 int err = client_messagelink_disconnect(link);
                 if (err != 0)
-                        log_err("proxy_remove_messagehub: failed to disconnect.");
+                        r_err("proxy_remove_messagehub: failed to disconnect.");
         }
 
         delete_registry_entry_list(list);
@@ -763,11 +759,11 @@ static registry_entry_t *proxy_new_entry(proxy_t *proxy,
         int r;
         
         if (!registry_valid_name(name)) {
-                log_warn("proxy_new_entry: Invalid name: '%s'", name);
+                r_warn("proxy_new_entry: Invalid name: '%s'", name);
                 return NULL;
         }
         if (!registry_valid_topic(topic)) {
-                log_warn("proxy_new_entry: Invalid topic name: '%s'", topic);
+                r_warn("proxy_new_entry: Invalid topic name: '%s'", topic);
                 return NULL;
         }
         
@@ -825,7 +821,7 @@ static datalink_t *proxy_open_datalink(proxy_t *proxy,
         datalink_t *link;
         registry_entry_t *entry;
 
-        //log_debug("proxy_open_datalink: %s:%s", name, topic);
+        //r_debug("proxy_open_datalink: %s:%s", name, topic);
 
         link = new_datalink(callback, userdata);
         if (link == NULL)
@@ -847,7 +843,7 @@ static datalink_t *proxy_open_datalink(proxy_t *proxy,
                 registry_entry_t *e = list_get(entries, registry_entry_t);
                 datalink_set_remote_addr(link, e->addr);
         } else
-                log_debug("proxy_open_datalink: didn't find hub for topic %s", topic);
+                r_debug("proxy_open_datalink: didn't find hub for topic %s", topic);
 
         mutex_unlock(proxy->mutex);
 
@@ -937,7 +933,7 @@ static messagelink_t *proxy_open_messagelink(proxy_t *proxy,
                 registry_entry_t *e = list_get(entries, registry_entry_t);
                 int err = client_messagelink_connect(link, e->addr);
                 if (err)
-                        log_err("proxy_open_messagelink: failed to make the connection.");
+                        r_err("proxy_open_messagelink: failed to make the connection.");
         }
 
         mutex_unlock(proxy->mutex);
@@ -1145,7 +1141,7 @@ static streamerlink_t *proxy_open_streamerlink(proxy_t *proxy,
                 registry_entry_t *e = list_get(entries, registry_entry_t);
                 int err = streamerlink_set_remote(link, e->addr);
                 if (err)
-                        log_err("proxy_open_streamerlink: failed to make the connection.");
+                        r_err("proxy_open_streamerlink: failed to make the connection.");
         }
 
         mutex_unlock(proxy->mutex);

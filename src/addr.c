@@ -1,12 +1,10 @@
+#include <stdlib.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <r.h>
 
-#include "rcom/log.h"
 #include "rcom/addr.h"
-#include "rcom/util.h"
-
-#include "mem.h"
 
 addr_t *new_addr0()
 {
@@ -15,11 +13,11 @@ addr_t *new_addr0()
 
 addr_t *new_addr(const char *ip, int port)
 {
-        addr_t *addr = new_obj(addr_t);
+        addr_t *addr = r_new(addr_t);
         if (addr == NULL) return addr;
         addr->sin_family = AF_INET;
         if (addr_set(addr, ip, port) != 0) {
-                delete_obj(addr);
+                r_delete(addr);
                 return NULL;
         }
         return addr;
@@ -27,7 +25,7 @@ addr_t *new_addr(const char *ip, int port)
 
 addr_t *addr_clone(addr_t *addr)
 {
-        addr_t *clone = new_obj(addr_t);
+        addr_t *clone = r_new(addr_t);
         if (clone == NULL) return NULL;
         memcpy(clone, addr, sizeof(addr_t));
         return clone;
@@ -40,7 +38,7 @@ void addr_copy(addr_t *src, addr_t *dest)
 
 void delete_addr(addr_t *addr)
 {
-        if (addr) delete_obj(addr);
+        if (addr) r_delete(addr);
 }
 
 int addr_set(addr_t *addr, const char *ip, int port)
@@ -60,7 +58,7 @@ int addr_set_ip(addr_t *addr, const char *ip)
         }
         // just a basic check. this doesn't validate the string.
         if (strlen(ip) < 7 || strlen(ip) > 15) {
-                log_err("addr_set_ip: invalid ip: %s", ip);
+                r_err("addr_set_ip: invalid ip: %s", ip);
                 return -1;
         }
         inet_aton(ip, &addr->sin_addr);
@@ -70,7 +68,7 @@ int addr_set_ip(addr_t *addr, const char *ip)
 int addr_set_port(addr_t *addr, int port)
 {
         if (port < 0 || port >= 65536) {
-                log_err("addr_set_port: invalid port: %d", port);
+                r_err("addr_set_port: invalid port: %d", port);
                 return -1;
         }
         addr->sin_port = htons(port);
@@ -119,7 +117,7 @@ addr_t *addr_parse(const char* s)
                 
         p = strchr(s, ':');
         if (p == NULL) {
-                log_err("addr_parse: invalid string: %s", s);
+                r_err("addr_parse: invalid string: %s", s);
                 return NULL;
         }
         
@@ -140,7 +138,7 @@ addr_t *addr_parse(const char* s)
 
         int port = strtol(p+1, &q, 10);
         if (port < 0 || port > 65535 || q == p+1 || *q != '\0') {
-                log_err("addr_parse: invalid port: '%s'->%d", p+1, port);
+                r_err("addr_parse: invalid port: '%s'->%d", p+1, port);
                 return NULL;
         }
 
@@ -150,7 +148,7 @@ addr_t *addr_parse(const char* s)
                 return NULL;
         }
 
-        //log_debug("addr_parse: %s -> %s", s, addr_string(addr, ip, 64));
+        //r_debug("addr_parse: %s -> %s", s, addr_string(addr, ip, 64));
 
         return addr;
 }       

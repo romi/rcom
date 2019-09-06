@@ -17,23 +17,15 @@ set(rcom_VERSION_MINOR 1)
 #find_package(PythonLibs 3 REQUIRED)
 
 set(SOURCES
-  src/json.c 
   src/addr.c 
   src/net.c 
   src/util.c 
   src/util_posix.c 
-  src/clock_posix.c 
   src/http.c 
-  src/thread_pthread.c 
   src/http_parser.c 
   src/sha1.c
   src/http.c
-  src/membuf.c 
   src/app.c 
-  src/list.c 
-  src/log.c 
-  src/mem.c 
-  src/serial_posix.c
   src/circular.c 
   src/data.c 
   src/datalink.c 
@@ -51,6 +43,7 @@ set(SOURCES
   src/streamer.c 
   src/streamerlink.c 
   src/multipart_parser.c 
+  src/dump.c 
   )
 
 include_directories(include)
@@ -58,8 +51,9 @@ include_directories("${CMAKE_CURRENT_BINARY_DIR}")
 
 add_library(rcom SHARED ${SOURCES})
 target_link_libraries(rcom m)
-target_link_libraries(rcom uuid)
-target_link_libraries(rcom pthread)
+target_link_libraries(rcom r)
+#target_link_libraries(rcom uuid)
+#target_link_libraries(rcom pthread)
 #target_link_libraries(rcom debug sgc)
 
 # Main rcom apps

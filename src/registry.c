@@ -1,8 +1,8 @@
 
-#include "rcom/log.h"
+#include <r.h>
+
 #include "rcom/app.h"
 #include "rcom/addr.h"
-#include "rcom/thread.h"
 
 #include "util_priv.h"
 #include "datalink_priv.h"
@@ -10,8 +10,6 @@
 #include "messagehub_priv.h"
 #include "messagelink_priv.h"
 #include "registry_priv.h"
-#include "mem.h"
-#include "list.h"
 
 int registry_str_to_type(const char* str)
 {
@@ -54,19 +52,19 @@ registry_entry_t *new_registry_entry(const char *id, const char *name, const cha
         if (name == NULL || topic == NULL || addr == NULL || type < 0) {
                 char b[64];
                 addr_string(addr, b, 64);
-                log_err("new_registry_entry: invalid entry data "
+                r_err("new_registry_entry: invalid entry data "
                         "(name=%s, topic=%s, addr=%s, type=%d)",
                         name, topic, b, type);
                 return NULL;
         }
         
-        registry_entry_t* entry = new_obj(registry_entry_t);
+        registry_entry_t* entry = r_new(registry_entry_t);
         if (entry == NULL)
                 return NULL;
 
-        entry->id = (id == NULL)? generate_uuid() : mem_strdup(id);
-        entry->name = mem_strdup(name);
-        entry->topic = mem_strdup(topic);
+        entry->id = (id == NULL)? r_uuid() : r_strdup(id);
+        entry->name = r_strdup(name);
+        entry->topic = r_strdup(topic);
         entry->type = type;
         entry->addr = addr_clone(addr);
         entry->endpoint = endpoint;
@@ -84,16 +82,16 @@ void delete_registry_entry(registry_entry_t *entry)
 {
         if (entry) {
                 if (entry->id)
-                        mem_free(entry->id);
+                        r_free(entry->id);
                 if (entry->name)
-                        mem_free(entry->name);
+                        r_free(entry->name);
                 if (entry->topic)
-                        mem_free(entry->topic);
+                        r_free(entry->topic);
                 if (entry->addr)
                         delete_addr(entry->addr);
                 if (entry->endpoint)
                         ; // FIXME!
-                delete_obj(entry);
+                r_delete(entry);
         }
 }
 
@@ -189,7 +187,7 @@ list_t *registry_entry_parse_list(json_object_t a)
         list_t *list = NULL;
         
         if (!json_isarray(a)) {
-                log_err("registry_entry_parse_list: not an array");
+                r_err("registry_entry_parse_list: not an array");
                 return NULL;
         }
         for (int i = 0; i < json_array_length(a); i++) {
@@ -201,12 +199,12 @@ list_t *registry_entry_parse_list(json_object_t a)
                 } else {
                         switch (err) {
                         case 0: break; 
-                        case -1: log_err("registry_entry_parse_list: Invalid name"); break; 
-                        case -2: log_err("registry_entry_parse_list: Invalid topic"); break; 
-                        case -3: log_err("registry_entry_parse_list: Invalid type"); break; 
-                        case -4: log_err("registry_entry_parse_list: Invalid address"); break; 
-                        case -5: log_err("registry_entry_parse_list: Invalid ID"); break; 
-                        default: log_err("registry_entry_parse_list: Unknown error"); break; 
+                        case -1: r_err("registry_entry_parse_list: Invalid name"); break; 
+                        case -2: r_err("registry_entry_parse_list: Invalid topic"); break; 
+                        case -3: r_err("registry_entry_parse_list: Invalid type"); break; 
+                        case -4: r_err("registry_entry_parse_list: Invalid address"); break; 
+                        case -5: r_err("registry_entry_parse_list: Invalid ID"); break; 
+                        default: r_err("registry_entry_parse_list: Unknown error"); break; 
                         }
                         if (entry) delete_registry_entry(entry);
                         delete_registry_entry_list(list);
@@ -315,7 +313,7 @@ registry_t* new_registry()
 {
         registry_t* registry;
 
-        registry = new_obj(registry_t);
+        registry = r_new(registry_t);
         if (registry == NULL)
                 return NULL;
 
@@ -333,7 +331,7 @@ void delete_registry(registry_t* registry)
                         mutex_unlock(registry->mutex);
                         delete_mutex(registry->mutex);
                 }
-                delete_obj(registry);
+                r_delete(registry);
         }
 }
 
@@ -469,7 +467,7 @@ int registry_insert(registry_t* registry, const char *id, const char *name,
 {
         registry_entry_t *entry;
 
-        //log_debug("registry_add %s %s:%s", registry_type_to_str(type), name, topic);
+        //r_debug("registry_add %s %s:%s", registry_type_to_str(type), name, topic);
         
         entry = new_registry_entry(id, name, topic, type, addr, endpoint);
         if (entry == NULL)
@@ -509,7 +507,7 @@ int registry_delete(registry_t* registry, const char *id)
 {
         int ret = -1;
         
-        //log_debug("registry_delete id=%s", id);
+        //r_debug("registry_delete id=%s", id);
 
         mutex_lock(registry->mutex);
         list_t *l = registry->entries;
@@ -540,7 +538,7 @@ int registry_update_addr(registry_t* registry, const char *id, const char *addr)
                         e->addr = addr_parse(addr);
                         if (e->addr == NULL) {
                                 err = -1;
-                                log_err("fixme_registry_update_addr: invalid addr");
+                                r_err("fixme_registry_update_addr: invalid addr");
                         }
                         break;
                 }
@@ -554,7 +552,7 @@ int registry_update_addr(registry_t* registry, const char *id, const char *addr)
 /*         int err = 0; */
 /*         registry_entry_t *e; */
 
-/*         log_debug("registry_update_id: %d -> %d", old_id, new_id); */
+/*         r_debug("registry_update_id: %d -> %d", old_id, new_id); */
         
 /*         registry_lock(registry); */
 /*         for (list_t *l = registry->entries; l != NULL; l = list_next(l)) { */

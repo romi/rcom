@@ -61,7 +61,7 @@ int print_main(membuf_t *buf)
                 "\n"
                 "        err = init(argc, argv);\n"
                 "        if (err != 0) {\n"
-                "                log_err(\"init() failed\");\n"
+                "                r_err(\"init() failed\");\n"
                 "                goto cleanup_and_exit;\n"
                 "        }\n"
                 "\n"
@@ -204,7 +204,7 @@ int print_new_datahub(membuf_t *buf,
                       topic, name, topic, onbroadcast, ondata, userdata);
         membuf_printf(buf,
                       "        if (datahub_%s == NULL) {\n"
-                      "                log_err(\"Failed to create the datahub\");\n"
+                      "                r_err(\"Failed to create the datahub\");\n"
                       "                return -1;\n"
                       "        };\n",
                       topic);
@@ -230,7 +230,7 @@ int print_new_datalink(membuf_t *buf,
                       topic, name, topic, ondata, userdata);
         membuf_printf(buf,
                       "        if (datalink_%s == NULL) {\n"
-                      "                log_err(\"Failed to create the datalink\");\n"
+                      "                r_err(\"Failed to create the datalink\");\n"
                       "                return -1;\n"
                       "        };\n",
                       topic);
@@ -263,7 +263,7 @@ int print_new_messagehub(membuf_t *buf,
                 userdata = "NULL";
         
         if (onconnect != NULL) {
-                log_debug("print_new_messagehub: using onconnect provided by input file");
+                r_debug("print_new_messagehub: using onconnect provided by input file");
                 membuf_printf(buf,
                               "        messagehub_%s = registry_open_messagehub(\n"
                               "                \"%s\",\n"
@@ -272,7 +272,7 @@ int print_new_messagehub(membuf_t *buf,
                               "                %s);\n",
                               topic, name, topic, (int) port, onconnect, userdata);
         } else if (onmessage != NULL) {
-                log_debug("print_new_messagehub: using generated onconnect and "
+                r_debug("print_new_messagehub: using generated onconnect and "
                           "onmessage from input file");
                 membuf_printf(buf,
                               "        messagehub_%s = registry_open_messagehub(\n"
@@ -282,7 +282,7 @@ int print_new_messagehub(membuf_t *buf,
                               "                %s);\n",
                               topic, name, topic, (int) port, topic, userdata);
         } else { 
-                log_debug("print_new_messagehub: no onconnect and "
+                r_debug("print_new_messagehub: no onconnect and "
                           "no onmessage were given");
                 membuf_printf(buf,
                               "        messagehub_%s = registry_open_messagehub(\n"
@@ -294,7 +294,7 @@ int print_new_messagehub(membuf_t *buf,
         }
         membuf_printf(buf,
                       "        if (messagehub_%s == NULL) {\n"
-                      "                log_err(\"Failed to create the messagehub\");\n"
+                      "                r_err(\"Failed to create the messagehub\");\n"
                       "                return -1;\n"
                       "        };\n",
                       topic);
@@ -320,7 +320,7 @@ int print_new_messagelink(membuf_t *buf,
                       topic, name, topic, onmessage, userdata);
         membuf_printf(buf,
                       "        if (messagelink_%s == NULL) {\n"
-                      "                log_err(\"Failed to create the messagelink\");\n"
+                      "                r_err(\"Failed to create the messagelink\");\n"
                       "                return -1;\n"
                       "        };\n",
                       topic);
@@ -354,7 +354,7 @@ int print_new_controller(membuf_t *buf,
                       topic, name, topic, (int) port, topic, userdata);
         membuf_printf(buf,
                       "        if (messagehub_%s == NULL) {\n"
-                      "                log_err(\"Failed to create the messagehub\");\n"
+                      "                r_err(\"Failed to create the messagehub\");\n"
                       "                return -1;\n"
                       "        };\n\n",
                       topic);
@@ -395,7 +395,7 @@ int print_new_service(membuf_t *buf,
                       topic, name, topic, (int) port);
         membuf_printf(buf,
                       "        if (service_%s == NULL) {\n"
-                      "                log_err(\"Failed to create the service\");\n"
+                      "                r_err(\"Failed to create the service\");\n"
                       "                return -1;\n"
                       "        };\n",
                       topic);
@@ -487,7 +487,7 @@ int print_new_streamer(membuf_t *buf,
                       onclient, onbroadcast, userdata);
         membuf_printf(buf,
                       "        if (streamer_%s == NULL) {\n"
-                      "                log_err(\"Failed to create the streamer\");\n"
+                      "                r_err(\"Failed to create the streamer\");\n"
                       "                return -1;\n"
                       "        };\n",
                       topic);
@@ -521,7 +521,7 @@ int print_new_streamerlink(membuf_t *buf,
                       topic, name, topic, ondata, userdata, autoconnect);
         membuf_printf(buf,
                       "        if (streamerlink_%s == NULL) {\n"
-                      "                log_err(\"Failed to create the streamerlink\");\n"
+                      "                r_err(\"Failed to create the streamerlink\");\n"
                       "                return -1;\n"
                       "        };\n",
                       topic);
@@ -604,7 +604,7 @@ int print_com_controller_handlers(membuf_t *buf, const char *name, json_object_t
                       "        else membuf_clear(buffer);\n");
         membuf_printf(buf,
                       "        if (cmd == NULL) {\n"
-                      "                log_warn(\"Message doesn't contain a command\");\n"
+                      "                r_warn(\"Message doesn't contain a command\");\n"
                       "                messagelink_send_f(link, \"{\\\"status\\\":\\\"error\\\", \\\"message\\\": \\\"no command given\\\"}\");\n"
                       "                return;\n"
                       "        }\n");
@@ -636,7 +636,7 @@ int print_com_controller_handlers(membuf_t *buf, const char *name, json_object_t
         
         membuf_printf(buf,
                       "        else {\n"
-                      "                log_warn(\"Unknown command: %%s\", cmd);\n"
+                      "                r_warn(\"Unknown command: %%s\", cmd);\n"
                       "                messagelink_send_f(link, \"{\\\"status\\\":\\\"error\\\", \\\"message\\\": \\\"unknown command: %%s\\\"}\", cmd);\n"
                       "                return;\n"
                       "        }\n");
@@ -869,13 +869,13 @@ int generate_code(const char *inputfile, const char *outputfile)
         
         if (!json_object_has(def, "init")) {
                 init_func = NULL;
-                log_debug("No init function specified. Using default name.");
+                r_debug("No init function specified. Using default name.");
         } else if (json_isnull(json_object_get(def, "init"))) {
                 init_func = "null";
-                log_debug("Init function is set to null.");
+                r_debug("Init function is set to null.");
         } else {
                 init_func = json_object_getstr(def, "init"); 
-                log_debug("Init function is set to '%s'.", init_func);
+                r_debug("Init function is set to '%s'.", init_func);
         }
         
         if (!json_object_has(def, "cleanup")) 

@@ -2,10 +2,10 @@
 #include <sys/types.h>
 #include <stdlib.h>
 
+#include <r.h>
 #include <rcom.h>
 
 #include "proxy.h"
-#include "list.h"
 #include "messagelink_priv.h"
 #include "registry_priv.h"
 
@@ -220,6 +220,10 @@ int main(int argc, char **argv)
                 print_usage();
                 
         }
+
+        proxy_t *proxy = proxy_get();
+        if (proxy == NULL) 
+                return 1;
         
         if (rstreq(command, "list")) {
                 list_nodes();

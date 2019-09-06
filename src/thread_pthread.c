@@ -14,7 +14,7 @@ static void* _run(void* data);
 
 thread_t* new_thread(thread_run_t run, void *data, int realtime, int autodelete)
 {
-        thread_t* thread = new_obj(thread_t);
+        thread_t* thread = r_new(thread_t);
         if (thread == NULL)
                 return NULL;
 
@@ -24,7 +24,7 @@ thread_t* new_thread(thread_run_t run, void *data, int realtime, int autodelete)
 
         int ret = pthread_create(&thread->thread, NULL, _run, (void*) thread);
         if (ret != 0) {
-                log_err("new_thread: failed to create the thread");
+                r_err("new_thread: failed to create the thread");
                 delete_thread(thread);
                 return NULL;
         }
@@ -44,7 +44,7 @@ static void* _run(void* data)
 
 void delete_thread(thread_t* thread)
 {
-        if (thread) delete_obj(thread);
+        if (thread) r_delete(thread);
 }
 
 int thread_join(thread_t* thread)
@@ -61,7 +61,7 @@ struct _mutex_t
 
 mutex_t *new_mutex()
 {
-        mutex_t *mutex = new_obj(mutex_t);
+        mutex_t *mutex = r_new(mutex_t);
         if (mutex == NULL)
                 return NULL;
         pthread_mutex_init(&mutex->mutex, NULL);
@@ -72,7 +72,7 @@ void delete_mutex(mutex_t *mutex)
 {
         if (mutex) {
                 pthread_mutex_destroy(&mutex->mutex);
-                delete_obj(mutex);
+                r_delete(mutex);
         }
 }
 

@@ -1,15 +1,14 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <r.h>
 
 #include "rcom/app.h"
-#include "rcom/log.h"
 #include "rcom/util.h"
 
 #include "messagehub_priv.h"
 #include "messagelink_priv.h"
 #include "registry_priv.h"
 #include "rcregistry_priv.h"
-#include "mem.h"
 #include "proxy.h"
 
 typedef struct _rcregistry_t {
@@ -39,20 +38,20 @@ rcregistry_t* new_rcregistry(addr_t *addr)
         int err;
         rcregistry_t* rcregistry;
 
-        rcregistry = new_obj(rcregistry_t);
+        rcregistry = r_new(rcregistry_t);
         if (rcregistry == NULL)
                 return NULL;
 
         rcregistry->registry = new_registry();
         if (rcregistry->registry == NULL) {
-                log_err("Failed to create the registry. Quiting.");
+                r_err("Failed to create the registry. Quiting.");
                 delete_rcregistry(rcregistry);
                 return 0;
         }
         
         rcregistry->hub = new_messagehub(get_registry_port(), _onconnect, rcregistry);
         if (rcregistry->hub == NULL) {
-                log_err("Failed to create the registry hub. Quiting.");
+                r_err("Failed to create the registry hub. Quiting.");
                 delete_rcregistry(rcregistry);
                 return 0;
         }
@@ -67,7 +66,7 @@ void delete_rcregistry(rcregistry_t* rcregistry)
                         delete_registry(rcregistry->registry);
                 if (rcregistry->hub)
                         delete_messagehub(rcregistry->hub);
-                delete_obj(rcregistry);
+                r_delete(rcregistry);
         }
 }
 
@@ -78,7 +77,7 @@ addr_t *rcregistry_addr(rcregistry_t *rcregistry)
 
 static int rcregistry_fail(messagelink_t *link, const char *req, const char *message)
 {
-        log_warn("rcregistry_fail: %s: %s", req, message);
+        r_warn("rcregistry_fail: %s: %s", req, message);
         messagelink_send_f(link,
                            "{\"request\":\"%s\", "
                            "\"success\":false, "
@@ -127,10 +126,10 @@ static void rcregistry_register(rcregistry_t* rcregistry,
         
         err = rcregistry_success(link, "register-response");
         if (err != 0) {
-                log_err("rcregistry_success returned an error");
+                r_err("rcregistry_success returned an error");
         }
 
-        log_info("successful registration %s %s:%s id=%s",
+        r_info("successful registration %s %s:%s id=%s",
                  registry_type_to_str(entry->type), entry->name, entry->topic, entry->id);
 
         // Broadcast new node
@@ -159,7 +158,7 @@ static void rcregistry_unregister(rcregistry_t* rcregistry,
         
         id = json_object_getstr(message, "id");
         if (id == NULL) {
-                log_err("rcregistry_unregister: Invalid ID"); 
+                r_err("rcregistry_unregister: Invalid ID"); 
                 return;
         }
         
@@ -171,9 +170,9 @@ static void rcregistry_unregister(rcregistry_t* rcregistry,
         
         err = rcregistry_success(link, "unregister-response");
         if (err != 0)
-                log_err("rcregistry_success returned an error");
+                r_err("rcregistry_success returned an error");
 
-        log_info("successful unregistration: id=%s", id); 
+        r_info("successful unregistration: id=%s", id); 
 
         // Broadcast 
         messagehub_broadcast_f(rcregistry->hub, NULL, 
@@ -205,13 +204,13 @@ static void rcregistry_update_address(rcregistry_t* rcregistry,
         
         id = json_object_getstr(message, "id");
         if (id == NULL) {
-                log_err("rcregistry_update_address: Invalid ID"); 
+                r_err("rcregistry_update_address: Invalid ID"); 
                 return;
         }
 
         addr = json_object_getstr(message, "addr");
         if (addr == NULL) {
-                log_err("rcregistry_update_address: Invalid address"); 
+                r_err("rcregistry_update_address: Invalid address"); 
                 return;
         }
         
@@ -223,7 +222,7 @@ static void rcregistry_update_address(rcregistry_t* rcregistry,
         
         err = rcregistry_success(link, "update-address-response");
         if (err != 0)
-                log_err("rcregistry_success returned an error");
+                r_err("rcregistry_success returned an error");
         
         // Broadcast update
         messagehub_broadcast_f(rcregistry->hub, link, 
@@ -235,7 +234,7 @@ static void rcregistry_onmessage(rcregistry_t* rcregistry,
                                  messagelink_t *link,
                                  json_object_t message)
 {
-        //log_debug("rcregistry: onmessage");
+        //r_debug("rcregistry: onmessage");
         
         const char *request;
         
@@ -251,7 +250,7 @@ static void rcregistry_onmessage(rcregistry_t* rcregistry,
                 return;
         }
         
-        //log_debug("rcregistry_onmessage: request=%s", request);
+        //r_debug("rcregistry_onmessage: request=%s", request);
 
         if (rstreq(request, "register")) {
                 rcregistry_register(rcregistry, link, message);
@@ -266,14 +265,14 @@ static void rcregistry_onmessage(rcregistry_t* rcregistry,
                 rcregistry_update_address(rcregistry, link, message);                
                 
         } else {
-                log_warn("Unknown request: %s", request);
+                r_warn("Unknown request: %s", request);
                 rcregistry_fail(link, request, "Unknown request");
         }
 }
 
 static void rcregistry_onclose(rcregistry_t* rcregistry, messagelink_t *link)
 {
-        //log_debug("rcregistry: onclose");
+        //r_debug("rcregistry: onclose");
 
         // TODO: remove all links and hubs related to this link?!
 }
@@ -282,7 +281,7 @@ static int rcregistry_onconnect(rcregistry_t* rcregistry,
                                 messagehub_t *hub,
                                 messagelink_t *link)
 {
-        //log_debug("rcregistry: onconnect");
+        //r_debug("rcregistry: onconnect");
         messagelink_set_userdata(link, rcregistry);
         messagelink_set_onmessage(link, _onmessage);
         messagelink_set_onclose(link, _onclose);

@@ -1,10 +1,9 @@
 #include <string.h>
 
-#include "rcom/log.h"
+#include <r.h>
 #include "rcom/util.h"
 #include "rcom/app.h"
 
-#include "mem.h"
 #include "http.h"
 #include "net.h"
 #include "http_parser.h"
@@ -20,7 +19,7 @@ static int http_read_response(tcp_socket_t socket, membuf_t *buf);
 
 http_header_t *new_http_header(const char *name, int length)
 {
-        http_header_t *h = new_obj(http_header_t);
+        http_header_t *h = r_new(http_header_t);
         if (h == NULL) return NULL;
 
         h->value = NULL;
@@ -37,9 +36,9 @@ http_header_t *new_http_header(const char *name, int length)
 void delete_http_header(http_header_t *h)
 {
         if (h) {
-                if (h->name) mem_free(h->name);
-                if (h->value) mem_free(h->value);
-                delete_obj(h);
+                if (h->name) r_free(h->name);
+                if (h->value) r_free(h->value);
+                r_delete(h);
         }
 }
 
@@ -47,7 +46,7 @@ static char *_append_(char *s, const char *value, int length)
 {
         int len = (s)? strlen(s) : 0;
         int total = len + length;
-        s = mem_realloc(s, total + 1);
+        s = r_realloc(s, total + 1);
         if (s == NULL)
                 return NULL;
         memcpy(s + len, value, length);
@@ -144,7 +143,7 @@ int http_send_headers(tcp_socket_t socket, int status, const char *mimetype, int
                            "Connection: close\r\n\r\n",
                            status, http_status_string(status), mimetype, content_length);
         if (len > sizeof(header) - 1) {
-                log_err("http_send_headers: header fields too long");
+                r_err("http_send_headers: header fields too long");
                 return -1;
         }
         
@@ -162,7 +161,7 @@ int http_send_headers(tcp_socket_t socket, int status, const char *mimetype, int
 int http_send_error_headers(tcp_socket_t socket, int status)
 {
         char header[2048];
-        log_debug("streamer_client_send_error_headers");
+        r_debug("streamer_client_send_error_headers");
         int len = snprintf(header, 2048,
                            "HTTP/1.1 %d %s\r\n"
                            "Connection: close\r\n\r\n",
@@ -173,7 +172,7 @@ int http_send_error_headers(tcp_socket_t socket, int status)
 int http_send_streaming_headers(tcp_socket_t socket, const char *mimetype)
 {
         char header[2048];
-        //log_debug("request_send_headers");
+        //r_debug("request_send_headers");
         int len = snprintf(header, 2048,
                            "HTTP/1.1 %d %s\r\n"
                            "Content-Type: %s\r\n"
@@ -198,7 +197,7 @@ int http_post(addr_t *addr,
         
         tcp_socket_t socket = open_tcp_socket(addr);
         if (socket == INVALID_TCP_SOCKET) {
-                log_err("http_get: failed to open a connection");
+                r_err("http_get: failed to open a connection");
                 return -1;
         }
 
@@ -227,14 +226,14 @@ int http_send_request(tcp_socket_t socket,
         
         ret = http_send_request_headers(socket, resource, b, content_type, len);
         if (ret != 0) {
-                log_err("client_send_request: failed to send the headers");
+                r_err("client_send_request: failed to send the headers");
                 return 0;
         }
         
         if (len) {
                 ret = tcp_socket_send(socket, data, len);
                 if (ret != 0) 
-                        log_err("client_send_request: failed to send the body");
+                        r_err("client_send_request: failed to send the body");
         }
 
         return ret;
@@ -301,9 +300,9 @@ static int http_read_response(tcp_socket_t socket, membuf_t *out)
         settings.on_headers_complete = http_headers_complete;
         settings.on_message_complete = http_message_complete;
         
-        parser = new_obj(http_parser);
+        parser = r_new(http_parser);
         if (parser == NULL) {
-                log_err("http_read_response: out of memory");
+                r_err("http_read_response: out of memory");
                 return -1;
         }
         http_parser_init(parser, HTTP_RESPONSE);
@@ -318,7 +317,7 @@ static int http_read_response(tcp_socket_t socket, membuf_t *out)
                         if (received < 0)
                                 return -1;
 
-                        //log_debug("http_read_response: %.*s", received, buf);
+                        //r_debug("http_read_response: %.*s", received, buf);
                         
                         /* Start up / continue the parser.
                          * Note we pass received==0 to signal that EOF has been received.
@@ -329,11 +328,11 @@ static int http_read_response(tcp_socket_t socket, membuf_t *out)
                         
                         if (parsed != received)
                                 /* Handle error. Usually just close the connection. */
-                                log_err("http_read_response: parsed != received");
+                                r_err("http_read_response: parsed != received");
                 }
         }
         
-        delete_obj(parser);
+        r_delete(parser);
 
         return 0;
 }

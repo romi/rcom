@@ -27,19 +27,19 @@ static libusb_device_handle *inspect_usb_device(libusb_device *device)
         
         ret = libusb_get_device_descriptor(device, &desc);                
         if (ret != 0) {
-                log_err("libusb_get_device_descriptor failed with error code: %d", ret);
+                r_err("libusb_get_device_descriptor failed with error code: %d", ret);
                 return NULL;
         }
 
-        log_debug("idVendor %x, idProduct %x", desc.idVendor, desc.idProduct);
+        r_debug("idVendor %x, idProduct %x", desc.idVendor, desc.idProduct);
 
         return NULL;
         
         /* ret = libusb_open(device, &handle); */
         /* if (ret != 0) { */
         /*         libusb_close(handle); */
-        /*         log_err("libusb_open failed with error code: %d", ret); */
-        /*         log_err("This usually means you need to run as root, or install the udev rules."); */
+        /*         r_err("libusb_open failed with error code: %d", ret); */
+        /*         r_err("This usually means you need to run as root, or install the udev rules."); */
         /*         return NULL; */
         /* } */
         
@@ -52,10 +52,10 @@ static libusb_device_handle *inspect_usb_device(libusb_device *device)
         /* ret = libusb_claim_interface(handle, id_interface); */
         /* if (ret != 0) { */
         /*         if (ret == LIBUSB_ERROR_BUSY) */
-        /*                 log_warn("libusb_claim_interface failed with BUSY - " */
+        /*                 r_warn("libusb_claim_interface failed with BUSY - " */
         /*                          "probably the device is opened by another program."); */
         /*         else */
-        /*                 log_err("libusb_claim_interface failed with error code: %d", ret); */
+        /*                 r_err("libusb_claim_interface failed with error code: %d", ret); */
         /*         libusb_close(handle); */
         /*         return NULL; */
         /* } */
@@ -71,14 +71,14 @@ int usbdev_init()
 
         int r = libusb_init(NULL);
         if (r < 0) {
-                log_err("Failed to initialize libusb");
+                r_err("Failed to initialize libusb");
                 return -1;
         }
 
         ssize_t size = libusb_get_device_list(NULL, &list);
         
 	if (size < 0)
-		log_err("libusb_get_device_list failed with error code: %d", size);
+		r_err("libusb_get_device_list failed with error code: %d", size);
 	
 	for (int i = 0; i < size; i++) {
                 handle = inspect_usb_device(list[i]);
@@ -98,13 +98,13 @@ int test_grbl(serial_t *serial)
                 return -1;
 
         if (serial_println(serial, "$I") != 0) {
-                log_err("test_grbl: serial_println failed");
+                r_err("test_grbl: serial_println failed");
                 return -1;
         }
         
         membuf_t *buffer = new_membuf();
         if (serial_readline(serial, buffer) == NULL) {
-                log_err("test_grbl: serial_readline failed");
+                r_err("test_grbl: serial_readline failed");
                 delete_membuf(buffer);
                 return -1;
         }
@@ -119,13 +119,13 @@ int test_brush_motor(serial_t *serial)
         if (serial_flush(serial) != 0)
                 return -1;
         if (serial_println(serial, "?") != 0) {
-                log_err("test_grbl: serial_println failed");
+                r_err("test_grbl: serial_println failed");
                 return -1;
         }
         
         membuf_t *buffer = new_membuf();
         if (serial_readline(serial, buffer) == NULL) {
-                log_err("test_grbl: serial_readline failed");
+                r_err("test_grbl: serial_readline failed");
                 delete_membuf(buffer);
                 return -1;
         }
@@ -143,9 +143,9 @@ int test_device(const char *device)
                 return -1;
 
         if (test_grbl(serial) == 1) {
-                log_debug("device '%s' runs grbl", device);
+                r_debug("device '%s' runs grbl", device);
         } else if (test_brush_motor(serial) == 1) {
-                log_debug("device '%s' runs the brush motor controller", device);
+                r_debug("device '%s' runs the brush motor controller", device);
         }
         delete_serial(serial);
         return 0;
@@ -164,7 +164,7 @@ int test_devices()
                         if (r != 0
                             || (statbuf.st_mode & S_IFMT) != S_IFCHR)
                                 continue;
-                        log_debug("%s", path);
+                        r_debug("%s", path);
                         test_device(path);
                 }
         }

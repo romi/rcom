@@ -4,13 +4,13 @@
 
 #include <stdlib.h>
 #include <string.h>
-#include "rcom/membuf.h"
+#include <r.h>
 #include "net.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
-
+        
 typedef struct _http_header_t {
         char *name;
         char *value;

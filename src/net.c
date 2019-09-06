@@ -5,10 +5,9 @@
 #include <netinet/in.h>
 #include <errno.h>
 
-#include "rcom/log.h"
-#include "rcom/app.h"
-#include "rcom/addr.h"
+#include "r/log.h"
 
+#include "rcom/app.h"
 #include "net.h"
 
 static int posix_wait_data(int socket, int timeout);
@@ -21,7 +20,7 @@ udp_socket_t open_udp_socket()
 {
         int s = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
         if (s == -1) {
-                log_err("open_udp_socket: failed to create the socket");
+                r_err("open_udp_socket: failed to create the socket");
                 return INVALID_UDP_SOCKET;
         }
         
@@ -37,7 +36,7 @@ udp_socket_t open_udp_socket()
         // bind socket to port
         int ret = bind(s, (struct sockaddr*) &local_addr, socklen);
         if (ret == -1) {
-                log_err("open_udp_socket: failed to bind the socket");
+                r_err("open_udp_socket: failed to bind the socket");
                 close(s);
                 return INVALID_UDP_SOCKET;
         }
@@ -65,7 +64,7 @@ int udp_socket_send(udp_socket_t socket, addr_t *addr, data_t *data)
                      (struct sockaddr *) addr, addrlen);
         if (ret == -1) {
                 char b[64];
-                log_err("messenger_send: sendto() to %s failed: %s",
+                r_err("messenger_send: sendto() to %s failed: %s",
                         addr_string(addr, b, 64),
                         strerror(errno));
                 return -1;
@@ -90,7 +89,7 @@ int udp_socket_read(udp_socket_t socket, data_t *data, addr_t *addr)
                        (struct sockaddr *) addr,
                        &addrlen);
         if (len < 0) {
-                log_err("udp_socket_read: recvfrom failed");
+                r_err("udp_socket_read: recvfrom failed");
                 return -1;
         }
         data_set_len(data, len - PACKET_HEADER);
@@ -108,13 +107,13 @@ tcp_socket_t open_tcp_socket(addr_t *addr)
         
         s = socket(AF_INET, SOCK_STREAM, 0);
         if (s == -1) {
-                log_err("open_tcp_socket: failed to create the socket");
+                r_err("open_tcp_socket: failed to create the socket");
                 return -1;
         }
 
         ret = connect(s, (struct sockaddr *) addr, addrlen);
         if (ret < 0) {
-                log_err("open_tcp_socket: failed to bind the socket");
+                r_err("open_tcp_socket: failed to bind the socket");
                 return -1;
         }
         
@@ -146,25 +145,25 @@ int tcp_socket_send(tcp_socket_t socket, const char *data, int len)
         int sent = 0;
         
         if (socket < 0) {
-                log_err("http_send: invalid socket");
+                r_err("http_send: invalid socket");
                 return -1;
         }
 
-        //log_debug("http_send: sending: %.*s", len, data);
+        //r_debug("http_send: sending: %.*s", len, data);
 
         while (sent < len) {
                 // Using MSG_NOSIGNAL to prevent SIGPIPE signals in
                 // case the client closes the connection before all
                 // the data is sent.
                 ret = send(socket, data + sent, len - sent, MSG_NOSIGNAL);
-                //log_err("socket_send: len=%d, sent=%d, len-send=%d, ret=%d",
+                //r_err("socket_send: len=%d, sent=%d, len-send=%d, ret=%d",
                 // len, sent, len - sent, ret);
                 if (ret < 0) {
-                        log_err("socket_send: send failed: %s", strerror(errno));
+                        r_err("socket_send: send failed: %s", strerror(errno));
                         return -1;
                 }
                 if (ret == 0) {
-                        log_err("socket_send: send() returned zero");
+                        r_err("socket_send: send() returned zero");
                         return -1;
                 }
                 sent += ret;
@@ -186,13 +185,13 @@ int tcp_socket_recv(tcp_socket_t socket, char *data, int len)
 {
         int received = recv(socket, data, len, 0);
         if (received < 0) {
-                log_err("tcp_socket_recv: recv failed: %s", strerror(errno));
+                r_err("tcp_socket_recv: recv failed: %s", strerror(errno));
                 return (errno == EAGAIN)? -2 : -1;
         } else if (received == 0) {
-                log_err("tcp_socket_recv: socket shut down");
+                r_err("tcp_socket_recv: socket shut down");
                 return 0;
         }
-        //log_debug("http_recv: len=%d data='%.*s'", received, received, data);        
+        //r_debug("http_recv: len=%d data='%.*s'", received, received, data);        
         return received;
 }
 
@@ -220,13 +219,13 @@ tcp_socket_t open_server_socket(addr_t* addr)
 
         int s = socket(AF_INET, SOCK_STREAM, 0);
         if (s == -1) {
-                log_err("open_server_socket: failed: %s", strerror(errno));
+                r_err("open_server_socket: failed: %s", strerror(errno));
                 return INVALID_TCP_SOCKET;
         }
 
         ret = bind(s, (struct sockaddr *) addr, socklen);
         if (ret == -1) {
-                log_err("open_server_socket: bind failed: %s", strerror(errno));
+                r_err("open_server_socket: bind failed: %s", strerror(errno));
                 return INVALID_TCP_SOCKET;
         }
 
@@ -235,7 +234,7 @@ tcp_socket_t open_server_socket(addr_t* addr)
         
         ret = listen(s, 10);
         if (ret == -1) {
-                log_err("open_server_socket: listen failed: %s", strerror(errno));
+                r_err("open_server_socket: listen failed: %s", strerror(errno));
                 return INVALID_TCP_SOCKET;
         }
         
@@ -251,16 +250,16 @@ tcp_socket_t server_socket_accept(tcp_socket_t s)
         // The code waits for incoming connections for one
         // second. 
         if (posix_wait_data(s, 1)) {
-                //log_debug("server_socket_accept: calling accept");
+                //r_debug("server_socket_accept: calling accept");
                 client =  accept(s, (struct sockaddr*) &addr, &addrlen);
                 if (client == -1) {
                         // Server socket is probably being closed
                         // FIXME: is this true?
-                        log_err("server_socket_accept: accept failed: %s (socket %d)",
+                        r_err("server_socket_accept: accept failed: %s (socket %d)",
                                 strerror(errno), s); 
                         return INVALID_TCP_SOCKET;
                 }
-                //log_debug("server_socket_accept: new connection");
+                //r_debug("server_socket_accept: new connection");
                 return client;
         } else
                 return TCP_SOCKET_TIMEOUT;
@@ -278,7 +277,7 @@ static int posix_wait_data(int socket, int timeout)
         int ret = 0;
         
         if (timeout < 0) {
-                log_err("posix_wait_data: invalid value for timeout: %d", timeout);
+                r_err("posix_wait_data: invalid value for timeout: %d", timeout);
                 return -1;
         }
         
@@ -295,10 +294,10 @@ static int posix_wait_data(int socket, int timeout)
         
         ret = select(socket+1, &readset, NULL, NULL, tp);
         if (ret < 0) {
-                log_err("udp_socket_wait_data: error: %s", strerror(errno));
+                r_err("udp_socket_wait_data: error: %s", strerror(errno));
                 return -1;
         } else if (ret == 0) {
-                //log_err("http_wait_data: time out");
+                //r_err("http_wait_data: time out");
                 return 0;
         }
         return 1; 

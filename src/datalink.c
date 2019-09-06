@@ -1,13 +1,10 @@
 
-#include "rcom/json.h"
-#include "rcom/log.h"
+#include <r.h>
+
 #include "rcom/app.h"
 #include "rcom/addr.h"
-#include "rcom/thread.h"
 #include "rcom/util.h"
-#include "rcom/clock.h"
 
-#include "mem.h"
 #include "net.h"
 #include "datalink_priv.h"
 
@@ -33,7 +30,7 @@ datalink_t* new_datalink(datalink_ondata_t callback, void* userdata)
         int ret;
         datalink_t* link;
                 
-        link = new_obj(datalink_t);
+        link = r_new(datalink_t);
         if (link == NULL)
                 return NULL;
         
@@ -96,7 +93,7 @@ void delete_datalink(datalink_t* link)
                         delete_addr(link->remote_addr);
                 if (link->mutex != NULL)
                         delete_mutex(link->mutex);
-                delete_obj(link);
+                r_delete(link);
         }
 }
 
@@ -104,7 +101,7 @@ static void datalink_handle_input(datalink_t* link)
 {
         if (link->remote_addr == NULL) {
                 // waiting for remote node
-                //log_debug("datalink_handle_input: remote_addr == NULL");
+                //r_debug("datalink_handle_input: remote_addr == NULL");
                 clock_sleep(1);
                 return;
         }
@@ -187,7 +184,7 @@ addr_t *datalink_remote_addr(datalink_t* link)
 
 void datalink_set_remote_addr(datalink_t *link, addr_t *addr)
 {
-        //log_debug("datalink_set_remote_addr");
+        //r_debug("datalink_set_remote_addr");
 
         mutex_lock(link->mutex);
         if (link->remote_addr != NULL && addr != NULL && addr_eq(link->remote_addr, addr)) {
@@ -204,7 +201,7 @@ void datalink_set_remote_addr(datalink_t *link, addr_t *addr)
         if (addr != NULL) {
                 clone =  addr_clone(addr);
                 if (clone == NULL) {
-                        log_err("datalink_set_remote_addr: failed to clone the address!");
+                        r_err("datalink_set_remote_addr: failed to clone the address!");
                         mutex_unlock(link->mutex);
                         return;
                 }

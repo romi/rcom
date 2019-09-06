@@ -1,13 +1,9 @@
 
-#include "rcom/log.h"
+#include <r.h>
 #include "rcom/app.h"
 #include "rcom/messagelink.h"
-#include "rcom/membuf.h"
-#include "rcom/thread.h"
 
 #include "util_priv.h"
-#include "mem.h"
-#include "list.h"
 #include "net.h"
 #include "http.h"
 #include "http_parser.h"
@@ -40,7 +36,7 @@ messagehub_t* new_messagehub(int port,
 {
         int ret;
         
-        messagehub_t* hub = new_obj(messagehub_t);
+        messagehub_t* hub = r_new(messagehub_t);
         if (hub == NULL)
                 return NULL;
 
@@ -60,7 +56,7 @@ messagehub_t* new_messagehub(int port,
         }
 
         char b[64];
-        log_info("Messagehub listening at http://%s:%d",
+        r_info("Messagehub listening at http://%s:%d",
                  addr_ip(hub->addr, b, 64), addr_port(hub->addr));
 
         hub->thread = new_thread((thread_run_t) messagehub_run, hub, 0, 0);
@@ -76,7 +72,7 @@ void delete_messagehub(messagehub_t*hub)
 {
         list_t *l;
 
-        log_debug("delete_messagehub");
+        r_debug("delete_messagehub");
         
         if (hub) {
                 hub->quit = 1;
@@ -109,7 +105,7 @@ void delete_messagehub(messagehub_t*hub)
                                 hub->links = list_next(l);
                                 messagehub_unlock_links(hub);                
 
-                                log_debug("delete_messagehub: deleting messagelink %d",
+                                r_debug("delete_messagehub: deleting messagelink %d",
                                           count++);
                                 messagelink_t *link = list_get(l, messagelink_t);
                                 delete_messagelink(link);
@@ -122,10 +118,10 @@ void delete_messagehub(messagehub_t*hub)
                 if (hub->addr)
                         delete_addr(hub->addr);
                 
-                delete_obj(hub);
+                r_delete(hub);
         }
 
-        //log_debug("delete_messagehub: done");
+        //r_debug("delete_messagehub: done");
 }
 
 addr_t *messagehub_addr(messagehub_t *hub)
@@ -142,20 +138,20 @@ static void messagehub_handle_connect(messagehub_t *hub)
         messagelink_t *link;
         tcp_socket_t link_socket;
 
-        //log_debug("messagehub_handle_connect");
+        //r_debug("messagehub_handle_connect");
         
         link_socket = server_socket_accept(hub->socket);
         if (link_socket == INVALID_TCP_SOCKET
             || link_socket == TCP_SOCKET_TIMEOUT)
                 return;
 
-        //log_debug("messagehub_handle_connect: new http client");
+        //r_debug("messagehub_handle_connect: new http client");
 
         link = server_messagelink_connect(hub, link_socket);
         if (link == NULL)
                 return;
                                 
-        //log_debug("messagehub_handle_connect: new link");
+        //r_debug("messagehub_handle_connect: new link");
 
         if (hub->onconnect)
                 if (hub->onconnect(hub, link, hub->userdata) != 0) {
@@ -172,7 +168,7 @@ static void messagehub_run(messagehub_t *hub)
         while (!hub->quit && !app_quit() && hub->socket != -1) {
                 messagehub_handle_connect(hub);
         }
-        log_info("messagehub_run: no longer accepting connections");
+        r_info("messagehub_run: no longer accepting connections");
 }
 
 static void messagehub_lock_links(messagehub_t *hub)

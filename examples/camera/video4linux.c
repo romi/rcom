@@ -15,7 +15,7 @@ int video4linux_init(int argc, char **argv)
         
         camera = new_camera(device, IO_METHOD_MMAP, 640, 480, 90);
         if (camera == NULL) {
-                log_err("Failed to open the camera");
+                r_err("Failed to open the camera");
                 return -1;
         }
         return 0;
@@ -32,7 +32,7 @@ int camera_broadcast(camera_t* camera, streamer_t *streamer)
         if (streamer_has_clients(streamer)) {
                 int error = camera_capture(camera);
                 if (error) {
-                        log_err("Failed to grab the image");
+                        r_err("Failed to grab the image");
                         clock_sleep(0.04);
                         return 0;
                 }

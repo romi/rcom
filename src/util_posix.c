@@ -9,10 +9,9 @@
 #include <sys/syscall.h>
 #include <uuid/uuid.h>
 
-#include "rcom/log.h"
+#include <r.h>
 
 #include "util_priv.h"
-#include "mem.h"
 
 int rcom_getrandom(void *buf, size_t buflen, unsigned int flags)
 {
@@ -25,5 +24,5 @@ char *generate_uuid()
         char s[37];
         uuid_generate(uuid);
         uuid_unparse_lower(uuid, s);
-        return mem_strdup(s);
+        return r_strdup(s);
 }

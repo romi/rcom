@@ -1,12 +1,8 @@
 #include <string.h>
+#include <r.h>
 
-#include "rcom/log.h"
-#include "rcom/membuf.h"
-#include "rcom/thread.h"
 #include "rcom/util.h"
 
-#include "mem.h"
-#include "list.h"
 #include "sha1.h"
 #include "http.h"
 #include "net.h"
@@ -55,7 +51,7 @@ void delete_request(request_t *r);
 
 request_t *new_request(service_t *service, tcp_socket_t socket)
 {
-        request_t *r = new_obj(request_t);
+        request_t *r = r_new(request_t);
         if (r == NULL)
                 return NULL;
 
@@ -83,9 +79,9 @@ void delete_request(request_t *r)
                 if (r->out)
                         delete_membuf(r->out);
                 if (r->uri)
-                        mem_free(r->uri);
+                        r_free(r->uri);
                 if (r->mimetype)
-                        mem_free(r->mimetype);
+                        r_free(r->mimetype);
                 if (r->thread)
                         delete_thread(r->thread);
                 if (r->addr)
@@ -95,7 +91,7 @@ void delete_request(request_t *r)
                         delete_http_header(h);
                 }
                 delete_list(r->headers);
-                delete_obj(r);
+                r_delete(r);
         }
 }
 
@@ -134,7 +130,7 @@ json_object_t request_parse(request_t *r)
         json_object_t obj;
         
         if (request_data(r) == NULL || request_len(r) == 0) {
-                log_warn("request_parse: empty request");
+                r_warn("request_parse: empty request");
                 return json_null();
         }
         
@@ -142,7 +138,7 @@ json_object_t request_parse(request_t *r)
                 
         obj = json_parse(request_data(r));
         if (obj == json_null()) {
-                log_warn("request_parse: parsing failed: %s", request_data(r));
+                r_warn("request_parse: parsing failed: %s", request_data(r));
                 return json_null();
         }
 
@@ -189,6 +185,11 @@ int request_reply_printf(request_t *r, const char *format, ...)
         va_end(ap);
 
         return ret;
+}
+
+membuf_t *request_reply_buffer(request_t *r)
+{
+        return r->out;
 }
 
 static int request_message_begin(http_parser *p)
@@ -238,12 +239,12 @@ static int request_on_url(http_parser *parser, const char *data, size_t length)
         /*         return -1; */
 
         /* int len = membuf_len(buf); */
-        /* r->uri = mem_alloc(length + 1); */
+        /* r->uri = r_alloc(length + 1); */
         /* memcpy(r->uri, membuf_data(buf), len); */
         /* r->uri[len] = '\0'; */
         /* delete_membuf(buf); */
 
-        r->uri = mem_alloc(length + 1);
+        r->uri = r_alloc(length + 1);
         memcpy(r->uri, data, length);
         r->uri[length] = '\0';
 
@@ -302,9 +303,9 @@ static int request_parse_html(request_t *r)
         settings.on_message_begin = request_message_begin;
         settings.on_message_complete = request_message_complete;
         
-        parser = new_obj(http_parser);
+        parser = r_new(http_parser);
         if (parser == NULL) {
-                log_err("request_parse: out of memory");
+                r_err("request_parse: out of memory");
                 return -1;
         }
         http_parser_init(parser, HTTP_REQUEST);
@@ -314,8 +315,8 @@ static int request_parse_html(request_t *r)
         while (r->cont) {
                 received = recv(r->socket, buf, len, 0);
                 if (received < 0) {
-                        log_err("request_parse: recv failed");
-                        delete_obj(parser);
+                        r_err("request_parse: recv failed");
+                        r_delete(parser);
                         return -1;
                 }
         
@@ -329,15 +330,15 @@ static int request_parse_html(request_t *r)
 
                 if (parsed != received && parsed != received - 1) {
                         /* Handle error. Usually just close the connection. */
-                        log_err("request_parse: parsed != received (%d != %d)", parsed, received);
-                        log_err("data: '%s'", buf);
-                        delete_obj(parser);
+                        r_err("request_parse: parsed != received (%d != %d)", parsed, received);
+                        r_err("data: '%s'", buf);
+                        r_delete(parser);
                         return -1;
                 }
         }
 
         // CLEANUP
-        delete_obj(parser);
+        r_delete(parser);
         return 0;
 }
 
@@ -355,46 +356,46 @@ void request_handle(request_t* r)
         
         err = request_parse_html(r);
         if (err != 0) {
-                log_err("request_handle: parsing failed");
+                r_err("request_handle: parsing failed");
                 goto cleanup;
         }
 
-        log_debug("request_handle: request for %s", r->uri);
+        r_debug("request_handle: request for %s", r->uri);
 
         if (r->uri == NULL) {
-                log_err("request_handle: requested uri == NULL!?");
+                r_err("request_handle: requested uri == NULL!?");
                 err = request_send_headers(r, 400, "text/plain", 0);
                 goto cleanup;
         }
 
         export = service_get_export(r->service, r->uri);
         if (export == NULL) {
-                log_err("request_handle: export == NULL: resource '%s'", r->uri);
+                r_err("request_handle: export == NULL: resource '%s'", r->uri);
                 err = request_send_headers(r, 404, "text/plain", 0);
                 goto cleanup;
         }
 
         err = export_callback(export, r);
         if (err != 0) {
-                log_err("Request handler returned non-zero (%d) for request '%s'", err, r->uri);
+                r_err("Request handler returned non-zero (%d) for request '%s'", err, r->uri);
                 err = request_send_headers(r, 500, "text/plain", 0);
                 goto cleanup;
         }
 
         if (r->status != 200) {
-                log_err("request_handle: status != 200");
+                r_err("request_handle: status != 200");
                 err = request_send_headers(r, r->status, "text/plain", 0);
                 goto cleanup;
                 
         } else {
-                //log_debug("request_handle: sending response, mimetype '%s'", request_mimetype(r, export));
+                //r_debug("request_handle: sending response, mimetype '%s'", request_mimetype(r, export));
                 err = request_send_headers(r, 200, request_mimetype(r, export),
                                            membuf_len(r->out));
                 if (err != 0) {
-                        log_err("request_handle: request_send_headers failed");
+                        r_err("request_handle: request_send_headers failed");
                         goto cleanup;
                 }
-                //log_debug("request_handle: sending body");
+                //r_debug("request_handle: sending body");
                 err = tcp_socket_send(r->socket,
                                       membuf_data(r->out),
                                       membuf_len(r->out));
@@ -402,7 +403,7 @@ void request_handle(request_t* r)
         
 cleanup:
         if (err != 0) {
-                log_err("request_handle: failed to handle request");
+                r_err("request_handle: failed to handle request");
         }
         if (export)
                 delete_export(export);
@@ -411,12 +412,12 @@ cleanup:
 
 void request_set_mimetype(request_t *r, const char *mimetype)
 {
-        //log_debug("request_set_mimetype: settings mimetype to '%s'", mimetype);
+        //r_debug("request_set_mimetype: settings mimetype to '%s'", mimetype);
         if (r->mimetype)
-                mem_free(r->mimetype);
+                r_free(r->mimetype);
         r->mimetype = NULL;
         if (mimetype != NULL)
-                r->mimetype = mem_strdup(mimetype);
+                r->mimetype = r_strdup(mimetype);
 }
 
 static const char *request_mimetype(request_t *r, export_t *e)

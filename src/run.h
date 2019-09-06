@@ -21,16 +21,13 @@ int valid_name(const char *name);
 int valid_path(const char *path);
 int valid_arg(const char *arg);
 int valid_addr(const char *host);
-int valid_username(const char *username);
+int valid_user(const char *user);
 int check_path(const char *path);
 
-
-run_t *run_parse(json_object_t node);
 run_t *new_run(const char *name,
                const char *path,
                const char *host,
-               const char *username/* , */
-               /* int attach */);
+               const char *user);
 void delete_run(run_t *r);
 
 run_status_t run_status(run_t *r);
