@@ -37,18 +37,6 @@ data_t *datalink_rpc(datalink_t* datalink, data_t *data);
 json_object_t datalink_rpc_f(datalink_t* datalink, const char *format, ...);
 
 
-
-
-// Private
-/* datalink_t *new_datalink(datalink_ondata_t callback, void* userdata); */
-/* void delete_datalink(datalink_t *datalink); */
-/* int datalink_start_thread(datalink_t *datalink); */
-/* void datalink_stop_thread(datalink_t *datalink); */
-/* addr_t *datalink_addr(datalink_t *datalink); */
-/* addr_t *datalink_remote_addr(datalink_t *datalink); */
-/* void datalink_set_remote_addr(datalink_t *datalink, addr_t *addr); */
-
-
 #ifdef __cplusplus
 }
 #endif

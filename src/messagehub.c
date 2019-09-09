@@ -6,9 +6,9 @@
 #include "util_priv.h"
 #include "net.h"
 #include "http.h"
-#include "http_parser.h"
 #include "messagelink_priv.h"
 #include "messagehub_priv.h"
+#include "request_priv.h"
 
 struct _messagehub_t {
         thread_t *thread;
@@ -22,6 +22,7 @@ struct _messagehub_t {
         int quit;
         
         messagehub_onconnect_t onconnect;
+        messagehub_onrequest_t onrequest;
         void *userdata;
 };
 
@@ -41,6 +42,7 @@ messagehub_t* new_messagehub(int port,
                 return NULL;
 
         hub->onconnect = onconnect;
+        hub->onrequest = NULL;
         hub->userdata = userdata;
         hub->mem = NULL;
         hub->links = NULL;        
@@ -129,44 +131,180 @@ addr_t *messagehub_addr(messagehub_t *hub)
         return hub->addr;
 }
 
-static void messagehub_link_onclose()
+int messagehub_set_onrequest(messagehub_t *hub, messagehub_onrequest_t onrequest)
 {
+        hub->onrequest = onrequest;
 }
 
-static void messagehub_handle_connect(messagehub_t *hub)
+static int messagehub_upgrade_connection(messagehub_t *hub,
+                                         request_t *request,
+                                         tcp_socket_t link_socket)
+{
+        const char *key = request_get_header_value(request, "Sec-WebSocket-Key");
+        unsigned char buffer[100];
+        unsigned char digest[21];
+        
+        snprintf(buffer, 100, "%s%s", key, "258EAFA5-E914-47DA-95CA-C5AB0DC85B11");
+        buffer[99] = 0;
+
+        SHA1(buffer, digest);
+        digest[20] = 0;
+        
+        char *accept = encode_base64(digest);
+        if (accept == NULL) 
+                return -1;
+
+        membuf_t *headers = new_membuf();
+        if (headers == NULL) {
+                r_free(accept);
+                return -1;
+        }
+        
+        membuf_printf(headers,
+                      "HTTP/1.1 101 Switching Protocols\r\n"
+                      "Upgrade: websocket\r\n"
+                      "Connection: Upgrade\r\n"
+                      "Sec-WebSocket-Accept: %s\r\n"
+                      "\r\n", accept);
+
+        int err = tcp_socket_send(link_socket, membuf_data(headers), membuf_len(headers));
+        
+        r_free(accept);
+        delete_membuf(headers);
+
+        return err;
+}
+
+static void messagehub_handle_websocket(messagehub_t* hub,
+                                        request_t *request,
+                                        tcp_socket_t link_socket)
+{
+        if (messagehub_upgrade_connection(hub, request, link_socket) != 0) {
+                http_send_error_headers(link_socket, HTTP_Status_Internal_Server_Error);
+                close_tcp_socket(link_socket);
+                delete_request(request);
+                return;
+        }
+        
+        messagelink_t *link = server_messagelink_connect(hub, link_socket);
+        if (link == NULL) {
+                delete_request(request);
+                return;
+        }
+        
+        if (hub->onconnect)
+                if (hub->onconnect(hub->userdata, hub, request, link) != 0) {
+                        delete_messagelink(link);
+                        delete_request(request);
+                        return;
+                }
+        
+
+        delete_request(request);
+        messagehub_add_link(hub, link);
+        messagelink_read_in_background(link);
+}
+
+struct request_and_socket_t {
+        messagehub_t* hub;
+        request_t* request;
+        tcp_socket_t socket;
+};
+
+struct request_and_socket_t *new_request_and_socket(messagehub_t* hub,
+                                                    request_t* request,
+                                                    tcp_socket_t socket)
+{
+        struct request_and_socket_t *s;
+        s = r_new(struct request_and_socket_t);
+        if (s == NULL)
+                return NULL;
+        s->hub = hub;
+        s->request = request;
+        s->socket = socket;
+        return s;
+}
+
+static void _messagehub_handle_request(struct request_and_socket_t *s)
+{
+        messagehub_t* hub = s->hub;
+        request_t *request = s->request;
+        tcp_socket_t link_socket = s->socket;
+        r_delete(s);
+        
+        response_t *response = new_response(HTTP_Status_OK);
+        if (response == NULL) {
+                http_send_error_headers(link_socket, HTTP_Status_Internal_Server_Error);
+                delete_request(request);
+                close_tcp_socket(link_socket);
+                return;
+        }
+        
+        hub->onrequest(hub->userdata, request, response);
+        response_send(response, link_socket);
+
+        delete_request(request);
+        delete_response(response);
+        close_tcp_socket(link_socket);
+}
+
+static void messagehub_handle_request(messagehub_t* hub,
+                                      request_t *request,
+                                      tcp_socket_t link_socket)
+{
+        if (hub->onrequest == NULL) {
+                http_send_error_headers(link_socket, HTTP_Status_Not_Found);
+                delete_request(request);
+                close_tcp_socket(link_socket);
+                return;
+        }
+
+        struct request_and_socket_t *s = new_request_and_socket(hub, request, link_socket);
+        new_thread((thread_run_t) _messagehub_handle_request, s, 0, 1);
+}
+
+static void messagehub_handle(messagehub_t *hub, tcp_socket_t link_socket)
+{
+        request_t *request = new_request();
+        if (request == NULL) {
+                http_send_error_headers(link_socket, HTTP_Status_Internal_Server_Error);
+                close_tcp_socket(link_socket);
+                return;
+        }
+
+        int err = request_parse_html(request, link_socket, REQUEST_PARSE_HEADERS);
+        if (err != 0) {
+                http_send_error_headers(link_socket, HTTP_Status_Internal_Server_Error);
+                close_tcp_socket(link_socket);
+                delete_request(request);
+                return;
+        }
+
+        if (request_is_websocket(request))
+                messagehub_handle_websocket(hub, request, link_socket);
+        else
+                messagehub_handle_request(hub, request, link_socket);        
+}
+
+static void messagehub_wait_connection(messagehub_t *hub)
 {
         messagelink_t *link;
         tcp_socket_t link_socket;
 
-        //r_debug("messagehub_handle_connect");
+        //r_debug("messagehub_wait_connection");
         
         link_socket = server_socket_accept(hub->socket);
         if (link_socket == INVALID_TCP_SOCKET
             || link_socket == TCP_SOCKET_TIMEOUT)
                 return;
 
-        //r_debug("messagehub_handle_connect: new http client");
-
-        link = server_messagelink_connect(hub, link_socket);
-        if (link == NULL)
-                return;
-                                
-        //r_debug("messagehub_handle_connect: new link");
-
-        if (hub->onconnect)
-                if (hub->onconnect(hub, link, hub->userdata) != 0) {
-                        delete_messagelink(link);
-                        return;
-                }
-        
-        messagehub_add_link(hub, link);
-        messagelink_read_in_background(link);
+        messagehub_handle(hub, link_socket);
 }
 
 static void messagehub_run(messagehub_t *hub)
 {
         while (!hub->quit && !app_quit() && hub->socket != -1) {
-                messagehub_handle_connect(hub);
+                messagehub_wait_connection(hub);
         }
         r_info("messagehub_run: no longer accepting connections");
 }

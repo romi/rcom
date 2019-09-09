@@ -18,7 +18,8 @@ typedef struct _rcregistry_t {
 
 static void _onmessage(void *userdata, messagelink_t *link, json_object_t message);
 static void _onclose(void *userdata, messagelink_t *messagelink);
-static int _onconnect(messagehub_t *hub, messagelink_t *link, void *userdata);
+static int _onconnect(void *userdata, messagehub_t *hub,
+                      request_t *request, messagelink_t *link);
 
 void delete_rcregistry(rcregistry_t* rcregistry);
 
@@ -33,7 +34,7 @@ static int rcregistry_onconnect(rcregistry_t* rcregistry,
                                 messagelink_t *link);
 
 
-rcregistry_t* new_rcregistry(addr_t *addr)
+rcregistry_t* new_rcregistry()
 {
         int err;
         rcregistry_t* rcregistry;
@@ -46,14 +47,25 @@ rcregistry_t* new_rcregistry(addr_t *addr)
         if (rcregistry->registry == NULL) {
                 r_err("Failed to create the registry. Quiting.");
                 delete_rcregistry(rcregistry);
-                return 0;
+                return NULL;
         }
         
         rcregistry->hub = new_messagehub(get_registry_port(), _onconnect, rcregistry);
         if (rcregistry->hub == NULL) {
                 r_err("Failed to create the registry hub. Quiting.");
                 delete_rcregistry(rcregistry);
-                return 0;
+                return NULL;
+        }
+        
+        addr_t *addr = messagehub_addr(rcregistry->hub);
+        char *id = r_uuid();
+        err = registry_insert(rcregistry->registry, id, "registry",
+                              "registry", TYPE_MESSAGEHUB, addr, rcregistry->hub);
+        r_free(id);
+        if (err != 0) {
+                r_err("Failed to insert the hub into the registry. Quiting.");
+                delete_rcregistry(rcregistry);
+                return NULL;
         }
         
         return rcregistry;
@@ -302,7 +314,8 @@ static void _onclose(void *userdata, messagelink_t *link)
         rcregistry_onclose(rcregistry, link);
 }
 
-static int _onconnect(messagehub_t *hub, messagelink_t *link, void *userdata)
+static int _onconnect(void *userdata, messagehub_t *hub,
+                      request_t *request, messagelink_t *link)
 {
         rcregistry_t *rcregistry = (rcregistry_t *) userdata;
         rcregistry_onconnect(rcregistry, hub, link);

@@ -152,17 +152,21 @@ int print_com_decl_i(membuf_t *buf, const char *name, json_object_t obj)
         }
         
         if (rstreq(type, "controller")) {
-                membuf_printf(buf, "static int messagehub_%s_onconnect(messagehub_t *hub,\n"
-                              "        messagelink_t *link,\n"
-                              "        void *userdata);\n", topic);
+                membuf_printf(buf, "static int messagehub_%s_onconnect(\n"
+                              "        void *userdata,\n"
+                              "        messagehub_t *hub,\n"
+                              "        request_t *request,\n"
+                              "        messagelink_t *link);\n", topic);
                 membuf_printf(buf, "static void messagehub_%s_onmessage(void *userdata,\n"
                               "        messagelink_t *link,\n"
                               "        json_object_t message);\n\n", topic);
         } else if (rstreq(type, "messagehub")) {
                 if (json_object_getstr(obj, "onmessage"))
-                        membuf_printf(buf, "static int messagehub_%s_onconnect(messagehub_t *hub,\n"
-                                      "        messagelink_t *link,\n"
-                                      "        void *userdata);\n", topic);
+                        membuf_printf(buf, "static int messagehub_%s_onconnect(\n"
+                                      "        void *userdata,\n"
+                                      "        messagehub_t *hub,\n"
+                                      "        request_t *request,\n"
+                                      "        messagelink_t *link);\n", topic);
                 
         }
         return 0;
@@ -244,6 +248,7 @@ int print_new_messagehub(membuf_t *buf,
 {
         const char *onconnect = json_object_getstr(obj, "onconnect");
         const char *onmessage = json_object_getstr(obj, "onmessage");
+        const char *onrequest = json_object_getstr(obj, "onrequest");
         const char *userdata = json_object_getstr(obj, "userdata");
         double port = 0;
         
@@ -298,6 +303,13 @@ int print_new_messagehub(membuf_t *buf,
                       "                return -1;\n"
                       "        };\n",
                       topic);
+        if (onrequest != NULL) {
+                r_debug("print_new_messagehub: using onrequest provided by input file");
+                membuf_printf(buf,
+                              "        messagehub_set_onrequest(messagehub_%s, "
+                              "                                 (messagehub_onrequest_t) %s);\n",
+                              topic, onrequest);
+        }
         return 0;
 }
 
@@ -500,6 +512,7 @@ int print_new_streamerlink(membuf_t *buf,
                            json_object_t obj)
 {
         const char *ondata = json_object_getstr(obj, "ondata");
+        const char *onresponse = json_object_getstr(obj, "onresponse");
         const char *userdata = json_object_getstr(obj, "userdata");
         int autoconnect = json_object_getbool(obj, "autoconnect");
 
@@ -508,17 +521,21 @@ int print_new_streamerlink(membuf_t *buf,
                 fprintf(stderr, "Missing 'ondata' handler\n");
                 return -1;
         }
+        if (onresponse == NULL)
+                onresponse = "NULL";
         if (userdata == NULL)
                 userdata = "NULL";
         if (autoconnect == -1)
                 autoconnect = 1;
         
         membuf_printf(buf,
-                      "        streamerlink_%s = registry_open_streamerlink(\"%s\","
+                      "        streamerlink_%s = registry_open_streamerlink(\n"
                       "                \"%s\",\n"
-                      "                (streamerlink_ondata_t) %s, "
+                      "                \"%s\",\n"
+                      "                (streamerlink_ondata_t) %s,\n"
+                      "                (streamerlink_onresponse_t) %s,\n"
                       "                %s, %d);\n",
-                      topic, name, topic, ondata, userdata, autoconnect);
+                      topic, name, topic, ondata, onresponse, userdata, autoconnect);
         membuf_printf(buf,
                       "        if (streamerlink_%s == NULL) {\n"
                       "                r_err(\"Failed to create the streamerlink\");\n"
@@ -652,9 +669,11 @@ int print_com_controller_handlers(membuf_t *buf, const char *name, json_object_t
 
 
         membuf_printf(buf,
-                      "static int messagehub_%s_onconnect(messagehub_t *hub,\n"
-                      "        messagelink_t *link,\n"
-                      "        void *userdata)\n{\n", topic);
+                      "static int messagehub_%s_onconnect(\n"
+                      "        void *userdata,\n"
+                      "        messagehub_t *hub,\n"
+                      "        request_t *request,\n"
+                      "        messagelink_t *link)\n{\n", topic);
         membuf_printf(buf, "        messagelink_set_userdata(link, userdata);\n");
         membuf_printf(buf, "        messagelink_set_onmessage(link, messagehub_%s_onmessage);\n", topic);
         membuf_printf(buf, "        return 0;\n");
@@ -670,9 +689,11 @@ int print_com_messagehub_handlers(membuf_t *buf, const char *name, json_object_t
                 return 0;
         
         membuf_printf(buf,
-                      "static int messagehub_%s_onconnect(messagehub_t *hub,\n"
-                      "        messagelink_t *link,\n"
-                      "        void *userdata)\n{\n", topic);
+                      "static int messagehub_%s_onconnect(\n"
+                      "        void *userdata,\n"
+                      "        messagehub_t *hub,\n"
+                      "        request_t *request,\n"
+                      "        messagelink_t *link)\n{\n", topic);
         membuf_printf(buf, "        messagelink_set_userdata(link, userdata);\n");
         membuf_printf(buf, "        messagelink_set_onmessage(link, (messagelink_onmessage_t) %s);\n", onmessage);
         membuf_printf(buf, "        return 0;\n");

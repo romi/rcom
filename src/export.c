@@ -101,11 +101,12 @@ int export_set_mimetypes(export_t* e,
         return 0;
 }
 
-int export_callback(export_t* e, request_t *request)
+void export_callback(export_t* e, request_t *request, response_t *response)
 {
         if (!e->onrequest)
-                return -1;
-        return e->onrequest(e->userdata, request);
+                response_set_status(response, HTTP_Status_Internal_Server_Error);
+        else
+                e->onrequest(e->userdata, request, response);
 }
 
 const char* export_name(export_t* e)

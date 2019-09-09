@@ -13,11 +13,10 @@ typedef struct _streamerlink_t {
         char *resource;
         void* userdata;
         streamerlink_ondata_t ondata;
+        streamerlink_onresponse_t onresponse;
         tcp_socket_t socket;
         addr_t *addr;
         addr_t *remote_addr;
-        list_t *headers; 
-        http_header_t *cur_header;
         mutex_t *mutex;
         thread_t *thread;
         int cont;
@@ -32,6 +31,7 @@ static int streamerlink_unlock(streamerlink_t *link);
 
 
 streamerlink_t *new_streamerlink(streamerlink_ondata_t ondata,
+                                 streamerlink_onresponse_t onresponse,
                                  void* userdata, int autoconnect)
 {
         streamerlink_t* link;
@@ -55,6 +55,7 @@ streamerlink_t *new_streamerlink(streamerlink_ondata_t ondata,
         link->addr = new_addr0();
         link->remote_addr = NULL;
         link->userdata = userdata;
+        link->onresponse = onresponse;
         link->ondata = ondata;
         link->autoconnect = autoconnect;
         
@@ -77,14 +78,8 @@ void delete_streamerlink(streamerlink_t *link)
                         streamerlink_unlock(link);
                         delete_mutex(link->mutex);
                 }
-                if (link->addr) {
+                if (link->addr)
                         delete_addr(link->addr);
-                }
-                for (list_t *l = link->headers; l != NULL; l = list_next(l)) {
-                        http_header_t *h = list_get(l, http_header_t);
-                        delete_http_header(h);
-                }
-                delete_list(link->headers);
                 
                 r_delete(link);
         }
@@ -103,64 +98,6 @@ static int streamerlink_lock(streamerlink_t *link)
 static int streamerlink_unlock(streamerlink_t *link)
 {
         mutex_unlock(link->mutex);
-}
-
-static int streamerlink_message_begin(http_parser *p)
-{
-        return 0;
-}
-
-static int streamerlink_message_complete(http_parser *p)
-{
-        return 0;
-}
-
-static int streamerlink_on_status(http_parser *p, const char *data, size_t length)
-{
-        return 0;
-}
-
-static int streamerlink_on_body(http_parser *parser, const char *data, size_t length)
-{
-        streamerlink_t *link = (streamerlink_t *) parser->data;
-        return link->ondata(link->userdata, data, length);
-}
-
-static int streamerlink_on_header_field(http_parser *parser, const char *data, size_t length)
-{
-        streamerlink_t *r = (streamerlink_t *) parser->data;
-        r->cur_header = new_http_header(data, length);
-        if (r->cur_header == NULL) return -1;
-        return 0;
-}
-
-static int streamerlink_on_header_value(http_parser *parser, const char *data, size_t length)
-{
-        streamerlink_t *r = (streamerlink_t *) parser->data;
-        if (r->cur_header != NULL) {
-                http_header_append_value(r->cur_header, data, length);
-                r->headers = list_prepend(r->headers, r->cur_header);
-                r->cur_header = NULL;
-        }
-        return 0;
-}
-
-http_header_t *streamerlink_get_header(streamerlink_t *listener, const char *name)
-{
-        list_t * l = listener->headers;
-        while (l) {
-                http_header_t *h = list_get(l, http_header_t);
-                if (rstreq(name, h->name))
-                        return h;
-                l = list_next(l);
-        }
-        return NULL;
-}
-
-static int streamerlink_on_headers_complete(http_parser *parser)
-{
-        streamerlink_t *listener = (streamerlink_t *) parser->data;        
-        return 0;
 }
 
 int streamerlink_disconnect(streamerlink_t *link)
@@ -248,92 +185,61 @@ static int streamerlink_send_request(streamerlink_t *link)
 
 static void streamerlink_run(streamerlink_t *link)
 {
+        response_t *response = NULL;
         size_t len = 80*1024;
-        size_t parsed;
         char buf[len];
-        ssize_t received;
-        http_parser *parser;
-        http_parser_settings settings;
-        int ret;
+        int err;
 
         //r_debug("streamerlink_run: sending request");
         
-        ret = streamerlink_send_request(link);
-        if (ret != 0) {
-                streamerlink_lock(link);        
-                streamerlink_close_connection(link);
-                delete_thread(link->thread);
-                link->thread = NULL;
-                streamerlink_unlock(link);
-                return;
-        }
-
-        //r_debug("streamerlink_run: parsing response");
+        err = streamerlink_send_request(link);
+        if (err != 0)
+                goto cleanup;
         
-        http_parser_settings_init(&settings);
-        settings.on_body = streamerlink_on_body;
-        settings.on_status = streamerlink_on_status;        
-        settings.on_header_field = streamerlink_on_header_field;
-        settings.on_header_value = streamerlink_on_header_value;
-        settings.on_message_begin = streamerlink_message_begin;
-        settings.on_message_complete = streamerlink_message_complete;
-        settings.on_headers_complete = streamerlink_on_headers_complete;
+        response = new_response(HTTP_Status_OK);
+        if (response == NULL)
+                goto cleanup;
         
-        parser = r_new(http_parser);
-        if (parser == NULL) {
-                r_err("streamerlink_start: out of memory");
-                streamerlink_lock(link);        
-                streamerlink_close_connection(link);
-                delete_thread(link->thread);
-                link->thread = NULL;
-                streamerlink_unlock(link);
-                return;
-        }
-        http_parser_init(parser, HTTP_RESPONSE);
-        parser->data = link;
+        err = response_parse_html(response, link->socket, RESPONSE_PARSE_HEADERS);
+        if (err != 0)
+                goto cleanup;
 
-        link->cont = 1;
+
+        // call onresponse
+        if (link->onresponse)
+                link->onresponse(link->userdata, response);
+        
+        delete_response(response);
         
         // read the http response. The stream is read below. We rely
         // on the parser to handle the response data. 
         while (!app_quit() && link->cont) {
                 
-                received = tcp_socket_recv(link->socket, buf, len);
+                int received = tcp_socket_recv(link->socket, buf, len);
 
                 // we got a timeout. This allows us to check whether
                 // app_quit has been set, and then try again.
-                if (received == -2) {
+                if (received == -2)
                         continue;
-                }
                 
                 // an error occured.
                 if (received < 0) {
                         r_err("streamerlink: recv failed");
                         break;
                 }
-        
-                /* Start up / continue the parser.
-                 * Note we pass received==0 to signal that EOF has been received.
-                 */
-                parsed = http_parser_execute(parser, &settings, buf, received);
-                if (received == 0) {
-                        r_err("new_streamerlink: received == 0");
-                        break;
-                }
 
-                if (parsed != received) {
-                        /* Handle error. Usually just close the connection. */
-                        r_err("new_streamerlink: parsed != received");
+                err = link->ondata(link->userdata, buf, received);
+                if (err != 0)
                         break;
-                }
         }
 
-        //r_debug("streamerlink_run: ending connection");
-        
-        // CLEANUP
-        r_delete(parser);
+cleanup:
 
+        if (response)
+                delete_response(response);
+        
         streamerlink_lock(link);        
+        streamerlink_close_connection(link);
         delete_thread(link->thread);
         link->thread = NULL;
         streamerlink_unlock(link);

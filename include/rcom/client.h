@@ -2,13 +2,14 @@
 #define _RCOM_CLIENT_H_
 
 #include <r.h>
+#include "rcom/response.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 json_object_t client_get(const char *topic, const char *resource);
-int client_get_data(const char *topic, const char *resource, membuf_t *out);
+int client_get_data(const char *topic, const char *resource, response_t **response_handle);
 
 #ifdef __cplusplus
 }

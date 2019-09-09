@@ -16,7 +16,7 @@
 #include "run.h"
 #include "proxy.h"
 
-uid_t get_uid(const char *user);
+static int get_user_info(const char *user, uid_t *uid, gid_t *gid);
 
 struct _run_t {
         pid_t pid;
@@ -26,6 +26,7 @@ struct _run_t {
         char *host;
         char *user;
         uid_t uid;
+        gid_t gid;
         list_t *args;
         thread_t *thread;
         run_status_t status;
@@ -61,7 +62,8 @@ run_t *new_run(const char *name,
                 r->user = r_strdup(user);
                 if (r->user == NULL)
                         goto error_recovery;
-                r->uid = get_uid(r->user); 
+                if (get_user_info(r->user, &r->uid, &r->gid) != 0)
+                        goto error_recovery;
         }
                 
         r->args = NULL;
@@ -132,29 +134,23 @@ int run_disabled(run_t *r)
 /* } */
 
 
-uid_t get_uid(const char *user) 
+static int get_user_info(const char *user, uid_t *uid, gid_t *gid) 
 {
         struct passwd pwbuf;
         struct passwd *pwbufp = NULL;
         char *buf;
         size_t bufsize;
 
-        r_info("Looking up info for user '%s'", user);
-
         // From man getpwnam_r
         bufsize = sysconf(_SC_GETPW_R_SIZE_MAX);
         if (bufsize == -1)
                 bufsize = 16384;
-        
-        r_debug("get_uid @1 bufsize=%d", (int) bufsize);
 
         buf = malloc(bufsize);
         if (buf == NULL) {
                 r_panic("out of memory");
                 return -1;
         }
-
-        r_debug("get_uid @2");
 
         int err = getpwnam_r(user, &pwbuf, buf, bufsize, &pwbufp);
         if (pwbufp == NULL) {
@@ -172,10 +168,9 @@ uid_t get_uid(const char *user)
         }
         free(buf);
 
-        r_debug("get_uid @3");
-        r_info("UID=%d", (int) pwbuf.pw_uid);
-
-        return pwbuf.pw_uid;
+        *uid = pwbuf.pw_uid;
+        *gid = pwbuf.pw_gid;
+        return 0;
 }
 
 int run_drop_privileges(run_t *r) 
@@ -187,13 +182,16 @@ int run_drop_privileges(run_t *r)
 	if (rstreq(r->user, "root"))
                 return 0;
 
+        if (setgid(r->gid) != 0) {
+                r_err("Failed to set the group ID. user '%s', gid %d",
+                      r->user, (int) r->gid);
+                return -1;
+        }
         if (setuid(r->uid) != 0) {
                 r_err("Failed to set the user ID. user '%s', uid %d",
                       r->user, (int) r->uid);
                 return -1;
         }
-
-        r_info("setuid successful");
 	return 0;
 }
 
@@ -243,15 +241,20 @@ static int run_start_locally(run_t *r)
         argv[argc++] = "-C";
         argv[argc++] = (char*) app_get_config();
 
-        if (app_get_logdir() != NULL) {
-                argv[argc++] = "-L";
-                argv[argc++] = (char*) app_get_logdir();
-        }
+        if (app_get_session() != NULL) {
+                argv[argc++] = "-s";
+                argv[argc++] = (char*) app_get_session();
+        } else {
+                if (app_get_logdir() != NULL) {
+                        argv[argc++] = "-L";
+                        argv[argc++] = (char*) app_get_logdir();
+                }
 
-        /* if (get_dumping() != 0 && r->dump) { */
-        /*         snprintf(dump_arg, 1024, "--dump=%s", get_dumping_dir()); */
-        /*         argv[argc++] = dump_arg; */
-        /* } */
+                /* if (get_dumping() != 0 && r->dump) { */
+                /*         snprintf(dump_arg, 1024, "--dump=%s", get_dumping_dir()); */
+                /*         argv[argc++] = dump_arg; */
+                /* } */
+        }
         
         while (a) {
                 argv[argc++] = list_get(a, char);

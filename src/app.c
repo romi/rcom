@@ -32,6 +32,7 @@ static void app_set_config(const char *path);
 static int _quit = 0;
 static char *_ip = NULL;
 static char *_logdir = NULL;
+static char *_session = NULL;
 static char *_name = NULL;
 static char *_config = NULL;
 static int _print = 0;
@@ -65,12 +66,13 @@ int app_parse_args(int *argc, char **argv)
 
         //opterr = 0;
 
-        static char *optchars = "A:N:P:L:I:R:D::C:pa";
+        static char *optchars = "A:N:P:L:I:R:D::C:s:pa";
         static struct option long_options[] = {
                 {"registry-name", required_argument, 0, 'N'},
                 {"registry-addr", required_argument, 0, 'A'},
                 {"registry-port", required_argument, 0, 'P'},
                 {"ip", required_argument, 0, 'I'},
+                {"session", required_argument, 0, 's'},
                 {"log-dir", required_argument, 0, 'L'},
                 {"dump", optional_argument, 0, 'D'},
                 {"replay", required_argument, 0, 'R'},
@@ -109,6 +111,9 @@ int app_parse_args(int *argc, char **argv)
                 case 'L':
                         app_set_logdir(optarg);
                         break;
+                case 's':
+                        app_set_session(optarg);
+                        break;
                 case 'C':
                         app_set_config(optarg);
                         break;
@@ -140,14 +145,14 @@ int app_parse_args(int *argc, char **argv)
         return 0;
 }
 
-static int app_check_ip()
+static int app_check_ip_HIDE()
 {
         if (_ip == NULL)
                 _ip = r_strdup("0.0.0.0");
         return 0;
 }
 
-static int app_check_ip_OLD()
+static int app_check_ip()
 {
         struct ifaddrs *ifaddr, *ifa;
         int family, s;
@@ -183,9 +188,8 @@ static int app_check_ip_OLD()
                 }
         }
 
-        if (_ip == NULL) {
-                _ip = r_strdup("127.0.0.1");
-        }
+        if (_ip == NULL)
+                _ip = r_strdup("0.0.0.0");
         
         freeifaddrs(ifaddr);
         return 0;
@@ -264,6 +268,27 @@ const char *app_get_logdir()
         return _logdir;
 }
 
+void app_set_session(const char *session)
+{
+        if (_session != NULL) {
+                r_free(_session);
+                _session = NULL;
+        }
+        _session = r_strdup(session);
+
+        char path[1024];
+        rprintf(path, sizeof(path), "%s/log", session);
+        app_set_logdir(path);
+
+        rprintf(path, sizeof(path), "%s/dump", session);
+        set_dumping_dir(path);
+}
+
+const char *app_get_session()
+{
+        return _session;
+}
+
 static void app_set_config(const char *path)
 {
         if (_config != NULL) {
@@ -272,7 +297,7 @@ static void app_set_config(const char *path)
         }
 
         char buffer[1024];
-        int r = make_absolute_path(path, buffer, sizeof(buffer));
+        int r = path_make_absolute(path, buffer, sizeof(buffer));
         if (r != 0) {
                 r_err("app_set_config failed: make_absolute_path != 0");
                 app_set_quit();
@@ -314,6 +339,8 @@ void app_cleanup()
                 r_free(_ip);
         if (_logdir != NULL)
                 r_free(_logdir);
+        if (_session != NULL)
+                r_free(_session);
         if (_config != NULL)
                 r_free(_config);
 }
@@ -344,8 +371,6 @@ static void diagnostics_signal_handler(int signum, siginfo_t *info, void *unused
         fprintf(stderr, "%s: Received %s signal (signal #%d)\n",
                 _name, strsignal(signum), interrupt_count+1);
         r_info("Received %s signal (signal #%d)", strsignal(signum), interrupt_count+1);
-        
-        fprintf(stderr, "COPY: %s: Received %s signal\n", _name, strsignal(signum));
 
 	if ((signum == SIGINT) || (signum == SIGHUP) || (signum == SIGTERM)) {
 		r_info("quitting");

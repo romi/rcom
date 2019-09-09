@@ -80,12 +80,6 @@ enum {
         WS_CLOSED
 };
 
-enum {
-        k_header_new = 0,
-        k_header_field,
-        k_header_value
-};
-
 const char *get_state_str(int state)
 {
         switch (state) {
@@ -120,9 +114,11 @@ typedef struct _messagelink_t {
 
         int parser_header_state;
         list_t *headers; 
-        http_header_t *cur_header;
+        membuf_t *header_name;
+        membuf_t *header_value;
         int http_status;
-        
+
+        char *uri;
         int is_client;
         membuf_t *in;
         membuf_t *out;
@@ -176,13 +172,19 @@ messagelink_t *new_messagelink(messagelink_onmessage_t onmessage,
         link->userdata = userdata;
         link->thread = NULL;
         link->http_status = 0;
+        link->uri = NULL;
 
         link->send_mutex = new_mutex();
         link->state_mutex = new_mutex();
 
         link->out = new_membuf();
         link->in = new_membuf();
-        if (link->out == NULL || link->in == NULL) {
+        link->header_name = new_membuf();
+        link->header_value = new_membuf();
+        if (link->out == NULL
+            || link->in == NULL
+            || link->header_name == NULL
+            || link->header_value == NULL) {
                 delete_messagelink(link);
                 return NULL;
         }
@@ -204,10 +206,16 @@ void delete_messagelink(messagelink_t *link)
                 }
                 if (link->thread)
                         messagelink_stop_background(link);
+                if (link->uri)
+                        r_free(link->uri);
                 if (link->in)
                         delete_membuf(link->in);
                 if (link->out)
                         delete_membuf(link->out);
+                if (link->header_name)
+                        delete_membuf(link->header_name);
+                if (link->header_value)
+                        delete_membuf(link->header_value);
                 if (link->addr)
                         delete_addr(link->addr);
                 if (link->remote_addr)
@@ -228,6 +236,11 @@ void delete_messagelink(messagelink_t *link)
 addr_t *messagelink_addr(messagelink_t *link)
 {
         return link->addr;
+}
+
+const char *messagelink_uri(messagelink_t *link)
+{
+        return link->uri;
 }
 
 void messagelink_set_userdata(messagelink_t *link, void *userdata)
@@ -262,41 +275,14 @@ static int messagelink_message_complete(http_parser *parser)
         return 0;
 }
 
-static int messagelink_on_header_field(http_parser *parser, const char *data, size_t length)
+static int messagelink_add_header(messagelink_t *link, const char *key, const char *value)
 {
-        messagelink_t *link = (messagelink_t *) parser->data;
-        
-        if (link->cur_header == NULL
-            || link->parser_header_state == k_header_new
-            || link->parser_header_state == k_header_value) {
-                
-                link->cur_header = new_http_header(data, length);
-                if (link->cur_header == NULL)
-                        return -1;
-                link->headers = list_prepend(link->headers, link->cur_header);
-                link->parser_header_state = k_header_field;
-        } else {
-                // header_state is k_header_field
-                if (http_header_append_name(link->cur_header, data, length) != 0)
-                        return -1;
-        }
-        return 0;
-}
-
-static int messagelink_on_header_value(http_parser *parser, const char *data, size_t length)
-{
-        messagelink_t *link = (messagelink_t *) parser->data;
-
-        if (link->cur_header == NULL
-            || link->parser_header_state == k_header_new) {
-                r_err("messagelink_on_header_value: got header value before header field");
-                return 0;
-        } else {
-                // header_state is k_header_field or k_header_value
-                http_header_append_value(link->cur_header, data, length);
-                link->parser_header_state = k_header_value;
-        }
-        return 0;
+        //r_debug("response_add_header: name %s, value %s", key, value);
+        http_header_t *h = new_http_header(key, value);
+        if (h == NULL)
+                return - 1;
+        link->headers = list_prepend(link->headers, h);
+        return (link->headers == NULL)? -1 : 0;
 }
 
 static http_header_t *messagelink_get_header(messagelink_t *link, const char *name)
@@ -311,14 +297,86 @@ static http_header_t *messagelink_get_header(messagelink_t *link, const char *na
         return NULL;
 }
 
+int messagelink_set_header(messagelink_t *link, const char *key, const char *value)
+{
+        //r_debug("messagelink_set_header: name %s, value %s", key, value);
+        http_header_t *h = messagelink_get_header(link, key);
+        if (h == NULL)
+                return messagelink_add_header(link, key, value);
+        else 
+                return http_header_set_value(h, value);
+}
+
+static int messagelink_on_header_field(http_parser *parser, const char *data, size_t length)
+{
+        messagelink_t *link = (messagelink_t *) parser->data;
+        
+        if (link->parser_header_state == k_header_new
+            || link->parser_header_state == k_header_value) {
+
+                // Store the previous header
+                if (membuf_len(link->header_name) > 0 
+                    && membuf_len(link->header_value) > 0) {
+                        membuf_append_zero(link->header_name);
+                        membuf_append_zero(link->header_value);
+                        messagelink_set_header(link, membuf_data(link->header_name),
+                                               membuf_data(link->header_value));
+                }
+                
+                // Store the next header
+                membuf_clear(link->header_name);
+                membuf_clear(link->header_value);                
+                membuf_append(link->header_name, data, length);
+                link->parser_header_state = k_header_field;
+        } else {
+                // header_state is k_header_field
+                membuf_append(link->header_name, data, length);
+        }
+        return 0;
+}
+
+static int messagelink_on_header_value(http_parser *parser, const char *data, size_t length)
+{
+        messagelink_t *link = (messagelink_t *) parser->data;
+
+        //r_debug("messagelink_on_header_value: %.*s", length, data);
+
+        if (link->parser_header_state == k_header_new) {
+                r_err("messagelink_on_header_value: got header value before header field");
+                return 0;
+        } else {
+                // header_state is k_header_field or k_header_value
+                membuf_append(link->header_value, data, length);
+                link->parser_header_state = k_header_value;
+        }
+        return 0;
+}
+
 static int messagelink_on_headers_complete(http_parser *parser)
 {
         messagelink_t *link = (messagelink_t *) parser->data;
+        
+        if (membuf_len(link->header_name) > 0 
+            && membuf_len(link->header_value) > 0) {
+                membuf_append_zero(link->header_name);
+                membuf_append_zero(link->header_value);
+                messagelink_set_header(link, membuf_data(link->header_name),
+                                       membuf_data(link->header_value));
+        }
         link->cont = 0;
         return 0;
 }
 
+static int messagelink_on_url(http_parser *parser, const char *data, size_t length)
+{
+        messagelink_t *link = (messagelink_t *) parser->data;
 
+        link->uri = r_alloc(length + 1);
+        memcpy(link->uri, data, length);
+        link->uri[length] = '\0';
+        
+        return 0;
+}
 
 /**********************************************
  * close handshake
@@ -630,6 +688,28 @@ static int messagelink_try_read_message(messagelink_t *link, ws_frame_t *frame)
                 if (tcp_socket_wait_data(link->socket, 1))
                         return messagelink_read_message(link, frame);
         }
+}
+
+json_object_t messagelink_send_command(messagelink_t *link, json_object_t command)
+{
+        int err;
+        json_object_t r = json_null();
+        
+        membuf_lock(link->out);
+        membuf_clear(link->out);
+
+        err = membuf_print_obj(link->out, command);
+
+        if (err == 0) 
+                err = messagelink_send_text(link,
+                                            membuf_data(link->out),
+                                            membuf_len(link->out));
+
+        if (err == 0) 
+                r = messagelink_read(link);
+        
+        membuf_unlock(link->out);
+        return r;        
 }
 
 json_object_t messagelink_send_command_f(messagelink_t *link, const char *format, ...)
@@ -1119,7 +1199,8 @@ int messagelink_send_v(messagelink_t *link, const char* format, va_list ap)
         int err;        
         membuf_lock(link->out);
         membuf_clear(link->out);
-        // TODO: can we assure that the buffer has enough space, using vnsprintf(NULL,0,format,ap) first?
+        // TODO: can we assure that the buffer has enough space, using
+        // vnsprintf(NULL,0,format,ap) first?
         err = membuf_vprintf(link->out, format, ap); 
         if (err == 0) 
                 err = messagelink_send_text(link, membuf_data(link->out), membuf_len(link->out));
@@ -1150,177 +1231,16 @@ messagelink_t *server_messagelink_connect(messagehub_t *hub, tcp_socket_t socket
                 close_tcp_socket(socket);
                 return NULL;
         }
-        
-        if (server_messagelink_open_socket(link, hub, socket) != 0) {
-                messagelink_close_socket(link);
-                delete_messagelink(link);
-                return NULL;
-        }
-        
-        if (server_messagelink_open_websocket(link) != 0) {
-                messagelink_close_socket(link);
-                delete_messagelink(link);
-                return NULL;
-        }
-        
-        link->state = WS_OPEN;
-
-        return link;
-}
-
-static int server_messagelink_open_socket(messagelink_t *link,
-                                          messagehub_t *hub,
-                                          tcp_socket_t socket)
-{
-        //r_debug("server_messagelink_open_socket");
+                
         link->is_client = 0;
         link->hub = hub;
         link->socket = socket;
         if (link->addr)
                 delete_addr(link->addr);
         link->addr = tcp_socket_addr(link->socket);
-        return 0;
-}
+        link->state = WS_OPEN;
 
-static int server_messagelink_open_websocket(messagelink_t *link)
-{
-        //r_debug("server_messagelink_open_websocket");
-        
-        int err = server_messagelink_parse_request(link);
-        if (err != 0) {
-                r_err("server_messagelink_open_websocket: parsing failed");
-                return -1;
-        }
-
-        err = server_messagelink_validate_request(link);
-        if (err != 0) {
-                r_info("server_messagelink_open_websocket: it's not a valid websocket request");
-                http_send_error_headers(link->socket, 400);
-                return -1;
-        }
-                        
-        if (server_messagelink_upgrade_connection(link) != 0) {
-                r_info("server_messagelink_open_websocket: failed to upgrade the websocket");
-                return -1;
-        }
-
-        
-        
-        return 0;
-}
-
-static int server_messagelink_parse_request(messagelink_t *link)
-{
-        http_parser *parser;
-        http_parser_settings settings;
-        size_t len = 1; // TODO
-        char buf[len];
-        ssize_t received;
-        size_t parsed;
-        
-        http_parser_settings_init(&settings);
-        settings.on_header_field = messagelink_on_header_field;
-        settings.on_header_value = messagelink_on_header_value;
-        settings.on_headers_complete = messagelink_on_headers_complete;
-        
-        parser = r_new(http_parser);
-        if (parser == NULL) {
-                r_err("server_messagelink_parse_request: out of memory");
-                return -1;
-        }
-        http_parser_init(parser, HTTP_REQUEST);
-        parser->data = link;
-
-        link->parser_header_state = k_header_new;
-
-        link->cont = 1;
-        while (link->cont) {
-                received = tcp_socket_recv(link->socket, buf, len);
-                if (received < 0) {
-                        r_err("server_messagelink_parse_request: tcp_socket_recv failed");
-                        r_delete(parser);
-                        return -1;
-                }
-        
-                /* Start up / continue the parser.
-                 * Note we pass received==0 to signal that EOF has been received.
-                 */
-                parsed = http_parser_execute(parser, &settings, buf, received);
-                if (received == 0) {
-                        break;
-                }
-                
-                if (parsed != received
-                    && parsed != received - 1
-                    && link->cont == 1) {
-                        /* Handle error. Usually just close the connection. */
-                        r_err("server_messagelink_parse_request: parsed != received (%d != %d)", parsed, received);
-                        //r_err("data: '%s'", buf);
-                        r_delete(parser);
-                        return -1;
-                }
-        }
-
-        r_delete(parser);
-
-        return 0;
-}
-
-static int server_messagelink_validate_request(messagelink_t *r)
-{
-        http_header_t *key = messagelink_get_header(r, "Sec-WebSocket-Key");
-        if (key == NULL) return -1;
-        
-        http_header_t *version = messagelink_get_header(r, "Sec-WebSocket-Version");
-        if (version == NULL) return -1;
-        if (!rstreq(version->value, "13")) return 0;
-        
-        http_header_t *upgrade = messagelink_get_header(r, "Upgrade");
-        if (upgrade == NULL) return -1;
-        if (!rstreq(upgrade->value, "websocket")) return 0;
-
-        http_header_t *connection = messagelink_get_header(r, "Connection");
-        if (connection == NULL) return -1;
-        if (strstr(connection->value, "Upgrade") == NULL) return 0;
-        
-        return 0;
-}
-
-static int server_messagelink_upgrade_connection(messagelink_t *link)
-{
-        http_header_t *origin = messagelink_get_header(link, "Origin");
-        http_header_t *key = messagelink_get_header(link, "Sec-WebSocket-Key");
-        http_header_t *subprotocol = messagelink_get_header(link, "Sec-WebSocket-Protocol");
-        http_header_t *extensions = messagelink_get_header(link, "Sec-WebSocket-Extensions");
-
-        unsigned char buffer[100];
-        unsigned char digest[21];
-        
-        snprintf(buffer, 100, "%s%s", key->value, "258EAFA5-E914-47DA-95CA-C5AB0DC85B11");
-        buffer[99] = 0;
-
-        SHA1(buffer, digest);
-        digest[20] = 0;
-        
-        char *accept = encode_base64(digest);
-        if (accept == NULL) 
-                return -1;
-                
-        membuf_printf(link->out,
-                      "HTTP/1.1 101 Switching Protocols\r\n"
-                      "Upgrade: websocket\r\n"
-                      "Connection: Upgrade\r\n"
-                      "Sec-WebSocket-Accept: %s\r\n"
-                      "\r\n", accept);
-        r_free(accept);
-
-        int err = tcp_socket_send(link->socket, membuf_data(link->out), membuf_len(link->out));
-        if (err != 0)
-                return -1;
-
-        membuf_clear(link->out);
-
-        return 0;
+        return link;
 }
 
 /**********************************************

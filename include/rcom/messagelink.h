@@ -22,6 +22,8 @@ typedef int (*messagelink_oncommand_t)(void *userdata,
                                        json_object_t command,
                                        membuf_t *message);
 
+const char *messagelink_uri(messagelink_t *link);
+
 void messagelink_set_userdata(messagelink_t *link, void *userdata);
 void *messagelink_get_userdata(messagelink_t *link);
 void messagelink_set_onmessage(messagelink_t *link, messagelink_onmessage_t onmessage);
@@ -42,6 +44,7 @@ json_object_t messagelink_read(messagelink_t *link);
 
 
 json_object_t messagelink_send_command_f(messagelink_t *link, const char *format, ...);
+json_object_t messagelink_send_command(messagelink_t *link, json_object_t command);
 
         
 #ifdef __cplusplus

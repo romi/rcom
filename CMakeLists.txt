@@ -21,6 +21,7 @@ set(SOURCES
   src/net.c 
   src/util.c 
   src/util_posix.c 
+  src/response.c
   src/http.c 
   src/http_parser.c 
   src/sha1.c

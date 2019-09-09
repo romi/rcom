@@ -97,38 +97,6 @@ char *encode_base64(const unsigned char *s)
         return t;
 }
 
-/* void generate_random_buffer(uint8_t *buffer, ssize_t len) */
-/* { */
-/*         ssize_t n = 0; */
-/*         while (n < len) { */
-/*                 ssize_t m = rcom_getrandom((void *) &buffer[n], len - n, 0); */
-/*                 n += m; */
-/*         } */
-/* } */
-
-/* char *rprintf(char *buffer, int buflen, const char *format, ...) */
-/* { */
-/*         int len; */
-/*         va_list ap; */
-/*         int ret; */
-        
-/*         va_start(ap, format); */
-/*         len = vsnprintf(NULL, 0, format, ap); */
-/*         va_end(ap); */
-
-/*         if (len < 0 || buflen < len+1) */
-/*                 return NULL; */
-        
-/*         va_start(ap, format); */
-/*         len = vsnprintf(buffer, buflen, format, ap); */
-/*         va_end(ap); */
-
-/*         if (len < 0) */
-/*                 return NULL; */
-        
-/*         return buffer; */
-/* } */
-
 int urlencode(const unsigned char* s, membuf_t *buf)
 {
         membuf_clear(buf);

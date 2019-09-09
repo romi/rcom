@@ -8,21 +8,20 @@
   3) The child process creates a new thread for each requested
   application in the new process group.
 
-  4) Each thread subsequently forks to execute the execute
-  application.
+  4) Each thread subsequently forks to execute the application.
 
-  5) Each thread waits for its application to quit. They will restart
-  their application again if it exits prematurely.
+  5) Each thread waits for its application to quit. It restarts
+  its application again if it exits prematurely.
 
   6) After starting the threads, the child process returns to the
   original process group and waits for signals.
 
   7) When the child process receives a signal it forwards the signal
-  to the applications. 
+  to the applications.
 
-  8) The application will do a clean exit upon receiving a HUP, INT,
-  or TERM signal. After four termination signals, an application will
-  do a hard exit.
+  8) The application does a clean exit upon receiving a HUP, INT, or
+  TERM signal. If the application doesn't exit after having received
+  four termination signals, it does a hard Johnson brexit.
 
  */
 
@@ -64,12 +63,12 @@ static int start_registry(pid_t gpid)
         }
 
         r_debug("child process: registry started");
-        
+
         // Wait a bit before contacting the registry
         clock_sleep(2);
 
         r_debug("child process: contacting registry");
-        
+
         // Connect to the registry to check it's alive
         int max_tries = 3;
         for (int i = 0; i < max_tries; i++) {
@@ -96,7 +95,7 @@ static int start_registry(pid_t gpid)
                         return -1;
                 }
         }
-        
+
         r_panic("Failed to start the registry");
         return -1;
 }
@@ -123,9 +122,9 @@ static int start_registry(pid_t gpid)
 /*         DIR *d; */
 /*         struct dirent *dir; */
 /*         int count = 0; */
-        
+
 /*         r_info("Dump base dir '%s'", _dump_dir); */
-                
+
 /*         if (_dump_dir == NULL) { */
 /*                 r_err("You must specify the dump directory in " */
 /*                         "the config file when you request a replay"); */
@@ -168,7 +167,7 @@ static int start_registry(pid_t gpid)
 /*                 r_warn("Replay: No appropriate dump files found."); */
 /*                 return 0; */
 /*         } */
-        
+
 /*         ret = run_start(_replay, gpid); */
 /*         if (ret == -1) { */
 /*                 r_err("start_replay: run_start_locally returned -1"); */
@@ -203,37 +202,14 @@ static run_t *nodes_find(list_t *n, const char *name)
         return NULL;
 }
 
-/* static int _start_dependencies(run_t *r, pid_t gpid, list_t *nodes) */
-/* { */
-/*         for (int i = 0; i < run_count_dependencies(r); i++) { */
-/*                 const char *name = run_get_dependency(r, i); */
-/*                 run_t *q = nodes_find(nodes, name); */
-/*                 if (q == NULL) { */
-/*                         r_err("Couldn't find node '%s', dependency of '%s'", */
-/*                                 name, run_name(r)); */
-/*                         return -1; */
-/*                 } */
-/*                 r_info("'%s': dependency '%s': status=%d", name, run_name(r), run_status(q)); */
-/*                 if (run_status(q) == k_created) { */
-/*                         int err = run_start(q, gpid); */
-/*                         if (err) return err; */
-/*                 } */
-/*         } */
-/*         return 0; */
-/* } */
-
 static int nodes_start(list_t *nodes, pid_t gpid)
 {
         list_t *n = nodes;
         int err;
 
-        r_debug("nodes_start n=%p", nodes);
-        
         while (n) {
                 run_t *r = list_get(n, run_t);
                 if (run_status(r) == k_created) {
-                        /* err = _start_dependencies(r, gpid, nodes); */
-                        /* if (err) return err; */
                         r_debug("starting %s", run_name(r));
                         err = run_start(r, gpid);
                         clock_sleep(0.2);
@@ -266,7 +242,6 @@ static void nodes_stop(list_t *nodes)
 
 /******************************************************/
 
-
 run_t *run_parse(json_object_t node, const char *default_user)
 {
         run_t *r;
@@ -277,7 +252,7 @@ run_t *run_parse(json_object_t node, const char *default_user)
         int disabled = json_object_getbool(node, "disabled");
         /* int replay = json_object_getbool(node, "replay"); */
         /* int dump = json_object_getbool(node, "dump"); */
-        
+
         if (!valid_path(path)) {
                 r_err("parse_node: invalid path: %s", path? path : "null");
                 return NULL;
@@ -299,26 +274,28 @@ run_t *run_parse(json_object_t node, const char *default_user)
                 return NULL;
 
         const char *s = strrchr(path, '/');
-        if (s == NULL) 
+        if (s == NULL)
                 s = path;
         else if (strlen(s) == 0)
                 s = path;
-        else s++;
+        else
+                s++;
 
-        r_debug("adding new node '%s', binary '%s'", s, path);
+        r_debug("adding new node '%s', executable '%s'", s, path);
 
         if (user == NULL)
                 user = default_user;
-        
+
         r = new_run(s, path, host, user);
-        if (r == NULL) return NULL;
+        if (r == NULL)
+                return NULL;
 
         if (disabled == 1)
                 run_set_disabled(r, 1);
-        
+
         /* r->replay = (replay == 1); */
         /* r->dump = (dump == 1); */
-        
+
         if (json_isarray(args)) {
                 int i;
                 json_object_t arg;
@@ -332,7 +309,7 @@ run_t *run_parse(json_object_t node, const char *default_user)
                         run_add_arg(r, json_string_value(arg));
                 }
         }
-        
+
         return r;
 }
 
@@ -344,14 +321,12 @@ static list_t *parse_nodes(json_object_t config, const char *default_user)
         run_t *r;
         list_t *list = NULL;
 
-        r_debug("parsing nodes");
-
         nodes = json_object_get(config, "nodes");
         if (json_isnull(nodes)) {
                 r_err("Didn't find any nodes");
                 return NULL;
         }
-        
+
         if (!json_isarray(nodes)) {
                 r_err("Invalid nodes field");
                 return NULL;
@@ -367,8 +342,6 @@ static list_t *parse_nodes(json_object_t config, const char *default_user)
                 list = list_append(list, r);
         }
 
-        r_debug("parsing nodes: done");
-
         return list;
 }
 
@@ -382,30 +355,65 @@ static int parse_general(json_object_t config)
                 return 0;
         }
 
-        json_print(r, 0);
+        /* const char *log = json_object_getstr(r, "log-dir"); */
+        /* if (log != NULL) { */
+        /*         // app_set_logdir also update the log file. */
+        /*         app_set_logdir(log); */
+        /* } */
 
-        const char *log = json_object_getstr(r, "log-dir");
-        if (log != NULL) {
-                // app_set_logdir also update the log file.
-                app_set_logdir(log);
-        }
-        
         const char *user = json_object_getstr(r, "user");
         if (user != NULL) {
                 _user = r_strdup(user);
                 r_info("Starting nodes under user '%s'", _user);
         }
-        
+
+        const char *sessions_dir = json_object_getstr(r, "sessions-dir");
+        if (sessions_dir != NULL) {
+                //r_debug("parse_general: sessions_dir %s", sessions_dir);
+
+                char datetime[128];
+                clock_datetime(datetime, sizeof(datetime), '-', '_', '-');
+
+                char path[1024];
+
+                //r_debug("parse_general: create session directory");
+                rprintf(path, sizeof(path), "%s/%s", sessions_dir, datetime);
+                directory_create(path);
+                if (user)
+                        path_chown(path, user);
+
+                //r_debug("parse_general: create session log directory");
+                rprintf(path, sizeof(path), "%s/%s/log", sessions_dir, datetime);
+                directory_create(path);
+                if (user)
+                        path_chown(path, user);
+
+                //r_debug("parse_general: create session dump directory");
+                rprintf(path, sizeof(path), "%s/%s/dump", sessions_dir, datetime);
+                directory_create(path);
+                if (user)
+                        path_chown(path, user);
+
+                //r_debug("parse_general: create session db directory");
+                rprintf(path, sizeof(path), "%s/%s/db", sessions_dir, datetime);
+                directory_create(path);
+                if (user)
+                        path_chown(path, user);
+
+                rprintf(path, sizeof(path), "%s/%s", sessions_dir, datetime);
+                app_set_session(path);
+        }
+
         /* _dump_dir = json_object_getstr(r, "dump-dir"); */
         /* if (_dump_dir != NULL && get_dumping()) { */
         /*         char path[1024]; */
         /*         char timestamp[128]; */
         /*         int err; */
-                
+
         /*         clock_datetime(timestamp, 128, '-', '_', '-'); */
         /*         snprintf(path, 1024, "%s/%s", _dump_dir, timestamp); */
         /*         path[1023] = 0; */
-                
+
         /*         err = mkdir(path, 0777); */
         /*         if (err != 0) { */
         /*                 char reason[200]; */
@@ -420,9 +428,7 @@ static int parse_general(json_object_t config)
         /* if (_replay_path == NULL) { */
         /*         _replay_path = "/usr/local/bin/ltreplay"; */
         /* } */
-        
-        r_debug("parse_general done");
-        
+
         return 0;
 }
 
@@ -433,11 +439,11 @@ static int parse_registry(json_object_t config)
         const char *addr;
         const char *path;
         int port;
-        
+
         r = json_object_get(config, "registry");
-        
+
         if (!json_falsy(r)) {
-        
+
                 addr = json_object_getstr(r, "addr");
                 if (addr != NULL) {
                         if (valid_addr(addr))
@@ -445,12 +451,12 @@ static int parse_registry(json_object_t config)
                         else
                                 r_err("monitor: parse_registry: bad addr: '%s'", addr);
                 }
-        
+
                 port = (int) json_object_getnum(r, "port");
                 if (port > 0 && port < 65536) {
                         set_registry_port(port);
                 }
-        
+
                 path = json_object_getstr(r, "path");
         }
 
@@ -462,11 +468,11 @@ static int parse_registry(json_object_t config)
                 r_panic("monitor: can't find ltregistry executable. Tried %s.", path);
                 return -1;
         }
-        
+
         _registry = new_run("registry", path, NULL, _user);
         if (_registry == NULL)
                 return -1;
-        
+
         return 0;
 }
 
@@ -498,27 +504,21 @@ list_t *load_config(const char *filename)
                 return NULL;
         }
 
-        r_debug("parsing 'launch.general' section");
-
         if (parse_general(launch) != 0) {
                 json_unref(config);
                 json_unref(launch);
                 return NULL;
         }
 
-        r_debug("parsing 'launch.registry' section");
-        
         if (parse_registry(launch) != 0) {
                 json_unref(config);
                 json_unref(launch);
                 return NULL;
         }
-        
-        r_debug("parsing 'launch.nodes' section");
 
         // FIXME: don't pass 'user' from parse_general to here through
         // global variable!
-        list = parse_nodes(launch, _user); 
+        list = parse_nodes(launch, _user);
         if (list == NULL) {
                 json_unref(config);
                 json_unref(launch);
@@ -526,7 +526,7 @@ list_t *load_config(const char *filename)
         }
 
         r_debug("parsing done");
-        
+
         json_unref(launch);
         json_unref(config);
         return list;
@@ -539,9 +539,9 @@ static void child_main(pid_t monitor_gpid)
         list_t *list = NULL;
 
         app_set_name("rclaunch-child");
-        
+
         r_debug("child process: loading configuration");
-        
+
         list = load_config(app_get_config());
         if (list == NULL)
                 exit(1);
@@ -557,7 +557,7 @@ static void child_main(pid_t monitor_gpid)
         }
 
         /* if (do_replay()) { */
-                
+
         /*         r_info("Do replay? yes"); */
 
         /*         ret = start_replay(list, gpid); */
@@ -592,7 +592,7 @@ static void child_main(pid_t monitor_gpid)
         while (!app_quit()) {
                 clock_sleep(1);
         }
-        
+
         nodes_stop(list);
         r_info("Stopping replay node");
         //if (_replay) run_stop(_replay);
@@ -602,39 +602,37 @@ static void child_main(pid_t monitor_gpid)
         delete_list(list);
         delete_run(_registry);
         r_info("Exiting!");
-        
+
         exit(0);
 }
 
-// Start the nodes. This forks a child process. The child process than
-// forks for each of the nodes. The intermediate child process is
-// needed in order to put all of the nodes in the same process
-// group. By putting them in the same group, different from the
-// monitor process, only the monitor catches the signals (ctrl-c, HUP,
-// ...). It can then shut down the individual nodes orderly.
+// This forks a child process. The child process than forks for each
+// of the nodes. The intermediate child process is needed in order to
+// put all of the nodes in the same process group. By putting them in
+// the same group, different from the monitor process, only the
+// monitor catches the signals (ctrl-c, HUP, ...). It can then shut
+// down the individual nodes correctly.
 //
 // Returns the PID of the child process, or -1 in case of error.
 static pid_t start_child()
 {
         int ret;
-	pid_t pid;
+        pid_t pid;
         pid_t nodes_gpid;
         pid_t monitor_gpid;
 
         // Fork so that the current process is no longer the group
         // leader.
         pid = fork();
-	switch (pid) {
+        switch (pid) {
         default: return pid;
         case -1: return -1;
         case 0:  break;
-	}
-
-        r_info("PID %d", getpid());
+        }
 
         // Store a copy of the parents group id
         monitor_gpid = getpgrp();
-        
+
         // Create a new group id
         ret = setpgid(pid, 0);
         if (ret == -1) {
@@ -642,12 +640,12 @@ static pid_t start_child()
                 perror("monitor: start_children");
                 return -1;
         }
-        
+
         nodes_gpid = getpgrp();
         r_info("nodes group id: %d, parent group id: %d", nodes_gpid, monitor_gpid);
 
         child_main(monitor_gpid);
-        
+
         exit(0);
 }
 
@@ -661,10 +659,8 @@ int main(int argc, char **argv)
         int status;
         siginfo_t info;
         int ret;
-               
-        app_init(&argc, argv);
 
-        uid_t uid = get_uid("hanappe"); 
+        app_init(&argc, argv);
 
         if (app_get_config() == NULL) {
                 fprintf(stderr, "Usage: rclaunch -C config-file\n");
@@ -673,8 +669,8 @@ int main(int argc, char **argv)
 
         monitor_pid = getpid();
         r_info("PID %d", monitor_pid);
-        
-        // Start the nodes.  
+
+        // Start the nodes.
         child_pid = start_child();
         if (child_pid == -1) {
                 r_panic("Failed to start the nodes");
@@ -682,7 +678,7 @@ int main(int argc, char **argv)
         }
 
         while (!app_quit()) {
-                
+
                 clock_sleep(1);
 
                 // Check if the child process quit. If so, quit also.
@@ -691,12 +687,10 @@ int main(int argc, char **argv)
                 if (ret == 0 && info.si_pid == child_pid)
                         app_set_quit();
         }
-        
-        /* r_info("Sending HUP signal to child process, pid %d", child_pid); */
-        /* kill(child_pid, SIGHUP); */
+
         r_info("Waiting for ltmonitor-child to exit");
         ret = waitpid(child_pid, &status, 0);
         r_info("Exiting!");
-        
+
         exit(0);
 }

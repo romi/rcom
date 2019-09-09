@@ -2,6 +2,7 @@
 #define _RCOM_EXPORT_H_
 
 #include "rcom/service.h"
+#include "rcom/response.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -23,16 +24,12 @@ int export_json_out(export_t* e);
 
 int export_matches(export_t* e, const char *name);
 
-// Used by service
 export_t *export_clone(export_t* e);
 int export_set_mimetypes(export_t* e,
                          const char* mimetype_in,
                          const char* mimetype_out);
 void export_set_onrequest(export_t* e, void *userdata, service_onrequest_t onrequest);
-int export_callback(export_t* e, request_t *request);
-        
-/* int export_registered(export_t* e); */
-/* void export_set_registered(export_t* e, int val); */
+void export_callback(export_t* e, request_t *request, response_t *response);
 
 #ifdef __cplusplus
 }

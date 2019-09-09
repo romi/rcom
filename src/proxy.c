@@ -1115,13 +1115,14 @@ static streamerlink_t *proxy_open_streamerlink(proxy_t *proxy,
                                                const char *name,
                                                const char *topic,
                                                streamerlink_ondata_t ondata,
+                                               streamerlink_onresponse_t onresponse,
                                                void* userdata,
                                                int autoconnect)
 {
         streamerlink_t *link;
         registry_entry_t *entry;
 
-        link = new_streamerlink(ondata, userdata, autoconnect);
+        link = new_streamerlink(ondata, onresponse, userdata, autoconnect);
         if (link == NULL)
                 return NULL;
 
@@ -1303,12 +1304,14 @@ addr_t *registry_get_streamer(const char *topic)
 streamerlink_t *registry_open_streamerlink(const char *name,
                                            const char *topic,
                                            streamerlink_ondata_t ondata,
+                                           streamerlink_onresponse_t onresponse,
                                            void* userdata,
                                            int autoconnect)
 {
         proxy_t *proxy = proxy_get();
         if (proxy == NULL) return NULL;
-        return proxy_open_streamerlink(proxy, name, topic, ondata, userdata, autoconnect);
+        return proxy_open_streamerlink(proxy, name, topic, ondata,
+                                       onresponse, userdata, autoconnect);
 }
 
 void registry_close_streamerlink(streamerlink_t *link)

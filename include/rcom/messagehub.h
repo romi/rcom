@@ -9,12 +9,23 @@ extern "C" {
 
 typedef struct _messagehub_t messagehub_t;
 typedef struct _messagelink_t messagelink_t;
+typedef struct _request_t request_t;
+typedef struct _response_t response_t;
 
-// if returned value is zero, all is well.
-// if returned value is not zero, the messagelink will be closed.
-typedef int (*messagehub_onconnect_t)(messagehub_t *hub,
-                                      messagelink_t *link,
-                                      void *userdata);
+/*
+ * If the returned value is zero, all is well. If the returned value
+ * is not zero, the messagelink will be closed.
+ */
+typedef int (*messagehub_onconnect_t)(void *userdata,
+                                      messagehub_t *hub,
+                                      request_t *request,
+                                      messagelink_t *link);
+
+typedef void (*messagehub_onrequest_t)(void *userdata,
+                                       request_t *request,
+                                       response_t *response);
+
+int messagehub_set_onrequest(messagehub_t *hub, messagehub_onrequest_t onrequest);
 
 // Broadcast messages to all connected messagelinks
 int messagehub_broadcast_num(messagehub_t *hub, messagelink_t *exclude, double value);

@@ -8,6 +8,7 @@ extern "C" {
 #endif
 
 streamerlink_t *new_streamerlink(streamerlink_ondata_t ondata,
+                                 streamerlink_onresponse_t onresponse,
                                  void* data, int autoconnect);
         
 void delete_streamerlink(streamerlink_t *link);

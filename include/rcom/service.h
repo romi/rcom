@@ -1,7 +1,8 @@
 #ifndef _RCOM_SERVICE_H_
 #define _RCOM_SERVICE_H_
 
-#include "rcom/request.h"
+#include "request.h"
+#include "response.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -9,7 +10,7 @@ extern "C" {
 
 typedef struct _service_t service_t;
 
-typedef int (*service_onrequest_t)(void *data, request_t *request);  
+typedef void (*service_onrequest_t)(void *data, request_t *request, response_t *response);  
 
 int service_export(service_t *service,
                    const char *name,

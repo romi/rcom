@@ -15,19 +15,33 @@ static int http_send_request_headers(tcp_socket_t socket,
                                      const char *host,
                                      const char *content_type,
                                      int content_length);
-static int http_read_response(tcp_socket_t socket, membuf_t *buf);
+/* static int http_read_response(tcp_socket_t socket, membuf_t *buf); */
 
-http_header_t *new_http_header(const char *name, int length)
+http_header_t *new_http_header(const char *name, const char *value)
 {
         http_header_t *h = r_new(http_header_t);
         if (h == NULL) return NULL;
 
-        h->value = NULL;
         h->name = NULL;
+        h->value = NULL;
 
-        if (http_header_append_name(h, name, length) != 0) {
-                delete_http_header(h);
-                return NULL;
+        //r_debug("new_http_header");
+        if (name) {
+                //r_debug("   name %s", name);
+                h->name = r_strdup(name);
+                if (h->name == NULL) {
+                        delete_http_header(h);
+                        return NULL;
+                }
+        }
+
+        if (value) {
+                //r_debug("   value %s", value);
+                h->value = r_strdup(value);
+                if (h->value == NULL) {
+                        delete_http_header(h);
+                        return NULL;
+                }
         }
         
         return h;
@@ -61,18 +75,27 @@ static void _trim_(char *s)
                 s[i--] = 0;
 }
 
-int http_header_append_name(http_header_t *h, const char *name, int length)
+int http_header_name_append(http_header_t *h, const char *name, int length)
 {
         h->name = _append_(h->name, name, length);
         return (h->name == NULL)? -1 : 0;
 }
 
-int http_header_append_value(http_header_t *h, const char *value, int length)
+int http_header_value_append(http_header_t *h, const char *value, int length)
 {
         h->value = _append_(h->value, value, length);
         if (h->value == NULL) return -1;
         _trim_(h->value);
         return 0;
+}
+
+int http_header_set_value(http_header_t *h, const char *value)
+{
+        //r_debug("http_header_set_value: name %s, value %s", h->name, value);
+        if (h->value == NULL)
+                r_free(h->value);
+        h->value = r_strdup(value);
+        return h->value == NULL? -1 : 0;
 }
 
 const char *http_status_string(int status)
@@ -130,6 +153,32 @@ const char *http_status_string(int status)
         }
 }
 
+int http_send_response(tcp_socket_t socket, response_t* r)
+{
+        int status = response_status(r);
+        membuf_t *headers = new_membuf();
+        membuf_t *body = response_body(r);
+        
+        membuf_printf(headers, "HTTP/1.1 %d %s\r\n",
+                      status, http_status_string(status));
+        
+        membuf_printf(headers, "Content-Length: %d\r\n", membuf_len(body));
+        membuf_printf(headers, "Connection: close\r\n");
+        
+        for (list_t *l = response_headers(r); l != NULL; l = list_next(l)) {
+                http_header_t *h = list_get(l, http_header_t);
+                membuf_printf(headers, "%s: %s\r\n", h->name, h->value);
+        }
+
+        membuf_printf(headers, "\r\n");
+
+        if (tcp_socket_send(socket, membuf_data(headers), membuf_len(headers)) != 0)
+                return -1;
+
+        delete_membuf(headers);
+        return tcp_socket_send(socket, membuf_data(body), membuf_len(body));
+}
+
 int http_send_headers(tcp_socket_t socket, int status, const char *mimetype, int content_length)
 {
         char header[2048];
@@ -161,7 +210,7 @@ int http_send_headers(tcp_socket_t socket, int status, const char *mimetype, int
 int http_send_error_headers(tcp_socket_t socket, int status)
 {
         char header[2048];
-        r_debug("streamer_client_send_error_headers");
+        //r_debug("streamer_client_send_error_headers");
         int len = snprintf(header, 2048,
                            "HTTP/1.1 %d %s\r\n"
                            "Connection: close\r\n\r\n",
@@ -182,35 +231,50 @@ int http_send_streaming_headers(tcp_socket_t socket, const char *mimetype)
         return tcp_socket_send(socket, header, len);
 }
 
-int http_get(addr_t *addr, const char *resource, membuf_t *out)
+int http_get(addr_t *addr, const char *resource, response_t **response_handle)
 {
-        return http_post(addr, resource, NULL, NULL, 0, out);
+        return http_post(addr, resource, NULL, NULL, 0, response_handle);
 }
 
 int http_post(addr_t *addr,
-             const char *resource,
-             const char *content_type,
-             const char *data, int len,
-             membuf_t *out)
+              const char *resource,
+              const char *content_type,
+              const char *data, int len,
+              response_t **response_handle)
 {
         int err;
         
         tcp_socket_t socket = open_tcp_socket(addr);
-        if (socket == INVALID_TCP_SOCKET) {
-                r_err("http_get: failed to open a connection");
+        if (socket == INVALID_TCP_SOCKET)
+                return -1;
+        
+        err = http_send_request(socket, addr, resource, content_type, data, len);
+        if (err != 0) {
+                close_tcp_socket(socket);
                 return -1;
         }
 
-        err = http_send_request(socket, addr, resource,
-                                content_type, data, len);
-        if (err != 0) return err;
-
-        err = http_read_response(socket, out);
-        if (err != 0) return err;
-
+        int allocated_response = 0;
+        response_t *response = *response_handle;
+        if (response == NULL) {
+                response = new_response(HTTP_Status_OK);
+                if (response == NULL) {
+                        close_tcp_socket(socket);
+                        return -1;
+                }
+                *response_handle = response;
+                allocated_response = 1;
+        }
+        
+        err = response_parse_html(response, socket, RESPONSE_PARSE_ALL);
+        if (err != 0 && allocated_response) {
+                delete_response(response);
+                *response_handle = NULL;
+        }
+        
         close_tcp_socket(socket);
         
-        return 0;
+        return err;
 }
 
 int http_send_request(tcp_socket_t socket,
@@ -247,95 +311,119 @@ static int http_send_request_headers(tcp_socket_t socket,
 {
         char header[2048];
         int len;
+
+        const char *slash = "/";
+        if (resource[0] == '/')
+                slash = "";
         
         // FIXME: write directly in socket, instead of intermediate buffer
         if (content_length > 0) {
                 len = snprintf(header, 2048,
-                               "POST /%s HTTP/1.1\r\n"
+                               "POST %s%s HTTP/1.1\r\n"
                                "Host: %s\r\n"
                                "Content-Type: %s\r\n"
                                "Content-Length: %d\r\n\r\n",
-                               resource, host, content_type, content_length);
+                               slash, resource, host, content_type, content_length);
         } else {
                 len = snprintf(header, 2048,
-                               "GET /%s HTTP/1.1\r\n"
+                               "GET %s%s HTTP/1.1\r\n"
                                "Host: %s\r\n\r\n",
-                               resource, host);
+                               slash, resource, host);
         }
         
         return tcp_socket_send(socket, header, len);
 }
 
-static int http_message_complete(http_parser *p)
-{
-        return 0;
-}
+/* static int http_on_header_field(http_parser *parser, const char *data, size_t length) */
+/* { */
+/*         streamerlink_t *r = (streamerlink_t *) parser->data; */
+/*         r->cur_header = new_http_header(data, length); */
+/*         if (r->cur_header == NULL) return -1; */
+/*         return 0; */
+/* } */
 
-static int http_headers_complete(http_parser *p)
-{
-        return 0;
-}
+/* static int http_on_header_value(http_parser *parser, const char *data, size_t length) */
+/* { */
+/*         streamerlink_t *r = (streamerlink_t *) parser->data; */
+/*         if (r->cur_header != NULL) { */
+/*                 http_header_append_value(r->cur_header, data, length); */
+/*                 r->headers = list_prepend(r->headers, r->cur_header); */
+/*                 r->cur_header = NULL; */
+/*         } */
+/*         return 0; */
+/* } */
 
-static int http_on_body(http_parser *parser, const char *data, size_t length)
-{
-        membuf_t *m = (membuf_t *) parser->data;
-        membuf_append(m, data, length);
-        return 0;
-}
+/* static int http_message_complete(http_parser *p) */
+/* { */
+/*         return 0; */
+/* } */
 
-static int http_read_response(tcp_socket_t socket, membuf_t *out)
-{
-        size_t len = 80*1024;
-        size_t parsed;
-        char buf[len];
-        ssize_t received;
-        http_parser *parser;
-        http_parser_settings settings;
-        membuf_t *membuf = NULL;
-        int ret;
-        char ermes[200];
+/* static int http_headers_complete(http_parser *p) */
+/* { */
+/*         return 0; */
+/* } */
+
+/* static int http_on_body(http_parser *parser, const char *data, size_t length) */
+/* { */
+/*         membuf_t *m = (membuf_t *) parser->data; */
+/*         membuf_append(m, data, length); */
+/*         return 0; */
+/* } */
+
+/* static int http_read_response(tcp_socket_t socket, membuf_t *out) */
+/* { */
+/*         size_t len = 80*1024; */
+/*         size_t parsed; */
+/*         char buf[len]; */
+/*         ssize_t received; */
+/*         http_parser *parser; */
+/*         http_parser_settings settings; */
+/*         int ret; */
+/*         char ermes[200]; */
         
-        http_parser_settings_init(&settings);
-        settings.on_body = http_on_body;
-        settings.on_headers_complete = http_headers_complete;
-        settings.on_message_complete = http_message_complete;
+/*         http_parser_settings_init(&settings); */
+/*         settings.on_body = http_on_body; */
+/*         /\* settings.on_header_field = http_on_header_field; *\/ */
+/*         /\* settings.on_header_value = http_on_header_value; *\/ */
+/*         settings.on_headers_complete = http_headers_complete; */
+/*         settings.on_message_complete = http_message_complete; */
         
-        parser = r_new(http_parser);
-        if (parser == NULL) {
-                r_err("http_read_response: out of memory");
-                return -1;
-        }
-        http_parser_init(parser, HTTP_RESPONSE);
-        parser->data = out;
-        membuf_clear(out);
+/*         parser = r_new(http_parser); */
+/*         if (parser == NULL) { */
+/*                 r_err("http_read_response: out of memory"); */
+/*                 return -1; */
+/*         } */
+/*         http_parser_init(parser, HTTP_RESPONSE); */
+/*         parser->data = out; */
+/*         membuf_clear(out); */
         
-        while (!app_quit()) {
+/*         while (!app_quit()) { */
                 
-                if (tcp_socket_wait_data(socket, 1) == 1) {
+/*                 if (tcp_socket_wait_data(socket, 1) == 1) { */
 
-                        received = tcp_socket_recv(socket, buf, len);
-                        if (received < 0)
-                                return -1;
+/*                         received = tcp_socket_recv(socket, buf, len); */
+/*                         if (received < 0) */
+/*                                 return -1; */
 
-                        //r_debug("http_read_response: %.*s", received, buf);
+/*                         //r_debug("http_read_response: %.*s", received, buf); */
                         
-                        /* Start up / continue the parser.
-                         * Note we pass received==0 to signal that EOF has been received.
-                         */
-                        parsed = http_parser_execute(parser, &settings, buf, received);
-                        if (received == 0)
-                                break;
+/*                         /\* Start up / continue the parser. */
+/*                          * Note we pass received==0 to signal that EOF has been received. */
+/*                          *\/ */
+/*                         parsed = http_parser_execute(parser, &settings, buf, received); */
+/*                         if (received == 0) */
+/*                                 break; */
                         
-                        if (parsed != received)
-                                /* Handle error. Usually just close the connection. */
-                                r_err("http_read_response: parsed != received");
-                }
-        }
+/*                         if (parsed != received) */
+/*                                 /\* Handle error. Usually just close the connection. *\/ */
+/*                                 r_err("http_read_response: parsed != received"); */
+/*                 } */
+/*         } */
         
-        r_delete(parser);
+/*         r_delete(parser); */
 
-        return 0;
-}
+/*         return 0; */
+/* } */
 
 int http_send_chunk(tcp_socket_t socket, const char *data, int datalen)
 {

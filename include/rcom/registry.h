@@ -52,7 +52,7 @@ messagelink_t *registry_open_messagelink(const char *name,
                                          messagelink_onmessage_t onmessage,
                                          void *userdata);
 
-void registry_close_messagelink(messagelink_t *hub);
+void registry_close_messagelink(messagelink_t *link);
 
 
 // service
@@ -77,7 +77,8 @@ addr_t *registry_get_streamer(const char *topic);
 // streamerlink
 streamerlink_t *registry_open_streamerlink(const char *name,
                                            const char *topic,
-                                           streamerlink_ondata_t ondata,
+                                           streamerlink_ondata_t ondata, 
+                                           streamerlink_onresponse_t onresponse,
                                            void* userdata,
                                            int autoconnect);
 

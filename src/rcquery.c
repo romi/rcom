@@ -1,6 +1,7 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <stdlib.h>
+#include <signal.h>
 
 #include <r.h>
 #include <rcom.h>
@@ -8,6 +9,21 @@
 #include "proxy.h"
 #include "messagelink_priv.h"
 #include "registry_priv.h"
+
+static void restart_node(const char *name)
+{
+        char line[1024];
+        char cmd[128];
+
+        rprintf(cmd, sizeof(cmd), "pidof %s", name);
+        
+        FILE *pidof = popen(cmd, "r");        
+        fgets(line, sizeof(line), pidof);
+        pid_t pid = strtoul(line, NULL, 10);        
+        pclose(pidof);
+
+        kill(pid, SIGHUP);
+}
 
 static void open_browser(char *url)
 {
@@ -197,10 +213,16 @@ static void print_usage_request()
         printf("    \"{'command': '<command>', ...}\"\n");
 }
 
+static void print_usage_restart()
+{
+        printf("Restarts the node with the given name\n");
+        printf("Usage: rcom restart <node-name>\n");
+}
+
 static void print_usage()
 {
         printf("Usage: rcom command [options]\n");
-        printf("  Available commands: list, listen, request, show, stream, help\n");
+        printf("  Available commands: list, listen, request, show, stream, help, restart\n");
 }
 
 int main(int argc, char **argv)
@@ -267,6 +289,14 @@ int main(int argc, char **argv)
                 } else {
                         const char *topic = argv[2];
                         stream_topic(topic);
+                }
+                
+        } else if (rstreq(command, "restart")) {
+                if ((argc >= 3 && rstreq(argv[2], "help"))  || argc < 3) {
+                        print_usage_restart();
+                } else {
+                        const char *name = argv[2];
+                        restart_node(name);
                 }
                 
         } else {

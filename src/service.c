@@ -1,9 +1,8 @@
 #include <r.h>
 
-#include "rcom/app.h"
-#include "rcom/addr.h"
-#include "rcom/util.h"
+#include "rcom.h"
 
+#include "response_priv.h"
 #include "request_priv.h"
 #include "service_priv.h"
 
@@ -22,8 +21,8 @@ struct _service_t {
 static void service_run(service_t *service);
 static void service_lock(service_t* s);
 static void service_unlock(service_t* s);
-static void service_index_html(service_t* service, request_t *request);  
-static void service_index_json(service_t* service, request_t *request);  
+static void service_index_html(service_t* service, request_t *request, response_t *response);
+static void service_index_json(service_t* service, request_t *request, response_t *response);
 
 service_t* new_service(const char *name, int port)
 {
@@ -135,21 +134,21 @@ addr_t *service_addr(service_t* service)
         return service->addr;
 }
 
-static void service_index_html(service_t* service, request_t *request)
+static void service_index_html(service_t* service, request_t *request, response_t *response)
 {
         list_t *l;
         export_t *e;
         char b[52];
-        
-        request_reply_printf(request, 
-                             "<!DOCTYPE html>\n"
-                             "<html lang=\"en\">\n"
-                             "  <head>\n"
-                             "    <meta charset=\"utf-8\">\n"
-                             "    <title>%s</title>\n"
-                             "  </head>\n"
-                             "  <body>\n",
-                             service->name);
+
+        response_printf(response, 
+                        "<!DOCTYPE html>\n"
+                        "<html lang=\"en\">\n"
+                        "  <head>\n"
+                        "    <meta charset=\"utf-8\">\n"
+                        "    <title>%s</title>\n"
+                        "  </head>\n"
+                        "  <body>\n",
+                        service->name);
 
         addr_string(service->addr, b, 52);
         
@@ -162,30 +161,29 @@ static void service_index_html(service_t* service, request_t *request)
                 if (rstreq(name, "*"))
                     ; // skip
                 else if (name[0] == '/')
-                        request_reply_printf(request, 
-                                             "    <a href=\"http://%s%s\">%s</a><br>\n",
-                                             b, name, name);
+                        response_printf(response, 
+                                        "    <a href=\"http://%s%s\">%s</a><br>\n",
+                                        b, name, name);
                 else
-                        request_reply_printf(request, 
-                                             "    <a href=\"http://%s/%s\">%s</a><br>\n",
-                                             b, name, name);
+                        response_printf(response, 
+                                        "    <a href=\"http://%s/%s\">%s</a><br>\n",
+                                        b, name, name);
 
                 l = list_next(l);
         }
         service_unlock(service);
         
-        request_reply_printf(request, 
-                             "  </body>\n"
-                             "</html>\n");
+        response_printf(response, "  </body>\n</html>\n");
 }
 
-static void service_index_json(service_t* service, request_t *request)
+static void service_index_json(service_t* service, request_t *request, response_t *response)
 {
         list_t *l;
         export_t *e;
         char b[52];
         int count = 0;
-        request_reply_printf(request, "{\"resources\": [");
+        
+        response_printf(response, "{\"resources\": [");
 
         addr_string(service->addr, b, 52);
         
@@ -199,8 +197,8 @@ static void service_index_json(service_t* service, request_t *request)
                 if (rstreq(name, "*"))
                     ; // skip
                 else {
-                        if (count) request_reply_printf(request, ", ");
-                        request_reply_printf(request, 
+                        if (count) response_printf(response, ", ");
+                        response_printf(response, 
                                              "{\"name\": \"%s\", \"uri\": \"http://%s/%s\"}",
                                              name, b, s);
                         count++;
@@ -209,7 +207,7 @@ static void service_index_json(service_t* service, request_t *request)
         }
         service_unlock(service);
 
-        request_reply_printf(request, "]}");
+        response_printf(response, "]}");
 }
 
 int service_export(service_t* service,
@@ -251,6 +249,87 @@ int service_export(service_t* service,
         return 0;
 }
 
+struct service_and_socket_t {
+        service_t* service;
+        tcp_socket_t socket;
+};
+
+struct service_and_socket_t *new_service_and_socket(service_t* service,
+                                                    tcp_socket_t socket)
+{
+        struct service_and_socket_t *s;
+        s = r_new(struct service_and_socket_t);
+        if (s == NULL)
+                return NULL;
+        s->service = service;
+        s->socket = socket;
+        return s;
+}
+
+void service_handle(struct service_and_socket_t *s)
+{
+        int err = -1;
+        request_t* request = NULL;
+        export_t *export = NULL;
+        response_t *response = NULL;
+        service_t* service = s->service;
+        tcp_socket_t client_socket = s->socket;
+
+        request = new_request();
+        if (request == NULL) {
+                http_send_error_headers(client_socket, HTTP_Status_Internal_Server_Error);
+                goto cleanup;
+        }
+
+        err = request_parse_html(request, client_socket, REQUEST_PARSE_ALL);
+        if (err != 0) {
+                http_send_error_headers(client_socket, HTTP_Status_Internal_Server_Error);
+                goto cleanup;
+        }
+
+        r_debug("request_handle: request for '%s'", request_uri(request));
+
+        if (request_uri(request) == NULL) {
+                r_err("request_handle: requested uri == NULL!?");
+                http_send_error_headers(client_socket, HTTP_Status_Bad_Request);
+                goto cleanup;
+        }
+
+        export = service_get_export(service, request_uri(request));
+        if (export == NULL) {
+                r_err("request_handle: export == NULL: resource '%s'",
+                      request_uri(request));
+                http_send_error_headers(client_socket, HTTP_Status_Bad_Request);
+                goto cleanup;
+        }
+
+        response = new_response(HTTP_Status_OK);
+        if (response == NULL) {
+                http_send_error_headers(client_socket, HTTP_Status_Internal_Server_Error);
+                goto cleanup;
+        }
+        
+        response_set_mimetype(response, export_mimetype_out(export));
+        export_callback(export, request, response);
+
+        err = response_send(response, client_socket);
+        
+cleanup:
+        if (err != 0)
+                r_err("request_handle: failed to handle request");
+
+        close_tcp_socket(client_socket);
+        
+        if (s)
+                r_delete(s);
+        if (request)
+                delete_request(request);
+        if (response)
+                delete_response(response);
+        if (export)
+                delete_export(export);
+}
+
 void service_run(service_t* service)
 {
         tcp_socket_t client_socket;
@@ -268,18 +347,11 @@ void service_run(service_t* service)
                         continue;
                 }
 
-                request_t* r = new_request(service, client_socket);
-                if (r == NULL) {
-                        r_err("out of memory");
-                        continue;
-                }
-                
-                new_thread((thread_run_t) request_handle, r, 0, 1);
-        }
-}
+                struct service_and_socket_t *s = new_service_and_socket(service,
+                                                                        client_socket);
 
-void service_run_in_thread(service_t *service)
-{
+                new_thread((thread_run_t) service_handle, s, 0, 1);
+        }
 }
 
 export_t *service_get_export(service_t *service, const char *name)
