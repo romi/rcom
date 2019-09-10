@@ -810,6 +810,7 @@ static json_object_t _messagelink_read(messagelink_t *link)
                         json_object_t evt = json_parse(membuf_data(link->in));
                         if (json_isnull(evt)) {
                                 r_warn("messagelink_read: invalid message");
+                                r_warn("messagelink_read: %s", membuf_data(link->in));
                                 //owner_messagelink_close(link, 1003);
                                 return json_null();
                         }

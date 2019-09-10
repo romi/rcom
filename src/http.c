@@ -179,7 +179,8 @@ int http_send_response(tcp_socket_t socket, response_t* r)
         return tcp_socket_send(socket, membuf_data(body), membuf_len(body));
 }
 
-int http_send_headers(tcp_socket_t socket, int status, const char *mimetype, int content_length)
+int http_send_headers(tcp_socket_t socket, int status,
+                      const char *mimetype, int content_length)
 {
         char header[2048];
         // FIXME: write directly in socket, instead of intermediate buffer
@@ -333,97 +334,6 @@ static int http_send_request_headers(tcp_socket_t socket,
         
         return tcp_socket_send(socket, header, len);
 }
-
-/* static int http_on_header_field(http_parser *parser, const char *data, size_t length) */
-/* { */
-/*         streamerlink_t *r = (streamerlink_t *) parser->data; */
-/*         r->cur_header = new_http_header(data, length); */
-/*         if (r->cur_header == NULL) return -1; */
-/*         return 0; */
-/* } */
-
-/* static int http_on_header_value(http_parser *parser, const char *data, size_t length) */
-/* { */
-/*         streamerlink_t *r = (streamerlink_t *) parser->data; */
-/*         if (r->cur_header != NULL) { */
-/*                 http_header_append_value(r->cur_header, data, length); */
-/*                 r->headers = list_prepend(r->headers, r->cur_header); */
-/*                 r->cur_header = NULL; */
-/*         } */
-/*         return 0; */
-/* } */
-
-/* static int http_message_complete(http_parser *p) */
-/* { */
-/*         return 0; */
-/* } */
-
-/* static int http_headers_complete(http_parser *p) */
-/* { */
-/*         return 0; */
-/* } */
-
-/* static int http_on_body(http_parser *parser, const char *data, size_t length) */
-/* { */
-/*         membuf_t *m = (membuf_t *) parser->data; */
-/*         membuf_append(m, data, length); */
-/*         return 0; */
-/* } */
-
-/* static int http_read_response(tcp_socket_t socket, membuf_t *out) */
-/* { */
-/*         size_t len = 80*1024; */
-/*         size_t parsed; */
-/*         char buf[len]; */
-/*         ssize_t received; */
-/*         http_parser *parser; */
-/*         http_parser_settings settings; */
-/*         int ret; */
-/*         char ermes[200]; */
-        
-/*         http_parser_settings_init(&settings); */
-/*         settings.on_body = http_on_body; */
-/*         /\* settings.on_header_field = http_on_header_field; *\/ */
-/*         /\* settings.on_header_value = http_on_header_value; *\/ */
-/*         settings.on_headers_complete = http_headers_complete; */
-/*         settings.on_message_complete = http_message_complete; */
-        
-/*         parser = r_new(http_parser); */
-/*         if (parser == NULL) { */
-/*                 r_err("http_read_response: out of memory"); */
-/*                 return -1; */
-/*         } */
-/*         http_parser_init(parser, HTTP_RESPONSE); */
-/*         parser->data = out; */
-/*         membuf_clear(out); */
-        
-/*         while (!app_quit()) { */
-                
-/*                 if (tcp_socket_wait_data(socket, 1) == 1) { */
-
-/*                         received = tcp_socket_recv(socket, buf, len); */
-/*                         if (received < 0) */
-/*                                 return -1; */
-
-/*                         //r_debug("http_read_response: %.*s", received, buf); */
-                        
-/*                         /\* Start up / continue the parser. */
-/*                          * Note we pass received==0 to signal that EOF has been received. */
-/*                          *\/ */
-/*                         parsed = http_parser_execute(parser, &settings, buf, received); */
-/*                         if (received == 0) */
-/*                                 break; */
-                        
-/*                         if (parsed != received) */
-/*                                 /\* Handle error. Usually just close the connection. *\/ */
-/*                                 r_err("http_read_response: parsed != received"); */
-/*                 } */
-/*         } */
-        
-/*         r_delete(parser); */
-
-/*         return 0; */
-/* } */
 
 int http_send_chunk(tcp_socket_t socket, const char *data, int datalen)
 {

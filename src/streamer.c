@@ -15,16 +15,13 @@ static int streamer_onclient(streamer_t *streamer, streamer_client_t *client);
 static void streamer_add_client(streamer_t *streamer, streamer_client_t *client);
 static void streamer_remove_client(streamer_t *streamer, streamer_client_t *client);
 static const char *streamer_mimetype(streamer_t *streamer);
-/* static export_t *streamer_get_export(streamer_t *s, const char *url); */
 
-
-/*****************************************************/
-/* streamer_client_t
+/*
+ * streamer_client_t
  * 
  * The streamer_client_t structure is used by the streamer to track
  * all the clients that registered for a specific stream.
  */
-
 typedef struct _streamer_client_t {
         // The TCP socket and address
         tcp_socket_t socket;

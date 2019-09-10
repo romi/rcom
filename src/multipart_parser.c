@@ -166,7 +166,9 @@ static int multipart_parser_read_header(multipart_parser_t *m, const char *buf, 
         return offset;
 }
 
-static int multipart_parser_read_image(multipart_parser_t *m, const char *buf, int len, int offset)
+static int multipart_parser_read_part(multipart_parser_t *m,
+                                      const char *buf, int len,
+                                      int offset)
 {
         int read = membuf_len(m->body); 
         int needed = m->length - read;
@@ -212,7 +214,7 @@ int multipart_parser_process(multipart_parser_t *m, const char *buf, int len)
                         break;
                         
                 case k_read_body:
-                        offset = multipart_parser_read_image(m, buf, len, offset);
+                        offset = multipart_parser_read_part(m, buf, len, offset);
                         break;
                 case k_body_complete:
                         if (m->onpart)
