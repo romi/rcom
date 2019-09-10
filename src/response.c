@@ -197,10 +197,8 @@ static int response_on_headers_complete(http_parser *p)
         }
         
         membuf_append_zero(r->status_buffer);
-        r->status = strtol(membuf_data(r->status_buffer), NULL, 10);
-
-        delete_membuf(r->status_buffer);
-        r->status_buffer = NULL;
+        r->status = p->status_code;
+        
         delete_membuf(r->header_name);
         r->header_name = NULL;
         delete_membuf(r->header_value);

@@ -145,14 +145,14 @@ int app_parse_args(int *argc, char **argv)
         return 0;
 }
 
-static int app_check_ip_HIDE()
+static int app_check_ip()
 {
         if (_ip == NULL)
                 _ip = r_strdup("0.0.0.0");
         return 0;
 }
 
-static int app_check_ip()
+static int app_check_ip_HIDE()
 {
         struct ifaddrs *ifaddr, *ifa;
         int family, s;
