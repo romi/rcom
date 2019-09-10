@@ -69,22 +69,30 @@ run_t *new_run(const char *name,
                         goto error_recovery;
         }
 
-        r->num_gids = 1;
+        const char* groups[] = {"dialout", "video"};
+        int num_groups = 2;
+
+        r->num_gids = num_groups;
         r->gids = r_array(gid_t, r->num_gids);
-        
+
         char buf[1024];
         size_t buflen = sizeof(buf);
         struct group grp;
         struct group *result = NULL;
-        
-        int err = getgrnam_r("dialout", &grp, buf, buflen, &result);
-        if (err != 0) {
-                r_err("Failed to obtain information on the 'dialout' group");
-                r->num_gids = 0;
-                r_free(r->gids);
-                r->gids = NULL;
-        } 
-        r->gids[0] = grp.gr_gid;
+        int err;
+
+        for (int i = 0; i < r->num_gids; i++) {
+                err = getgrnam_r(groups[i], &grp, buf, buflen, &result);
+                if (err != 0) {
+                        r_err("Failed to obtain information on the 'dialout' group");
+                        r->num_gids = 0;
+                        r_free(r->gids);
+                        r->gids = NULL;
+                        break;
+                } 
+                r_info("gid(%s)=%d", groups[i], grp.gr_gid);
+                r->gids[i] = grp.gr_gid;
+        }
         
         r->args = NULL;
         r->pid = -1;
