@@ -9,6 +9,7 @@
 #include <sys/stat.h>
 #include <errno.h>
 #include <pwd.h>
+#include <grp.h>
 
 #include <r.h>
 #include "rcom.h"
@@ -27,6 +28,8 @@ struct _run_t {
         char *user;
         uid_t uid;
         gid_t gid;
+        gid_t* gids;
+        int num_gids;
         list_t *args;
         thread_t *thread;
         run_status_t status;
@@ -65,7 +68,24 @@ run_t *new_run(const char *name,
                 if (get_user_info(r->user, &r->uid, &r->gid) != 0)
                         goto error_recovery;
         }
-                
+
+        r->num_gids = 1;
+        r->gids = r_array(gid_t, r->num_gids);
+        
+        char buf[1024];
+        size_t buflen = sizeof(buf);
+        struct group grp;
+        struct group *result = NULL;
+        
+        int err = getgrnam_r("dialout", &grp, buf, buflen, &result);
+        if (err != 0) {
+                r_err("Failed to obtain information on the 'dialout' group");
+                r->num_gids = 0;
+                r_free(r->gids);
+                r->gids = NULL;
+        } 
+        r->gids[0] = grp.gr_gid;
+        
         r->args = NULL;
         r->pid = -1;
         r->status = k_created;
@@ -94,10 +114,16 @@ void delete_run(run_t *r)
                         l = list_next(l);
                 }
                 delete_list(r->args);
-                if (r->name) r_free(r->name);
-                if (r->host) r_free(r->host);
-                if (r->user) r_free(r->user);
-                if (r->path) r_free(r->path);
+                if (r->name)
+                        r_free(r->name);
+                if (r->host)
+                        r_free(r->host);
+                if (r->user)
+                        r_free(r->user);
+                if (r->path)
+                        r_free(r->path);
+                if (r->gids)
+                        r_free(r->gids);
                 r_delete(r);
         }
 }
@@ -181,6 +207,13 @@ int run_drop_privileges(run_t *r)
                 return 0;
 	if (rstreq(r->user, "root"))
                 return 0;
+
+        if (r->num_gids > 0)
+                if (setgroups(r->num_gids, r->gids) != 0) {
+                        char msg[200];
+                        strerror_r(errno, msg, sizeof(msg));
+                        r_warn("Failed to set the additional groups: %s", msg);
+                }
 
         if (setgid(r->gid) != 0) {
                 r_err("Failed to set the group ID. user '%s', gid %d",
