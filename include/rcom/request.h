@@ -7,7 +7,13 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-        
+
+enum {
+        HTTP_METHOD_UNSUPPORTED,
+        HTTP_METHOD_GET,
+        HTTP_METHOD_POST
+};
+
 typedef struct _request_t request_t;
 
 const char *request_uri(request_t *r);

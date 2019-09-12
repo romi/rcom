@@ -16,6 +16,7 @@
 
 struct _request_t
 {
+        int method;
         char *uri;
         char *arg;
         membuf_t *body;        
@@ -276,7 +277,19 @@ int request_on_headers_complete(http_parser *p)
         r->header_name = NULL;
         delete_membuf(r->header_value);
         r->header_value = NULL;
-                        
+
+        switch (p->method) {
+        case HTTP_GET:
+                r->method = HTTP_METHOD_GET;
+                break;
+        case HTTP_POST:
+                r->method = HTTP_METHOD_POST;
+                break;
+        default:
+                r->method = HTTP_METHOD_UNSUPPORTED;
+                break;
+        }
+        
         if (r->parse_what == REQUEST_PARSE_HEADERS)
                 r->continue_parsing = 0;
         return 0;
@@ -328,8 +341,14 @@ int request_parse_html(request_t *request, tcp_socket_t client_socket, int what)
                  * Note we pass received==0 to signal that EOF has been received.
                  */
                 parsed = http_parser_execute(parser, &settings, buf, received);
-                if (received == 0) {
+                
+                if (received == 0 && request->continue_parsing == 0)
                         break;
+                
+                if (received == 0 && request->continue_parsing != 0) {
+                        r_err("request_parse: bad request");
+                        r_delete(parser);
+                        return -1;
                 }
 
                 if (parsed != received
