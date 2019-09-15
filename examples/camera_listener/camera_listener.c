@@ -34,9 +34,9 @@ void camera_listener_cleanup()
                 delete_multipart_parser(parser);
 }
 
-int camera_listener_ondata(void *userdata, const char *buf, int len)
+int camera_listener_ondata(void *userdata, response_t *response, const char *buf, int len)
 {
-        return multipart_parser_process(parser, buf, len);
+        return multipart_parser_process(parser, response, buf, len);
 }
 
 

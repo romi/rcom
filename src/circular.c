@@ -53,6 +53,11 @@ static void circular_buffer_unlock(circular_buffer_t* r)
         mutex_unlock(r->mutex);
 }
 
+int circular_buffer_size(circular_buffer_t* r)
+{
+        return r->length;
+}
+
 int circular_buffer_available(circular_buffer_t* r)
 {
         int available;
@@ -75,7 +80,7 @@ int circular_buffer_space(circular_buffer_t* r)
         if (r->writepos >= r->readpos)
                 space = r->length + r->readpos - r->writepos - 1;
         else
-                     space = r->readpos - r->writepos - 1;
+                space = r->readpos - r->writepos - 1;
         circular_buffer_unlock(r);
         
         return space;

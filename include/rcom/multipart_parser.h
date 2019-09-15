@@ -24,7 +24,8 @@ multipart_parser_t *new_multipart_parser(void* userdata,
 void delete_multipart_parser(multipart_parser_t *m);
 
 // Parse a buffer of data
-int multipart_parser_process(multipart_parser_t *m, const char *data, int len);
+int multipart_parser_process(multipart_parser_t *m, response_t *response,
+                             const char *data, int len);
 
 #ifdef __cplusplus
 }

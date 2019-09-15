@@ -7,6 +7,7 @@
 #include "http_parser.h"
 #include "http.h"
 #include "export.h"
+#include "request_priv.h"
 #include "streamer_priv.h"
 
 static void streamer_send_index_html(streamer_t *streamer, tcp_socket_t s);
@@ -29,6 +30,7 @@ typedef struct _streamer_client_t {
         
         // The URI in the HTTP request
         char *uri;
+        request_t *request;
         
         // The data transfer passes through a circular buffer.
         circular_buffer_t *buffer;
@@ -54,7 +56,7 @@ static streamer_client_t *new_streamer_client(streamer_t *streamer,
         
         client->streamer = streamer;
         client->socket = socket;
-        client->uri = NULL;
+        client->request = NULL;
         
         client->buffer = new_circular_buffer(1 * 1024 * 1024);
         if (client->buffer == NULL) {
@@ -62,12 +64,6 @@ static streamer_client_t *new_streamer_client(streamer_t *streamer,
                 return NULL;
         }
         return client;
-}
-
-static void streamer_client_set_uri(streamer_client_t *client, char *uri)
-{
-        r_info("streamer_client: uri=%s", uri);
-        client->uri = uri;
 }
 
 static int streamer_client_read(streamer_client_t *client, char *buffer, size_t len)
@@ -97,10 +93,10 @@ static void delete_streamer_client(streamer_client_t *client)
         if (client) {
                 if (client->socket != INVALID_TCP_SOCKET)
                         close_tcp_socket(client->socket);
-                if (client->uri)
-                        r_free(client->uri);
                 if (client->buffer)
                         delete_circular_buffer(client->buffer);
+                if (client->request)
+                        delete_request(client->request);
                 if (client->context && client->del)
                         client->del(client);
                 r_delete(client);
@@ -128,77 +124,34 @@ void streamer_client_set_delete_context(streamer_client_t *c,
         c->del = del;
 }
 
-static int streamer_client_message_complete(http_parser *parser)
-{
-        streamer_client_t *client = (streamer_client_t *) parser->data;
-        client->cont = 0;
-        return 0;
-}
-
-static int streamer_client_parse_url(http_parser *parser, const char *data, size_t length)
-{
-        char *s = r_alloc(length+1);
-        memcpy(s, data, length);
-        s[length] = 0;
-
-        //r_debug("streamer_client_parse_url: uri=%.*s, len=%d", length, data, length);
-        
-        streamer_client_t *c = (streamer_client_t *) parser->data;
-        streamer_client_set_uri(c, s);
-
-        return 0;
-}
-
 static int streamer_client_parse_request(streamer_client_t *client)
 {
-        http_parser *parser;
-        http_parser_settings settings;
-        size_t len = 80*1024;
-        char buf[len];
-        ssize_t received;
-        size_t parsed;
-        
-        http_parser_settings_init(&settings);
-        settings.on_url = streamer_client_parse_url;
-        settings.on_message_complete = streamer_client_message_complete;
-        
-        parser = r_new(http_parser);
-        if (parser == NULL) {
-                r_err("streamer_client_parse_request: out of memory");
-                return -1;
-        }
-        http_parser_init(parser, HTTP_REQUEST);
-        parser->data = client;
 
-        client->cont = 1;
-        while (client->cont) {
-                received = recv(client->socket, buf, len, 0);
-                if (received < 0) {
-                        r_err("streamer_client_parse_request: recv failed");
-                        r_delete(parser);
-                        return -1;
-                }
-        
-                /* Start up / continue the parser.
-                 * Note we pass received==0 to signal that EOF has been received.
-                 */
-                parsed = http_parser_execute(parser, &settings, buf, received);
-                if (received == 0) {
-                        break;
-                }
-
-                if (parsed != received && parsed != received - 1) {
-                        /* Handle error. Usually just close the connection. */
-                        r_err("streamer_client_parse_request: parsed != received (%d != %d)", parsed, received);
-                        //r_err("data: '%s'", buf);
-                        r_delete(parser);
-                        return -1;
-                }
+        client->request = new_request();
+        if (client->request == NULL) {
+                http_send_error_headers(client->socket, HTTP_Status_Internal_Server_Error);
+                goto cleanup;
         }
 
-        r_delete(parser);
+        int err = request_parse_html(client->request, client->socket, REQUEST_PARSE_ALL);
+        if (err != 0) {
+                http_send_error_headers(client->socket, HTTP_Status_Internal_Server_Error);
+                goto cleanup;
+        }
+
+        if (request_uri(client->request) == NULL) {
+                http_send_error_headers(client->socket, HTTP_Status_Bad_Request);
+                goto cleanup;
+        }
 
         return 0;
+        
+cleanup:
+        if (client->request != NULL) {
+                delete_request(client->request);
+                client->request = NULL;
+        }
+        return -1;
 }
 
 static int streamer_client_run(streamer_client_t *client)
@@ -222,41 +175,32 @@ static int streamer_client_run(streamer_client_t *client)
 
 static void streamer_client_handle_request(streamer_client_t *client)
 {
-        //r_info("streamer_client: new thread started");
         //r_debug("streamer_client_handle_request 1");
         if (streamer_client_parse_request(client) != 0)
                 return;
         
-        //r_info("streamer_client: uri=%s", client->uri);
-
-        // Should not happen.
-        if (client->uri == NULL) {
-                http_send_error_headers(client->socket, 500);
-                delete_streamer_client(client);
-                return;                
-        }
-        
         // In case index.html or index.json is requested,
         // short-circuit the normal pathway and send back an index
         // page.
-        if (rstreq(client->uri, "/") || rstreq(client->uri, "/index.html")) {
+        const char *uri = request_uri(client->request);
+        if (rstreq(uri, "/") || rstreq(uri, "/index.html")) {
                 streamer_send_index_html(client->streamer, client->socket);
                 delete_streamer_client(client);
                 return;
-        } else if (rstreq(client->uri, "/index.json")) {
+        } else if (rstreq(uri, "/index.json")) {
                 streamer_send_index_json(client->streamer, client->socket);
                 delete_streamer_client(client);
                 return;                
         }
 
-        if (!rstreq(client->uri, "/stream.html")) {
-                http_send_error_headers(client->socket, 404);
+        if (!rstreq(uri, "/stream.html")) {
+                http_send_error_headers(client->socket, HTTP_Status_Bad_Request);
                 return;
         }
         
         //r_debug("streamer_client_handle_request 3");
         if (streamer_onclient(client->streamer, client) != 0) {
-                http_send_error_headers(client->socket, 500);
+                http_send_error_headers(client->socket, HTTP_Status_Internal_Server_Error);
                 delete_streamer_client(client);
                 return;
         }
@@ -576,6 +520,12 @@ int streamer_send_multipart(streamer_t* s,
         l = streamer_get_clients(s);
         while (l) {
                 b = list_get(l, streamer_client_t);
+                if (0) {
+                        c = streamer_client_get_buffer(b);
+                        r_debug("datalen %d, buffer space %d, buffer size %d",
+                                total_len, circular_buffer_space(c),
+                                circular_buffer_size(c));
+                }
                 if (((c = streamer_client_get_buffer(b)) != NULL) 
                     && (circular_buffer_space(c) > total_len)) {
                         circular_buffer_write(c, header, header_len);

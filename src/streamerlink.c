@@ -10,7 +10,7 @@
 #include "streamerlink_priv.h"
 
 typedef struct _streamerlink_t {
-        char *resource;
+        response_t* response;
         void* userdata;
         streamerlink_ondata_t ondata;
         streamerlink_onresponse_t onresponse;
@@ -23,12 +23,10 @@ typedef struct _streamerlink_t {
         int autoconnect;
 } streamerlink_t;
 
-
 static int streamerlink_stop_thread(streamerlink_t *link);
 static int streamerlink_close_connection(streamerlink_t *link);
 static int streamerlink_lock(streamerlink_t *link);
 static int streamerlink_unlock(streamerlink_t *link);
-
 
 streamerlink_t *new_streamerlink(streamerlink_ondata_t ondata,
                                  streamerlink_onresponse_t onresponse,
@@ -80,6 +78,8 @@ void delete_streamerlink(streamerlink_t *link)
                 }
                 if (link->addr)
                         delete_addr(link->addr);
+                if (link->response)
+                        delete_response(link->response);
                 
                 r_delete(link);
         }
@@ -183,9 +183,20 @@ static int streamerlink_send_request(streamerlink_t *link)
         return 0;
 }
 
+static int streamerlink_ondata(void *userdata, response_t *response,
+                               const char *data, int len)
+{
+        streamerlink_t *link = (streamerlink_t *) userdata;
+        if (link->cont == 0)
+                return -1;
+        if (link->ondata)
+                return link->ondata(link->userdata, response, data, len);
+        else
+                return -1;
+}
+
 static void streamerlink_run(streamerlink_t *link)
 {
-        response_t *response = NULL;
         size_t len = 80*1024;
         char buf[len];
         int err;
@@ -196,48 +207,28 @@ static void streamerlink_run(streamerlink_t *link)
         if (err != 0)
                 goto cleanup;
         
-        response = new_response(HTTP_Status_OK);
-        if (response == NULL)
+        link->cont = 1;
+
+        if (link->response != NULL) 
+                delete_response(link->response);
+        
+        link->response = new_response(HTTP_Status_OK);
+        if (link->response == NULL)
                 goto cleanup;
         
-        err = response_parse_html(response, link->socket, RESPONSE_PARSE_HEADERS);
-        if (err != 0)
-                goto cleanup;
+        response_set_onheaders(link->response, link->onresponse, link->userdata);
+        response_set_ondata(link->response, streamerlink_ondata, link);
 
+        response_dumpto(link->response, "/tmp/dump.txt");
 
-        // call onresponse
-        if (link->onresponse)
-                link->onresponse(link->userdata, response);
-        
-        delete_response(response);
-        
-        // read the http response. The stream is read below. We rely
-        // on the parser to handle the response data. 
-        while (!app_quit() && link->cont) {
-                
-                int received = tcp_socket_recv(link->socket, buf, len);
-
-                // we got a timeout. This allows us to check whether
-                // app_quit has been set, and then try again.
-                if (received == -2)
-                        continue;
-                
-                // an error occured.
-                if (received < 0) {
-                        r_err("streamerlink: recv failed");
-                        break;
-                }
-
-                err = link->ondata(link->userdata, buf, received);
-                if (err != 0)
-                        break;
-        }
+        response_parse_html(link->response, link->socket, RESPONSE_PARSE_ALL);
 
 cleanup:
 
-        if (response)
-                delete_response(response);
-        
+        if (link->response != NULL) {
+                delete_response(link->response);
+                link->response = NULL;
+        }
         streamerlink_lock(link);        
         streamerlink_close_connection(link);
         delete_thread(link->thread);
@@ -262,7 +253,7 @@ int streamerlink_connect(streamerlink_t *link)
         //r_debug("streamerlink_connect @1");
 
         if (link->remote_addr == NULL) {
-                r_debug("streamerlink_connect: no remote address");
+                r_info("streamerlink_connect: no remote address");
                 goto unlock_and_return;
         }
 
@@ -296,7 +287,7 @@ int streamerlink_set_remote(streamerlink_t *link, addr_t *addr)
         int ret = -1;
 
         char b[52];
-        r_debug("streamerlink_set_remote: %s", addr_string(addr, b, 52));
+        r_info("streamerlink_set_remote: %s", addr_string(addr, b, 52));
 
         ret = streamerlink_stop_thread(link);
         if (ret != 0)

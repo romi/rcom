@@ -8,7 +8,8 @@ extern "C" {
 typedef struct _streamerlink_t streamerlink_t;
 typedef struct _response_t response_t;
 
-typedef int (*streamerlink_ondata_t)(void *userdata, const char *buf, int len);
+typedef int (*streamerlink_ondata_t)(void *userdata, response_t *response,
+                                     const char *buf, int len);
 typedef int (*streamerlink_onresponse_t)(void *userdata, response_t *response);
 
 addr_t *streamerlink_addr(streamerlink_t *link);

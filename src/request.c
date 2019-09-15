@@ -269,8 +269,6 @@ int request_on_headers_complete(http_parser *p)
         if (t)
                 r->arg = r_strdup(t);
         
-        r_debug("URI: %s, arg: %s", r->uri, r->arg? r->arg : "none");
-
         delete_membuf(r->uri_buffer);
         r->uri_buffer = NULL;
         delete_membuf(r->header_name);
@@ -336,7 +334,7 @@ int request_parse_html(request_t *request, tcp_socket_t client_socket, int what)
                         r_delete(parser);
                         return -1;
                 }
-        
+
                 /* Start up / continue the parser.
                  * Note we pass received==0 to signal that EOF has been received.
                  */
@@ -363,7 +361,7 @@ int request_parse_html(request_t *request, tcp_socket_t client_socket, int what)
                         return -1;
                 }
         }
-
+        
         r_delete(parser);
         return 0;
 }

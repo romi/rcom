@@ -73,6 +73,10 @@ int response_append(response_t *r, const char *data, int len);
 int response_json(response_t *r, json_object_t obj);
 int response_printf(response_t *r, const char *format, ...);
 
+// For debugging
+int response_dumpto(response_t *r, const char *file);
+FILE *response_dumpfile(response_t *r);
+
 #ifdef __cplusplus
 }
 #endif

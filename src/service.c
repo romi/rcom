@@ -287,7 +287,7 @@ void service_handle(struct service_and_socket_t *s)
                 goto cleanup;
         }
 
-        r_debug("request_handle: request for '%s'", request_uri(request));
+        //r_debug("request_handle: request for '%s'", request_uri(request));
 
         if (request_uri(request) == NULL) {
                 r_err("request_handle: requested uri == NULL!?");

@@ -27,8 +27,7 @@ struct _multipart_parser_t {
         uint32_t filepos;
 };
 
-static int multipart_parser_callback(void *data, const char *buf, int len);
-static int multipart_parser_parse_header(multipart_parser_t *m);
+static int multipart_parser_parse_header(multipart_parser_t *m, response_t *r);
 
 multipart_parser_t *new_multipart_parser(void* userdata,
                                          multipart_onheaders_t onheaders,
@@ -69,7 +68,7 @@ void delete_multipart_parser(multipart_parser_t *m)
         }
 }
 
-static int multipart_parser_parse_header(multipart_parser_t *m)
+static int multipart_parser_parse_header(multipart_parser_t *m, response_t *r)
 {
         static char _eol[2];
 #define end_of_line() ((_eol[0] == '\r') && (_eol[1] == '\n'))
@@ -79,10 +78,16 @@ static int multipart_parser_parse_header(multipart_parser_t *m)
         int start = 0;
         int end;
         
+        if (response_dumpfile(r)) {
+                fprintf(response_dumpfile(r), "#[MULPARS]\n[[%.*s]]\n", len, s);
+                fflush(response_dumpfile(r));
+        }
+        
         memset(_eol, 0, 2);
         
         if (strncmp(s, "--nextimage", 11) != 0) {
                 r_err("Invalid chunk separator");
+                r_debug("   Got: '%s'", s);
                 return -1;
         }
         
@@ -101,7 +106,7 @@ static int multipart_parser_parse_header(multipart_parser_t *m)
                                 if (n < 128) {
                                         strcpy(m->mimetype, s+start+14);
                                 } else {
-                                        r_err("Invalid mime-type header");
+                                        r_err("Invalid mime-type header: %.*s", len, s);
                                         m->status = k_error;
                                         return -1;
                                 }
@@ -110,19 +115,20 @@ static int multipart_parser_parse_header(multipart_parser_t *m)
                                 char *endptr;
                                 m->length = strtol(s+start+16, &endptr, 10);
                                 if (m->length == 0) {
-                                        r_err("Invalid length header");
+                                        r_err("Invalid length header: %.*s", 10, s+start+16);
                                         m->status = k_error;
                                         return -1;
                                 }
                                 
-                        } else if (strncmp(s+start, "X-LT-Timestamp: : ", 16) == 0) {
+                        } else if (strncmp(s+start, "X-LT-Timestamp: ", 16) == 0) {
                                 char *endptr;
                                 m->timestamp = strtod(s+start+16, &endptr);
                                 if (m->timestamp == 0) {
-                                        r_err("Invalid timestamp");
+                                        r_err("Invalid timestamp: %.*s", len, s);
                                         m->status = k_error;
                                         return -1;
                                 }
+                                //r_debug("parser: timestamp %f", m->timestamp);
                         } else {
                                 // Do nothing
                         }
@@ -133,8 +139,20 @@ static int multipart_parser_parse_header(multipart_parser_t *m)
         return 0;
 }
 
-static int multipart_parser_read_header(multipart_parser_t *m, const char *buf, int len, int offset)
+/*
+ * This function appends data to the m->header buffer until the end of
+ * the header section is reached (\r\n\r\n). At that point, it calls
+ * multipart_parser_parse_header() to parse the m->header buffer.
+ */
+static int multipart_parser_append_header(multipart_parser_t *m, response_t *response,
+                                        const char *buf, int len, int offset)
 {
+        if (response_dumpfile(response)) {
+                fprintf(response_dumpfile(response), "#[MULADD]\n[[%.*s]]\n",
+                        len - offset, buf + offset);
+                fflush(response_dumpfile(response));
+        }
+        //r_debug("multipart_parser_append_header");
         static char _eoh[4];
 #define end_of_header() ((_eoh[0] == '\r')    \
                          && (_eoh[1] == '\n')  \
@@ -151,7 +169,7 @@ static int multipart_parser_read_header(multipart_parser_t *m, const char *buf, 
                 _eoh[3] = c;
 
                 if (end_of_header()) {
-                        int err = multipart_parser_parse_header(m);
+                        int err = multipart_parser_parse_header(m, response);
                         if (err != 0)
                                 m->status = k_error;
                         else {
@@ -166,10 +184,11 @@ static int multipart_parser_read_header(multipart_parser_t *m, const char *buf, 
         return offset;
 }
 
-static int multipart_parser_read_part(multipart_parser_t *m,
+static int multipart_parser_append_part(multipart_parser_t *m,
                                       const char *buf, int len,
                                       int offset)
 {
+        //r_debug("multipart_parser_append_part");
         int read = membuf_len(m->body); 
         int needed = m->length - read;
         int provided = len - offset;
@@ -186,21 +205,19 @@ static int multipart_parser_read_part(multipart_parser_t *m,
         }
 }
 
-static int multipart_parser_callback(void *data, const char *buf, int len)
-{
-        multipart_parser_t *m = (multipart_parser_t*) data;
-        return multipart_parser_process(m, buf, len);
-}
-
-int multipart_parser_process(multipart_parser_t *m, const char *buf, int len)
+int multipart_parser_process(multipart_parser_t *m, response_t *response,
+                             const char *buf, int len)
 {
         int offset = 0;
         int err = 0;
+
+        //r_debug("multipart_parser_process: %.*s", len, buf);
         
         while (offset < len) {
                 switch (m->status) {
                 case k_read_header:
-                        offset = multipart_parser_read_header(m, buf, len, offset);
+                        offset = multipart_parser_append_header(m, response,
+                                                                buf, len, offset);
                         break;
                 case k_header_complete:
                         if (m->onheaders)
@@ -214,7 +231,7 @@ int multipart_parser_process(multipart_parser_t *m, const char *buf, int len)
                         break;
                         
                 case k_read_body:
-                        offset = multipart_parser_read_part(m, buf, len, offset);
+                        offset = multipart_parser_append_part(m, buf, len, offset);
                         break;
                 case k_body_complete:
                         if (m->onpart)
@@ -226,6 +243,8 @@ int multipart_parser_process(multipart_parser_t *m, const char *buf, int len)
                         m->status = k_read_header;
                         membuf_clear(m->body);
                         break;
+                case k_error:
+                        err = -1;
                 }
         }
         return err;

@@ -15,6 +15,14 @@ struct _response_t {
         membuf_t *status_buffer;
         membuf_t *header_name;
         membuf_t *header_value;
+
+        void *userdata;
+        response_onheaders_t onheaders;
+        response_ondata_t ondata;
+
+        int dump;
+        const char *file;
+        FILE *fp;
 };
 
 response_t *new_response(int status)
@@ -91,6 +99,18 @@ int response_set_mimetype(response_t *r, const char *mimetype)
         return response_set_header(r, "Content-Type", mimetype);
 }
 
+int response_set_onheaders(response_t *r, response_onheaders_t onheaders, void *userdata)
+{
+        r->userdata = userdata;
+        r->onheaders = onheaders;
+}
+
+int response_set_ondata(response_t *r, response_ondata_t ondata, void *userdata)
+{
+        r->userdata = userdata;
+        r->ondata = ondata;
+}
+
 static int response_add_header(response_t *r, const char *key, const char *value)
 {
         //r_debug("response_add_header: name %s, value %s", key, value);
@@ -131,6 +151,12 @@ int response_set_header(response_t *r, const char *key, const char *value)
 static int response_on_status(http_parser *parser, const char *data, size_t length)
 {
         response_t *r = (response_t *) parser->data;
+        
+        if (r->dump) {
+                fprintf(r->fp, "#[STAT]\n[[%.*s]]\n", (int) length, data);
+                fflush(r->fp);
+        }
+        
         membuf_append(r->status_buffer, data, length);
         return 0;
 }
@@ -139,7 +165,10 @@ static int response_on_header_field(http_parser *parser, const char *data, size_
 {
         response_t *r = (response_t *) parser->data;
 
-        //r_debug("response_on_header_field: %.*s", length, data);
+        if (r->dump) {
+                fprintf(r->fp, "#[HEAD]\n[[%.*s]]\n", (int) length, data);
+                fflush(r->fp);
+        }
         
         if (r->parser_header_state == k_header_new
             || r->parser_header_state == k_header_value) {
@@ -170,8 +199,11 @@ static int response_on_header_value(http_parser *parser, const char *data, size_
 {
         response_t *r = (response_t *) parser->data;
 
-        //r_debug("response_on_header_value: %.*s", length, data);
-
+        if (r->dump) {
+                fprintf(r->fp, "#[HVAL]\n[[%.*s]]\n", (int) length, data);
+                fflush(r->fp);
+        }
+        
         if (r->parser_header_state == k_header_new) {
                 r_err("response_on_header_value: got header value before header field");
                 return 0;
@@ -185,6 +217,8 @@ static int response_on_header_value(http_parser *parser, const char *data, size_
 
 static int response_on_headers_complete(http_parser *p)
 {
+        //r_debug("response_on_headers_complete");
+        int err = 0;
         response_t *r = (response_t *) p->data;
         
         if (membuf_len(r->header_name) > 0 
@@ -206,16 +240,30 @@ static int response_on_headers_complete(http_parser *p)
         
         if (r->parse_what == RESPONSE_PARSE_HEADERS)
                 r->continue_parsing = 0;
+
+        if (r->onheaders)
+                err = r->onheaders(r->userdata, r);
         
-        return 0;
+        return err;
 }
 
 static int response_on_body(http_parser *parser, const char *data, size_t length)
 {
+        int err = 0;
         response_t *r = (response_t *) parser->data;
-        membuf_t *body = r->body;
-        membuf_append(body, data, length);
-        return 0;
+
+        if (r->dump) {
+                fprintf(r->fp, "#[BODY]\n[[%.*s]]\n", (int) length, data);
+                fflush(r->fp);
+        }
+        
+        if (r->ondata) 
+                err = r->ondata(r->userdata, r, data, length);
+        else 
+                membuf_append(r->body, data, length);
+        if (err != 0)
+                r_err("response_on_body: ondata return %d", err);
+        return err;
 }
 
 static int response_on_message_complete(http_parser *parser)
@@ -229,12 +277,26 @@ int response_parse_html(response_t *response, tcp_socket_t socket, int what)
 {
         http_parser *parser;
         http_parser_settings settings;
-        //size_t len = 80*1024;
-        size_t len = 1;   // ------------------------ // TODO // FIXME
-        char buf[len];
         size_t parsed;
         ssize_t received;
-                
+
+// ------------------------ // TODO // FIXME
+        size_t small_len = 1;
+        char small_buf[small_len];
+        size_t big_len = 80*1024;
+        char big_buf[big_len];
+
+        size_t len;   
+        char *buf;
+        if (what == RESPONSE_PARSE_HEADERS) {
+                len = small_len;
+                buf = small_buf;
+        } else {
+                len = big_len;
+                buf = big_buf;
+        }
+// ------------------------ // TODO // FIXME
+        
         http_parser_settings_init(&settings);
 
         settings.on_status = response_on_status;
@@ -263,7 +325,11 @@ int response_parse_html(response_t *response, tcp_socket_t socket, int what)
                         if (received < 0)
                                 return -1;
 
-                        //r_debug("http_read_response: %.*s", received, buf);
+                        if (response->dump) {
+                                fprintf(response->fp, "#[RECV]\n[[%.*s]]\n",
+                                        (int) received, buf);
+                                fflush(response->fp);
+                        }
                         
                         /* Start up / continue the parser.
                          * Note we pass received==0 to signal that EOF has been received.
@@ -272,9 +338,14 @@ int response_parse_html(response_t *response, tcp_socket_t socket, int what)
                         if (received == 0)
                                 break;
                         
-                        if (parsed != received)
+                        if (parsed != received
+                            && parsed != received - 1) {
                                 /* Handle error. Usually just close the connection. */
-                                r_err("http_read_response: parsed != received");
+                                r_err("http_read_response: parsed != received (%d != %d)",
+                                      (int) parsed, (int) received);
+                                r_delete(parser);
+                                return -1;
+                        }
                 }
         }
         
@@ -328,4 +399,21 @@ int response_printf(response_t *r, const char *format, ...)
 int response_send(response_t *response, tcp_socket_t client_socket)
 {
         return http_send_response(client_socket, response);
+}
+
+int response_dumpto(response_t *r, const char *file)
+{
+        r->fp = fopen(file, "wb");
+        if (r->fp == NULL) {
+                r_warn("Failed to open response dump file %s", file);
+                return -1;
+        }
+        r->dump = 1;
+        r->file = r_strdup(file);
+        return 0;
+}
+
+FILE *response_dumpfile(response_t *r)
+{
+        return r->fp;
 }
