@@ -31,6 +31,19 @@ There are several utilities:
 * rcgen: takes a description of an app as input and generates C code that provides a skeleton for the app.
 
 
+## rcgen
+
+  $ rcgen code output-file [input-file]
+
+  $ rcgen cmakelists [output-file] [input-file]
+
+
+|   |   |   |
+|---|---|---|
+|name|required| - |Base name for the code generator|
+|init|optionnal|\<name\>_init|Name of the init function|
+|cleanup|optionnal|\<name\>_init|Name of the cleanup function|
+|header|optionnal|\<name\>.h|Name of the cleanup function|
 
 
 
