@@ -94,12 +94,12 @@ The com section lists the hubs, links, and services that your app wants to creat
         {
             "type": "service",
             "topic": "servicing",
-            ...
+            "...": "..."
         },
         {
             "type": "messagehub",
             "topic": "hubbing",
-            ...
+            "..." : "..."
         }
     ]
 }
@@ -115,7 +115,7 @@ For all the links/hubs you must specify the type and the topic name. The followi
 |onmessage|optional| - |The callback function that handles incoming messages|
 |userdata|optional| - |The pointer that will be passed to the callbacl function|
 
-The signature of the callback function is (defined in `rcom/messagelink.h`):
+The signature of the callback function is defined in `rcom/messagelink.h`:
 
 ```c
 typedef void (*messagelink_onmessage_t)(void *userdata,
