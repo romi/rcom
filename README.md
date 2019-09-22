@@ -33,18 +33,92 @@ There are several utilities:
 
 ## rcgen
 
-  $ rcgen code output-file [input-file]
+```console
+$ rcgen code output-file [input-file]
+```
 
-  $ rcgen cmakelists [output-file] [input-file]
+```console
+$ rcgen cmakelists [output-file] [input-file]
+```
 
 
-|   |   |   |
-|---|---|---|
+### General section
+
+The simplest input file contains the name of the app and the list communication links of the app. 
+
+```json
+{
+    "name": "myapp",
+    "com": []
+}
+```
+
+The generated code will 
+* include the header myapp.h,
+* call myapp_init(argc, argv) on startup,
+* call myapp_cleanup() at the end of the execution
+
+These default values can be changed as follows:
+
+```json
+{
+    "name": "myapp",
+    "header": "...",
+    "init": "...",
+    "cleanup": "...",
+    "com": []
+}
+```
+
+
+|variable|   |default|description|
+|---|---|---|---|
 |name|required| - |Base name for the code generator|
-|init|optionnal|\<name\>_init|Name of the init function|
-|cleanup|optionnal|\<name\>_init|Name of the cleanup function|
-|header|optionnal|\<name\>.h|Name of the cleanup function|
+|init|optional|\<name\>_init|Name of the init function|
+|cleanup|optional|\<name\>_init|Name of the cleanup function|
+|header|optional|\<name\>.h|Name of the cleanup function|
+|idle|optional|\<name\>.h|Name of the cleanup function|
+
+**TODO**: function signatures
+
+To assure that the compiler finds the function declarations of the init, cleanup and idle function, you must add them to the header file.
+
+### com section
+
+The com section lists the hubs, links, and services that your app wants to create. It is a JSON array with one object for each link. 
+
+```json
+{
+    "name": "myapp",
+    "com": [
+        {
+            "type": "service",
+            "topic": "servicing",
+            ...
+        },
+        {
+            "type": "messagehub",
+            "topic": "hubbing",
+            ...
+        }
+    ]
+}
+```
+
+For all the links/hubs you must specify the type and the topic name. The following types are recognized: `datahub`, `datalink`, `messagehub`, `messagelink`, `messagehub`, `controller`, `service`, `streamer`, and `streamerlink`.
 
 
+#### messagelink
 
+|variable|   |default|description|
+|---|---|---|---|
+|onmessage|optional| - |The callback function that handles incoming messages|
+|userdata|optional| - |The pointer that will be passed to the callbacl function|
 
+The signature of the callback function is (defined in `rcom/messagelink.h`):
+
+```c
+typedef void (*messagelink_onmessage_t)(void *userdata,
+                                        messagelink_t *link,
+                                        json_object_t message);
+```
