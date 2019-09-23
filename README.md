@@ -122,3 +122,14 @@ typedef void (*messagelink_onmessage_t)(void *userdata,
                                         messagelink_t *link,
                                         json_object_t message);
 ```
+
+
+#### messagehub
+
+|variable|   |default|description|
+|---|---|---|---|
+|onconnect|optional| - |A function that is called whenever a new connection comes in|
+|onmessage|optional| - |The callback function that handles incoming messages|
+|onrequest|optional| - |...|
+|userdata|optional| - |The pointer that will be passed to the callbacl function|
+|port|optional| - |xxx|
