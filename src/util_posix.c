@@ -7,7 +7,6 @@
 #include <sys/time.h>
 #include <sys/types.h>
 #include <sys/syscall.h>
-#include <uuid/uuid.h>
 
 #include <r.h>
 
