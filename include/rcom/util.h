@@ -7,9 +7,6 @@
 extern "C" {
 #endif
 
-//#define rstreq(_s1, _s2) ((_s1) != NULL && (_s2) != NULL && strcmp(_s1,_s2)==0)
-//char *rprintf(char *buffer, int len, const char *format, ...);
-
 const char *filename_to_mimetype(const char *filename);
         
 #ifdef __cplusplus

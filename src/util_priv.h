@@ -12,11 +12,6 @@ extern "C" {
 membuf_t *escape_string(const char* s);
 
 char *encode_base64(const unsigned char *s);
-
-/* void generate_random_buffer(uint8_t *buffer, ssize_t len); */
-/* int rcom_getrandom(void *buf, size_t buflen, unsigned int flags); */
-
-/* char *generate_uuid(); */
         
 unsigned char *SHA1(const unsigned char* s, unsigned char *digest);
 

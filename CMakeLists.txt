@@ -20,7 +20,6 @@ set(SOURCES
   src/addr.c 
   src/net.c 
   src/util.c 
-  src/util_posix.c 
   src/response.c
   src/http.c 
   src/http_parser.c 
@@ -53,16 +52,10 @@ include_directories("${CMAKE_CURRENT_BINARY_DIR}")
 add_library(rcom SHARED ${SOURCES})
 target_link_libraries(rcom m)
 target_link_libraries(rcom r)
-#target_link_libraries(rcom uuid)
-#target_link_libraries(rcom pthread)
-#target_link_libraries(rcom debug sgc)
 
 # Main rcom apps
 add_executable(rcregistry src/rcregistry_main.c)
 target_link_libraries(rcregistry rcom)
-
-#add_executable(rcmonitor src/rcmonitor.c src/run.c)
-#target_link_libraries(rcmonitor rcom)
 
 add_executable(rcgen src/rcgen.c)
 target_link_libraries(rcgen rcom)
