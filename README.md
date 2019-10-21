@@ -73,11 +73,11 @@ These default values can be changed as follows:
 
 |variable|   |default|description|function signature|
 |---|---|---|---|---|
-|name|required| NA |Base name for the code generator|NA|
+|name|required| none |Base name for the code generator|NA|
 |init|optional|\<name\>_init|Name of the init function|int (*)(int argc, char **argv)|
 |cleanup|optional|\<name\>_init|Name of the cleanup function|void (*)()|
-|header|optional|\<name\>.h|Name of the cleanup function|NA|
-|idle|optional|NA|Name of the idle function|void (*)()|
+|header|optional|\<name\>.h|Name of the cleanup function| |
+|idle|optional|none|Name of the idle function|void (*)()|
 
 
 To assure that the compiler finds the function declarations of the init, cleanup and idle function, you must add them to the header file.
