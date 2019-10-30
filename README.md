@@ -71,15 +71,14 @@ These default values can be changed as follows:
 ```
 
 
-|variable|   |default|description|
-|---|---|---|---|
-|name|required| - |Base name for the code generator|
-|init|optional|\<name\>_init|Name of the init function|
-|cleanup|optional|\<name\>_init|Name of the cleanup function|
-|header|optional|\<name\>.h|Name of the cleanup function|
-|idle|optional|\<name\>.h|Name of the cleanup function|
+|variable|   |default|description|function signature|
+|---|---|---|---|---|
+|name|required| none |Base name for the code generator|NA|
+|init|optional|\<name\>_init|Name of the init function|int (*)(int argc, char **argv)|
+|cleanup|optional|\<name\>_init|Name of the cleanup function|void (*)()|
+|header|optional|\<name\>.h|Name of the cleanup function| |
+|idle|optional|none|Name of the idle function|void (*)()|
 
-**TODO**: function signatures
 
 To assure that the compiler finds the function declarations of the init, cleanup and idle function, you must add them to the header file.
 
