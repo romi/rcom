@@ -135,7 +135,8 @@ int print_com_decl_i(membuf_t *buf, const char *name, json_object_t obj)
         if (rstreq(type, "controller")) {
                 membuf_printf(buf, "static messagehub_t *messagehub_%s = NULL;\n\n", topic);
                 membuf_printf(buf,
-                              "messagehub_t *get_messagehub_%s() {\n"
+                              "messagehub_t *get_messagehub_%s()\n"
+                              "{\n"
                               "        return messagehub_%s;\n"
                               "}\n\n",
                               topic, topic);
