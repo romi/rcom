@@ -232,7 +232,7 @@ void app_init(int *argc, char **argv)
 {
         int ret;
 
-        if (mem_init(argc) != 0)
+        if (r_init(argc) != 0)
                 exit(1);
 
         //_logdir = r_strdup(".");
@@ -469,5 +469,5 @@ static void rcom_cleanup()
         json_cleanup();
         app_cleanup();
         r_log_cleanup();
-        mem_cleanup();
+        r_cleanup();
 }
