@@ -1,6 +1,9 @@
+### Note: rcom is dependent on libr. 
+If you want a simple build script to download all dependencies and build the rover software please see: https://github.com/romi/romi-rover-build-and-test
+
+
 # rcom
 rcom is light-weight libary for inter-node communication 
-
 
 All apps run as separate processes. They communicate with each other using one or more of the communication links discussed below. 
 
