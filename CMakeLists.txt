@@ -5,9 +5,13 @@ project(rcom)
 #set(CMAKE_CXX_STANDARD 11)
 #set(CMAKE_BUILD_TYPE DEBUG)
 #set(CMAKE_C_FLAGS "-O0 -ggdb")
+#set(CMAKE_C_FLAGS "-ggdb")
 ##set(CMAKE_C_FLAGS_DEBUG "-O0 -ggdb -DMEM_DIAGNOSTICS=1")
 #set(CMAKE_C_FLAGS_DEBUG "-O0 -ggdb")
 #set(CMAKE_C_FLAGS_RELEASE "-O0 -ggdb")
+
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
 # The version number.
 set(rcom_VERSION_MAJOR 0)
@@ -46,8 +50,6 @@ set(SOURCES
   src/dump.c 
   )
 
-#include_directories("${CMAKE_CURRENT_BINARY_DIR}")
-
 add_library(rcom SHARED ${SOURCES})
 
 target_include_directories(rcom
@@ -83,72 +85,80 @@ target_link_libraries(rclaunch rcom)
 #add_executable(rcdev src/rcdev.c)
 #target_link_libraries(rcdev rcom usb-1.0)
 
-## Example apps
-#
-## binread
-#ADD_CUSTOM_COMMAND(
-#  OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/examples/binread/binread_main.c
-#  COMMAND rcgen code ${CMAKE_CURRENT_SOURCE_DIR}/examples/binread/binread_main.c ${CMAKE_CURRENT_SOURCE_DIR}/examples/binread/binread.json
-#  DEPENDS rcgen ${CMAKE_CURRENT_SOURCE_DIR}/examples/binread/binread.json
-#  )
-#
-#add_executable(binread ${CMAKE_CURRENT_SOURCE_DIR}/examples/binread/binread.c ${CMAKE_CURRENT_SOURCE_DIR}/examples/binread/binread_main.c)
-#target_link_libraries(binread rcom)
-#
-#
-## binwrite
-#ADD_CUSTOM_COMMAND(
-#  OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/examples/binwrite/binwrite_main.c
-#  COMMAND rcgen code ${CMAKE_CURRENT_SOURCE_DIR}/examples/binwrite/binwrite_main.c ${CMAKE_CURRENT_SOURCE_DIR}/examples/binwrite/binwrite.json
-#  DEPENDS rcgen ${CMAKE_CURRENT_SOURCE_DIR}/examples/binwrite/binwrite.json
-#  )
-#add_executable(binwrite ${CMAKE_CURRENT_SOURCE_DIR}/examples/binwrite/binwrite.c ${CMAKE_CURRENT_SOURCE_DIR}/examples/binwrite/binwrite_main.c)
-#target_link_libraries(binwrite rcom)
-#
-#
-## camera
-#ADD_CUSTOM_COMMAND(
-#  OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/examples/camera/camera_main.c
-#  COMMAND rcgen code ${CMAKE_CURRENT_SOURCE_DIR}/examples/camera/camera_main.c ${CMAKE_CURRENT_SOURCE_DIR}/examples/camera/camera.json
-#  DEPENDS rcgen ${CMAKE_CURRENT_SOURCE_DIR}/examples/camera/camera.json
-#  )
-#
-#add_executable(video4linux ${CMAKE_CURRENT_SOURCE_DIR}/examples/camera/video4linux.c ${CMAKE_CURRENT_SOURCE_DIR}/examples/camera/camera_impl.c examples/camera/camera_main.c)
-#target_link_libraries(video4linux rcom)
-#target_link_libraries(video4linux jpeg)
-#
-#
-## camera_listener
-#ADD_CUSTOM_COMMAND(
-#  OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/examples/camera_listener/camera_listener_main.c
-#  COMMAND rcgen code ${CMAKE_CURRENT_SOURCE_DIR}/examples/camera_listener/camera_listener_main.c ${CMAKE_CURRENT_SOURCE_DIR}/examples/camera_listener/camera_listener.json
-#  DEPENDS rcgen ${CMAKE_CURRENT_SOURCE_DIR}/examples/camera_listener/camera_listener.json
-#  )
-#
-#add_executable(camera_listener ${CMAKE_CURRENT_SOURCE_DIR}/examples/camera_listener/camera_listener.c ${CMAKE_CURRENT_SOURCE_DIR}/examples/camera_listener/camera_listener_main.c)
-#target_link_libraries(camera_listener rcom)
-#
-#
-## motorcontroller
-#ADD_CUSTOM_COMMAND(
-#  OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/examples/motorcontroller/motorcontroller_main.c
-#  COMMAND rcgen code ${CMAKE_CURRENT_SOURCE_DIR}/examples/motorcontroller/motorcontroller_main.c ${CMAKE_CURRENT_SOURCE_DIR}/examples/motorcontroller/motorcontroller.json
-#  DEPENDS rcgen ${CMAKE_CURRENT_SOURCE_DIR}/examples/motorcontroller/motorcontroller.json
-#  )
-#
-#add_executable(motorcontroller ${CMAKE_CURRENT_SOURCE_DIR}/examples/motorcontroller/motorcontroller.c ${CMAKE_CURRENT_SOURCE_DIR}/examples/motorcontroller/motorcontroller_main.c)
-#target_link_libraries(motorcontroller rcom)
-#
-#
-## wheel_odometry
-#ADD_CUSTOM_COMMAND(
-#  OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/examples/wheel_odometry/wheel_odometry_main.c
-#  COMMAND rcgen code ${CMAKE_CURRENT_SOURCE_DIR}/examples/wheel_odometry/wheel_odometry_main.c ${CMAKE_CURRENT_SOURCE_DIR}/examples/wheel_odometry/wheel_odometry.json
-#  DEPENDS rcgen ${CMAKE_CURRENT_SOURCE_DIR}/examples/wheel_odometry/wheel_odometry.json
-#  )
-#
-#add_executable(wheel_odometry ${CMAKE_CURRENT_SOURCE_DIR}/examples/wheel_odometry/wheel_odometry.c ${CMAKE_CURRENT_SOURCE_DIR}/examples/wheel_odometry/wheel_odometry_main.c)
-#target_link_libraries(wheel_odometry rcom)
+# Options.
+# Build the developer example applications
+# NOTE: Move this to Examples Directory CMakeLists,txt
+option(BUILD_EXAMPLES "Build example applications." OFF)
+
+if (BUILD_EXAMPLES)
+  set(CMAKE_C_FLAGS "-ggdb")
+  ## Example apps
+  #
+  # binread
+  message( "BinRead runtime dir = :" ${CMAKE_RUNTIME_OUTPUT_DIRECTORY} )
+  ADD_CUSTOM_COMMAND(
+    OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/examples/binread/binread_main.c
+    COMMAND ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/rcgen code ${CMAKE_CURRENT_SOURCE_DIR}/examples/binread/binread_main.c ${CMAKE_CURRENT_SOURCE_DIR}/examples/binread/binread.json
+    DEPENDS ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/rcgen ${CMAKE_CURRENT_SOURCE_DIR}/examples/binread/binread.json
+    )
+
+  add_executable(binread ${CMAKE_CURRENT_SOURCE_DIR}/examples/binread/binread.c ${CMAKE_CURRENT_SOURCE_DIR}/examples/binread/binread_main.c)
+  target_link_libraries(binread rcom)
+
+  # binwrite
+  ADD_CUSTOM_COMMAND(
+    OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/examples/binwrite/binwrite_main.c
+    COMMAND rcgen code ${CMAKE_CURRENT_SOURCE_DIR}/examples/binwrite/binwrite_main.c ${CMAKE_CURRENT_SOURCE_DIR}/examples/binwrite/binwrite.json
+    DEPENDS rcgen ${CMAKE_CURRENT_SOURCE_DIR}/examples/binwrite/binwrite.json
+    )
+  add_executable(binwrite ${CMAKE_CURRENT_SOURCE_DIR}/examples/binwrite/binwrite.c ${CMAKE_CURRENT_SOURCE_DIR}/examples/binwrite/binwrite_main.c)
+  target_link_libraries(binwrite rcom)
+
+
+  # camera
+  ADD_CUSTOM_COMMAND(
+    OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/examples/camera/camera_main.c
+    COMMAND rcgen code ${CMAKE_CURRENT_SOURCE_DIR}/examples/camera/camera_main.c ${CMAKE_CURRENT_SOURCE_DIR}/examples/camera/camera.json
+    DEPENDS rcgen ${CMAKE_CURRENT_SOURCE_DIR}/examples/camera/camera.json
+    )
+
+  add_executable(video4linux ${CMAKE_CURRENT_SOURCE_DIR}/examples/camera/video4linux.c ${CMAKE_CURRENT_SOURCE_DIR}/examples/camera/camera_impl.c examples/camera/camera_main.c)
+  target_link_libraries(video4linux rcom)
+  target_link_libraries(video4linux jpeg)
+
+
+  # camera_listener
+  ADD_CUSTOM_COMMAND(
+    OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/examples/camera_listener/camera_listener_main.c
+    COMMAND rcgen code ${CMAKE_CURRENT_SOURCE_DIR}/examples/camera_listener/camera_listener_main.c ${CMAKE_CURRENT_SOURCE_DIR}/examples/camera_listener/camera_listener.json
+    DEPENDS rcgen ${CMAKE_CURRENT_SOURCE_DIR}/examples/camera_listener/camera_listener.json
+    )
+
+  add_executable(camera_listener ${CMAKE_CURRENT_SOURCE_DIR}/examples/camera_listener/camera_listener.c ${CMAKE_CURRENT_SOURCE_DIR}/examples/camera_listener/camera_listener_main.c)
+  target_link_libraries(camera_listener rcom)
+
+
+  # motorcontroller
+  ADD_CUSTOM_COMMAND(
+    OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/examples/motorcontroller/motorcontroller_main.c
+    COMMAND rcgen code ${CMAKE_CURRENT_SOURCE_DIR}/examples/motorcontroller/motorcontroller_main.c ${CMAKE_CURRENT_SOURCE_DIR}/examples/motorcontroller/motorcontroller.json
+    DEPENDS rcgen ${CMAKE_CURRENT_SOURCE_DIR}/examples/motorcontroller/motorcontroller.json
+    )
+
+  add_executable(motorcontroller ${CMAKE_CURRENT_SOURCE_DIR}/examples/motorcontroller/motorcontroller.c ${CMAKE_CURRENT_SOURCE_DIR}/examples/motorcontroller/motorcontroller_main.c)
+  target_link_libraries(motorcontroller rcom)
+
+
+  # wheel_odometry
+  ADD_CUSTOM_COMMAND(
+    OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/examples/wheel_odometry/wheel_odometry_main.c
+    COMMAND rcgen code ${CMAKE_CURRENT_SOURCE_DIR}/examples/wheel_odometry/wheel_odometry_main.c ${CMAKE_CURRENT_SOURCE_DIR}/examples/wheel_odometry/wheel_odometry.json
+    DEPENDS rcgen ${CMAKE_CURRENT_SOURCE_DIR}/examples/wheel_odometry/wheel_odometry.json
+    )
+
+  add_executable(wheel_odometry ${CMAKE_CURRENT_SOURCE_DIR}/examples/wheel_odometry/wheel_odometry.c ${CMAKE_CURRENT_SOURCE_DIR}/examples/wheel_odometry/wheel_odometry_main.c)
+  target_link_libraries(wheel_odometry rcom)
+endif()
 
 ## Installed files
 INSTALL(TARGETS rcom DESTINATION "lib")
@@ -163,4 +173,3 @@ INSTALL (
     DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/
     DESTINATION include
     FILES_MATCHING PATTERN "*.h")
-
