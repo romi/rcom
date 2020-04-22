@@ -27,20 +27,17 @@ ADD_CUSTOM_COMMAND(
 add_executable(binwrite ${CMAKE_CURRENT_SOURCE_DIR}/binwrite/binwrite.c ${CMAKE_CURRENT_SOURCE_DIR}/binwrite/binwrite_main.c)
 target_link_libraries(binwrite rcom )
 
-
 ## camera
-#ADD_CUSTOM_COMMAND(
-#  OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/camera/camera_main.c
-#  COMMAND ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/rcgen code ${CMAKE_CURRENT_SOURCE_DIR}/camera/camera_main.c ${CMAKE_CURRENT_SOURCE_DIR}/camera/camera.json
-#  DEPENDS ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/rcgen ${CMAKE_CURRENT_SOURCE_DIR}/camera/camera.json
-#  )
-#
-#add_executable(video4linux ${CMAKE_CURRENT_SOURCE_DIR}/camera/video4linux.c ${CMAKE_CURRENT_SOURCE_DIR}/camera/camera_impl.c examples/camera/camera_main.c)
-#target_link_libraries(video4linux
-#                        rcom
-#                        jpeg)
-##target_link_libraries(video4linux jpeg)
+ADD_CUSTOM_COMMAND(
+        OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/camera/camera_main.c
+        COMMAND ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/rcgen code ${CMAKE_CURRENT_SOURCE_DIR}/camera/camera_main.c ${CMAKE_CURRENT_SOURCE_DIR}/camera/camera.json
+        DEPENDS ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/rcgen ${CMAKE_CURRENT_SOURCE_DIR}/camera/camera.json
+)
 
+add_executable(video4linux ${CMAKE_CURRENT_SOURCE_DIR}/camera/video4linux.c ${CMAKE_CURRENT_SOURCE_DIR}/camera/camera_impl.c ${CMAKE_CURRENT_SOURCE_DIR}/camera/camera_main.c)
+target_link_libraries(video4linux
+                        rcom
+                        jpeg)
 
 # camera_listener
 ADD_CUSTOM_COMMAND(
