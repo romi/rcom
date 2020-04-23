@@ -6,9 +6,6 @@ project(rcom)
 set(rcom_VERSION_MAJOR 0)
 set(rcom_VERSION_MINOR 1)
 
-#set(Python_ADDITIONAL_VERSIONS 3.6)
-#find_package(PythonLibs 3 REQUIRED
-
 #########################################################
 
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
@@ -18,85 +15,39 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 option(BUILD_TESTS "Build all tests." ON)
 option(BUILD_COVERAGE "Build coverage." ON)
 
-if(BUILD_TESTS)
-    set(CMAKE_MODULES_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/cmake_modules)
-    set(CMAKE_DOWNLOAD_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/download)
-
-    include(CTest)
-
-    include(${CMAKE_MODULES_DIRECTORY}/CodeCoverage.cmake)
-
-    set( COVERAGE_EXCLUDES
-            "/usr/*"
-            "*/googletest/*"
-            "*/googlemock/*"
-            "*test/*"
-            "*libr/*")
-
-    if (BUILD_COVERAGE)
-        append_coverage_compiler_flags()
-    endif()
-
-    enable_testing()
-
-    if (CMAKE_VERSION VERSION_LESS 3.2)
-        set(UPDATE_DISCONNECTED_IF_AVAILABLE "")
-    else()
-        set(UPDATE_DISCONNECTED_IF_AVAILABLE "UPDATE_DISCONNECTED 1")
-    endif()
-
-    include(${CMAKE_MODULES_DIRECTORY}/DownloadProject.cmake)
-
-    find_library(GTEST_LIB gtest)
-    if(NOT GTEST_LIB)
-        download_project(   PROJ                googletest
-                GIT_REPOSITORY      https://github.com/google/googletest.git
-                GIT_TAG             master
-                PREFIX              ${CMAKE_DOWNLOAD_DIRECTORY}/googletest
-                TIMEOUT             180
-                ${UPDATE_DISCONNECTED_IF_AVAILABLE}
-                )
-
-        # Prevent GoogleTest from overriding our compiler/linker options
-        # when building with Visual Studio
-        set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
-
-        add_subdirectory(${googletest_SOURCE_DIR} ${googletest_BINARY_DIR})
-    endif()
-
-    # lcov doesn't build with CMake so we download, set lcov as an external target, then call make.
-    # we then manually add the bin path so that we can call it later.
-    download_project(   PROJ              lcov
-            URL               https://github.com/linux-test-project/lcov/releases/download/v1.14/lcov-1.14.tar.gz
-            PREFIX            ${CMAKE_DOWNLOAD_DIRECTORY}/lcov
-            TIMEOUT           180
-            ${UPDATE_DISCONNECTED_IF_AVAILABLE}
-            )
-
-    set(LCOV_PATH "${lcov_SOURCE_DIR}/bin/lcov")
-    set(GENHTML_PATH "${lcov_SOURCE_DIR}/bin/genhtml")
-
-endif() # BUILD_TESTS
-
+set(CMAKE_MODULES_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/cmake_modules)
+set(CMAKE_DOWNLOAD_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/download)
 include(${CMAKE_MODULES_DIRECTORY}/DownloadProject.cmake)
-include(${CMAKE_MODULES_DIRECTORY}/CodeCoverage.cmake)
 
 find_library(R_LIB r)
 if(NOT R_LIB)
     download_project(
             PROJ              libr
             GIT_REPOSITORY    https://github.com/romi/libr.git
-            GIT_TAG           master
+            GIT_TAG           ci_dev
             TIMEOUT           180
             SOURCE_DIR        ${CMAKE_CURRENT_SOURCE_DIR}/libr
             BINARY_DIR        ${CMAKE_BINARY_DIR}/libr
             ${UPDATE_DISCONNECTED_IF_AVAILABLE})
+#    TBD SET(LOCAL_LIBR_BUILD OFF)
     add_subdirectory(${libr_SOURCE_DIR} ${libr_BINARY_DIR})
+
+    set(LCOV_PATH "${libr_SOURCE_DIR}/download/lcov/lcov-src/bin/lcov")
+    set(GENHTML_PATH "${libr_SOURCE_DIR}/download/lcov/lcov-src//bin/genhtml")
     message( "LIBR Binary dir is:" ${libr_BINARY_DIR} )
 endif()
 
-###########################################################3
+if (BUILD_COVERAGE)
+    set( COVERAGE_EXCLUDES
+            "/usr/*"
+            "*/googletest/*"
+            "*/googlemock/*"
+            "*test/*")
+    include(${CMAKE_MODULES_DIRECTORY}/CodeCoverage.cmake)
+    message("LCOV PATH = " ${LCOV_PATH})
+endif()
 
+###########################################################3
 
 set(SOURCES
   src/addr.c 
@@ -165,6 +116,7 @@ target_link_libraries(rclaunch rcom)
 
 
 if(BUILD_TESTS)
+    include(CTest)
     add_subdirectory(test)
 endif()
 
