@@ -6,18 +6,81 @@ project(rcom)
 set(rcom_VERSION_MAJOR 0)
 set(rcom_VERSION_MINOR 1)
 
-#########################################################
+set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
+############################################################
 
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
-# Options. Build tests by default. We want to test whether we are developing or building a release.
-# I mean... why wouldn't you? :)
+
+############################################################
+
+# Options.
+#Build tests by default. We want run tests whether we are developing or building a release. I mean... why wouldn't you? :)
 option(BUILD_TESTS "Build all tests." ON)
 option(BUILD_COVERAGE "Build coverage." ON)
+# This flag is used to avoid duplication when this project is imported as part of a larger project which already has gtest and lcov.
+option(LOCAL_LIBRCOM_BUILD "Used when building librcom locally. Set to off for server builds." ON)
 
-set(CMAKE_MODULES_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/cmake_modules)
-set(CMAKE_DOWNLOAD_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/download)
-include(${CMAKE_MODULES_DIRECTORY}/DownloadProject.cmake)
+if(BUILD_TESTS)
+    set(CMAKE_MODULES_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/cmake_modules)
+    set(CMAKE_DOWNLOAD_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/download)
+
+    include(CTest)
+    enable_testing()
+
+    if (LOCAL_LIBRCOM_BUILD)
+        if (CMAKE_VERSION VERSION_LESS 3.2)
+            set(UPDATE_DISCONNECTED_IF_AVAILABLE "")
+        else()
+            set(UPDATE_DISCONNECTED_IF_AVAILABLE "UPDATE_DISCONNECTED 1")
+        endif()
+
+        include(${CMAKE_MODULES_DIRECTORY}/DownloadProject.cmake)
+        download_project(   PROJ                googletest
+                GIT_REPOSITORY      https://github.com/google/googletest.git
+                GIT_TAG             master
+                PREFIX              ${CMAKE_DOWNLOAD_DIRECTORY}/googletest
+                ${UPDATE_DISCONNECTED_IF_AVAILABLE}
+                )
+
+        # Prevent GoogleTest from overriding our compiler/linker options
+        # when building with Visual Studio
+        set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+        add_subdirectory(${googletest_SOURCE_DIR} ${googletest_BINARY_DIR})
+    endif()
+
+endif() # BUILD_TESTS
+
+# Can't build for coverage without the test.
+if (BUILD_COVERAGE AND BUILD_TESTS)
+    if (LOCAL_LIBRCOM_BUILD)
+        # lcov doesn't build with CMake so we download, set lcov as an external target, then call make.
+        # we then manually add the bin path so that we can call it later.
+        download_project(   PROJ              lcov
+                URL               https://github.com/linux-test-project/lcov/releases/download/v1.14/lcov-1.14.tar.gz
+                PREFIX            ${CMAKE_DOWNLOAD_DIRECTORY}/lcov
+                TIMEOUT           180
+                ${UPDATE_DISCONNECTED_IF_AVAILABLE}
+                )
+
+        set(LCOV_PATH "${lcov_SOURCE_DIR}/bin/lcov")
+        set(GENHTML_PATH "${lcov_SOURCE_DIR}/bin/genhtml")
+    endif()
+
+    include(${CMAKE_MODULES_DIRECTORY}/CodeCoverage.cmake)
+
+    append_coverage_compiler_flags()
+    set( COVERAGE_EXCLUDES
+            "/usr/*"
+            "*/googletest/*"
+            "*/googlemock/*"
+            "*test/*")
+endif()
+
+######################################
 
 find_library(R_LIB r)
 if(NOT R_LIB)
@@ -29,22 +92,10 @@ if(NOT R_LIB)
             SOURCE_DIR        ${CMAKE_CURRENT_SOURCE_DIR}/libr
             BINARY_DIR        ${CMAKE_BINARY_DIR}/libr
             ${UPDATE_DISCONNECTED_IF_AVAILABLE})
-#    TBD SET(LOCAL_LIBR_BUILD OFF)
+    # To be compatible with older versions of cmake we need to declare the option here to override the option in the sub dir.
+    option(LOCAL_LIBR_BUILD "Used when building libr locally. Set to off for server builds." ON)
+    set(LOCAL_LIBR_BUILD OFF)
     add_subdirectory(${libr_SOURCE_DIR} ${libr_BINARY_DIR})
-
-    set(LCOV_PATH "${libr_SOURCE_DIR}/download/lcov/lcov-src/bin/lcov")
-    set(GENHTML_PATH "${libr_SOURCE_DIR}/download/lcov/lcov-src//bin/genhtml")
-    message( "LIBR Binary dir is:" ${libr_BINARY_DIR} )
-endif()
-
-if (BUILD_COVERAGE)
-    set( COVERAGE_EXCLUDES
-            "/usr/*"
-            "*/googletest/*"
-            "*/googlemock/*"
-            "*test/*")
-    include(${CMAKE_MODULES_DIRECTORY}/CodeCoverage.cmake)
-    message("LCOV PATH = " ${LCOV_PATH})
 endif()
 
 ###########################################################3
@@ -116,7 +167,6 @@ target_link_libraries(rclaunch rcom)
 
 
 if(BUILD_TESTS)
-    include(CTest)
     add_subdirectory(test)
 endif()
 
