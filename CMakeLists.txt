@@ -24,7 +24,7 @@ option(BUILD_COVERAGE "Build coverage." ON)
 
 if(BUILD_TESTS)
     set(CMAKE_MODULES_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/cmake_modules)
-    set(CMAKE_DOWNLOAD_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/download)
+    set(CMAKE_THIRDPARTY_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty)
 
     include(CTest)
     enable_testing()
@@ -40,7 +40,7 @@ if(BUILD_TESTS)
         download_project(   PROJ                googletest
                 GIT_REPOSITORY      https://github.com/google/googletest.git
                 GIT_TAG             master
-                PREFIX              ${CMAKE_DOWNLOAD_DIRECTORY}/googletest
+                PREFIX              ${CMAKE_THIRDPARTY_DIRECTORY}/googletest
                 ${UPDATE_DISCONNECTED_IF_AVAILABLE}
                 )
 
@@ -59,7 +59,7 @@ if (BUILD_COVERAGE AND BUILD_TESTS)
         # we then manually add the bin path so that we can call it later.
         download_project(   PROJ              lcov
                 URL               https://github.com/linux-test-project/lcov/releases/download/v1.14/lcov-1.14.tar.gz
-                PREFIX            ${CMAKE_DOWNLOAD_DIRECTORY}/lcov
+                PREFIX            ${CMAKE_THIRDPARTY_DIRECTORY}/lcov
                 TIMEOUT           180
                 ${UPDATE_DISCONNECTED_IF_AVAILABLE}
                 )
