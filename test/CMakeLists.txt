@@ -20,7 +20,7 @@ if (BUILD_COVERAGE)
 
         SETUP_TARGET_FOR_COVERAGE_LCOV(
                                     NAME rcom_unit_tests_coverage
-                                    BASE_DIRECTORY "../"
+                                    BASE_DIRECTORY ${CMAKE_BINARY_DIR}
                                     EXECUTABLE ctest -V ${n_cores}
                                     DEPENDENCIES rcom_unit_tests )
 endif()
