@@ -17,6 +17,14 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
 ############################################################
 
+include(${CMAKE_MODULES_DIRECTORY}/CodeCoverage.cmake)
+set( COVERAGE_EXCLUDES
+        "/usr/*"
+        "*/googletest/*"
+        "*/googlemock/*"
+        "*/thirdparty*"
+        "*test/*")
+
 # Options.
 #Build tests by default. We want run tests whether we are developing or building a release. I mean... why wouldn't you? :)
 option(BUILD_TESTS "Build all tests." ON)
@@ -68,14 +76,7 @@ if (BUILD_COVERAGE AND BUILD_TESTS)
         set(GENHTML_PATH "${lcov_SOURCE_DIR}/bin/genhtml")
     endif()
 
-    include(${CMAKE_MODULES_DIRECTORY}/CodeCoverage.cmake)
-
     append_coverage_compiler_flags()
-    set( COVERAGE_EXCLUDES
-            "/usr/*"
-            "*/googletest/*"
-            "*/googlemock/*"
-            "*test/*")
 endif()
 
 ######################################
