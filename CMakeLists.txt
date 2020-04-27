@@ -23,9 +23,7 @@ set(CMAKE_THIRDPARTY_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty)
 include(${CMAKE_MODULES_DIRECTORY}/CodeCoverage.cmake)
 set( COVERAGE_EXCLUDES
         "/usr/*"
-        "*/googletest/*"
-        "*/googlemock/*"
-        "*/thirdparty*"
+        "${CMAKE_SOURCE_DIR}/thirdparty/*"
         "*test/*")
 
 # Options.
