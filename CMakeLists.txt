@@ -81,7 +81,17 @@ endif()
 ######################################
 
 if (NOT DEFINED libr_SOURCE_DIR)
-    download_project(
+    set(LIBR_DIR "${CMAKE_SOURCE_DIR}/libr")
+    find_path(LIBR_DIRECTORY
+            NAMES "CMakeLists.txt"
+            PATHS ${LIBR_DIR})
+    if (NOT LIBR_DIRECTORY)
+        MESSAGE("RCOM - ${LIBR_DIR} does not exist. Downloading dependency.")
+        MESSAGE("RCOM - WARNING")
+        MESSAGE("RCOM - The dependency is cloned to support rcom development only.")
+        MESSAGE("RCOM - To work on both rcom and libr please see: https://github.com/romi/romi-rover-build-and-test")
+
+        download_project(
             PROJ              libr
             GIT_REPOSITORY    https://github.com/romi/libr.git
             GIT_TAG           ci_dev
@@ -89,8 +99,10 @@ if (NOT DEFINED libr_SOURCE_DIR)
             SOURCE_DIR        ${CMAKE_CURRENT_SOURCE_DIR}/libr
             BINARY_DIR        ${CMAKE_CURRENT_BINARY_DIR}/libr
             ${UPDATE_DISCONNECTED_IF_AVAILABLE})
-
-    add_subdirectory(${libr_SOURCE_DIR} ${libr_BINARY_DIR})
+    else()
+        MESSAGE("RCOM - ${LIBR_DIRECTORY} exists. Not downloading dependency.")
+    endif()
+    add_subdirectory(${LIBR_DIR})
 endif()
 
 ###########################################################3
