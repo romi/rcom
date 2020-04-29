@@ -10,6 +10,14 @@ set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+# For now everything is debug. Set Compile options locally to maintain independent library builds.
+set(CMAKE_BUILD_TYPE Debug)
+#TBD: Turn Warning on and fix them
+#set(CMAKE_CXX_FLAGS "-Wall -Wextra")
+#set(CMAKE_CXX_FLAGS_DEBUG "-O0")
+#set(CMAKE_C_FLAGS "-Wall -Wextra")
+#set(CMAKE_C_FLAGS_DEBUG "-O0")
+
 ############################################################
 
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
@@ -19,12 +27,6 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
 set(CMAKE_MODULES_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/cmake_modules)
 set(CMAKE_THIRDPARTY_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty)
-
-include(${CMAKE_MODULES_DIRECTORY}/CodeCoverage.cmake)
-set( COVERAGE_EXCLUDES
-        "/usr/*"
-        "${CMAKE_SOURCE_DIR}/thirdparty/*"
-        "*test/*")
 
 # Options.
 #Build tests by default. We want run tests whether we are developing or building a release. I mean... why wouldn't you? :)
@@ -62,6 +64,7 @@ endif() # BUILD_TESTS
 # Can't build for coverage without the test.
 if (BUILD_COVERAGE AND BUILD_TESTS)
     if (NOT DEFINED lcov_SOURCE_DIR)
+        include(${CMAKE_MODULES_DIRECTORY}/CodeCoverage.cmake)
         # lcov doesn't build with CMake so we download, set lcov as an external target, then call make.
         # we then manually add the bin path so that we can call it later.
         download_project(   PROJ              lcov
@@ -74,7 +77,10 @@ if (BUILD_COVERAGE AND BUILD_TESTS)
         set(LCOV_PATH "${lcov_SOURCE_DIR}/bin/lcov")
         set(GENHTML_PATH "${lcov_SOURCE_DIR}/bin/genhtml")
     endif()
-
+    set( COVERAGE_EXCLUDES
+            "/usr/*"
+            "${CMAKE_SOURCE_DIR}/thirdparty/*"
+            "*test/*")
     append_coverage_compiler_flags()
 endif()
 
