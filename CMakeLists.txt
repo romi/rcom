@@ -65,6 +65,7 @@ endif() # BUILD_TESTS
 if (BUILD_COVERAGE AND BUILD_TESTS)
     if (NOT DEFINED lcov_SOURCE_DIR)
         include(${CMAKE_MODULES_DIRECTORY}/CodeCoverage.cmake)
+
         # lcov doesn't build with CMake so we download, set lcov as an external target, then call make.
         # we then manually add the bin path so that we can call it later.
         download_project(   PROJ              lcov
@@ -77,11 +78,13 @@ if (BUILD_COVERAGE AND BUILD_TESTS)
         set(LCOV_PATH "${lcov_SOURCE_DIR}/bin/lcov")
         set(GENHTML_PATH "${lcov_SOURCE_DIR}/bin/genhtml")
     endif()
+
     set( COVERAGE_EXCLUDES
             "/usr/*"
             "${CMAKE_SOURCE_DIR}/thirdparty/*"
             "*test/*")
     append_coverage_compiler_flags()
+
 endif()
 
 ######################################
