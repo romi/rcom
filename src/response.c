@@ -399,25 +399,40 @@ int response_json(response_t *r, json_object_t obj)
 
 int response_printf(response_t *r, const char *format, ...)
 {
-        int len;
-        va_list ap;
-        int ret;
-        
-        va_start(ap, format);
-        len = vsnprintf(NULL, 0, format, ap);
-        va_end(ap);
+    va_list ap;
+    int ret;
 
-        if (len < 0)
-                return -1;
+    va_start(ap, format);
+    ret = membuf_vprintf(r->body, format, ap);
+    va_end(ap);
 
-        membuf_assure(r->body, len+1);
-
-        va_start(ap, format);
-        ret = membuf_vprintf(r->body, format, ap);
-        va_end(ap);
-
-        return ret;
+    if (r < 0) {
+        r_err("response_printf: membuf_vprintf returned an error");
+    }
+    return ret;
 }
+
+//int response_printf(response_t *r, const char *format, ...)
+//{
+//        int len;
+//        va_list ap;
+//        int ret;
+//
+//        va_start(ap, format);
+//        len = vsnprintf(NULL, 0, format, ap);
+//        va_end(ap);
+//
+//        if (len < 0)
+//                return -1;
+//
+//        membuf_assure(r->body, len+1);
+//
+//        va_start(ap, format);
+//        ret = membuf_vprintf(r->body, format, ap);
+//        va_end(ap);
+//
+//        return ret;
+//}
 
 int response_send(response_t *response, tcp_socket_t client_socket)
 {

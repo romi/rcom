@@ -424,30 +424,58 @@ int messagehub_broadcast_f(messagehub_t *hub, messagelink_t *exclude, const char
         
         if (messagehub_membuf(hub) != 0)
                 return -1;
-        
-        va_start(ap, format);
-        len = vsnprintf(NULL, 0, format, ap);
-        va_end(ap);
 
         membuf_lock(hub->mem);
         membuf_clear(hub->mem);
 
-        err = membuf_assure(hub->mem, len+1);
-
-        if (err == 0) {
-                va_start(ap, format);
-                err = membuf_vprintf(hub->mem, format, ap);
-                va_end(ap);
-        }
+        va_start(ap, format);
+        err = membuf_vprintf(hub->mem, format, ap);
+        va_end(ap);
 
         if (err == 0) 
                 err = messagehub_broadcast_text(hub, exclude, membuf_data(hub->mem),
                                                 membuf_len(hub->mem));
+        else if (err < 0) {
+            r_err("messagehub_broadcast_f: membuf_vprintf returned an error");
+        }
         
         membuf_unlock(hub->mem);
         
         return err;
 }
+
+//int messagehub_broadcast_f(messagehub_t *hub, messagelink_t *exclude, const char *format, ...)
+//{
+//    int err;
+//    va_list ap;
+//    int len;
+//
+//    if (messagehub_membuf(hub) != 0)
+//        return -1;
+//
+//    va_start(ap, format);
+//    len = vsnprintf(NULL, 0, format, ap);
+//    va_end(ap);
+//
+//    membuf_lock(hub->mem);
+//    membuf_clear(hub->mem);
+//
+//    err = membuf_assure(hub->mem, len+1);
+//
+//    if (err == 0) {
+//        va_start(ap, format);
+//        err = membuf_vprintf(hub->mem, format, ap);
+//        va_end(ap);
+//    }
+//
+//    if (err == 0)
+//        err = messagehub_broadcast_text(hub, exclude, membuf_data(hub->mem),
+//                                        membuf_len(hub->mem));
+//
+//    membuf_unlock(hub->mem);
+//
+//    return err;
+//}
 
 int messagehub_broadcast_text(messagehub_t *hub, messagelink_t *exclude,
                               const char *data, int len)
