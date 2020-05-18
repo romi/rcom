@@ -739,28 +739,22 @@ json_object_t messagelink_send_command_f(messagelink_t *link, const char *format
 {
         int err;
         va_list ap;
-        int len;
         json_object_t r = json_null();
-        
-        va_start(ap, format);
-        len = vsnprintf(NULL, 0, format, ap);
-        va_end(ap);
 
         membuf_lock(link->out);
         membuf_clear(link->out);
 
-        err = membuf_assure(link->out, len+1);
-
-        if (err == 0) {
-                va_start(ap, format);
-                err = membuf_vprintf(link->out, format, ap);
-                va_end(ap);
-        }
+        va_start(ap, format);
+        err = membuf_vprintf(link->out, format, ap);
+        va_end(ap);
 
         if (err == 0) 
                 err = messagelink_send_text(link,
                                             membuf_data(link->out),
                                             membuf_len(link->out));
+        else if (err < 0) {
+                r_err("messagelink_send_command_f: membuf_vprintf returned an error");
+        }
 
         if (err == 0) 
                 r = messagelink_read(link);
