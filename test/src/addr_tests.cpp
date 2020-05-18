@@ -5,15 +5,13 @@ extern "C" {
 #include "fff.h"
 }
 
-DEFINE_FFF_GLOBALS;
-
 // Need to include r.h here to make sure when we mock them below they are mocked in the link with the tests.
 #include "r.h"
 #include "addr.h"
 
-FAKE_VALUE_FUNC(void *, safe_malloc, size_t, int);
-FAKE_VOID_FUNC(safe_free, void *);
-FAKE_VOID_FUNC_VARARG(r_err, const char*, ...);
+FAKE_VALUE_FUNC(void *, safe_malloc, size_t, int)
+FAKE_VOID_FUNC(safe_free, void *)
+FAKE_VOID_FUNC_VARARG(r_err, const char*, ...)
 
 class addr_tests : public ::testing::Test
 {
