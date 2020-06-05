@@ -232,7 +232,8 @@ void app_init(int *argc, char **argv)
 {
         int ret;
 
-        if (r_init(argc) != 0)
+        // ToDo: Add out of memory handler.
+        if (r_init(argc, NULL) != 0)
                 exit(1);
 
         //_logdir = r_strdup(".");
