@@ -445,7 +445,6 @@ int registry_geti(registry_t* registry, int n,
 {
         list_t* l;
         registry_entry_t *e;
-        int r = -1;
         
         registry_lock(registry);
         l = list_nth(registry->entries, n);
@@ -453,12 +452,12 @@ int registry_geti(registry_t* registry, int n,
                 e = list_get(l, registry_entry_t);
                 
                 membuf_clear(name);
-                r = membuf_append(name, e->name, strlen(e->name));
-                r += membuf_append_zero(name);
+                membuf_append(name, e->name, strlen(e->name));
+                membuf_append_zero(name);
                 
                 membuf_clear(topic);
-                r += membuf_append(topic, e->topic, strlen(e->topic));
-                r += membuf_append_zero(topic);
+                membuf_append(topic, e->topic, strlen(e->topic));
+                membuf_append_zero(topic);
                 
                 addr_set(addr, "0.0.0.0", 0);
                 if (e->addr) addr_copy(e->addr, addr);
@@ -467,7 +466,7 @@ int registry_geti(registry_t* registry, int n,
         }
         registry_unlock(registry);
         
-        return r;
+        return 0;
 }
 
 static int registry_add_entry_locked(registry_t* registry, registry_entry_t *entry)

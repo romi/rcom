@@ -685,9 +685,7 @@ static int messagelink_read_message(messagelink_t *link, ws_frame_t *frame)
                                 if (j == 4) j = 0;
                         }
                 }
-                
-                if (membuf_append(link->in, buffer, received) != 0)
-                        return -1;
+                membuf_append(link->in, buffer, received);
         }
         
         //_print_message(frame, link->in);
@@ -720,13 +718,11 @@ json_object_t messagelink_send_command(messagelink_t *link, json_object_t comman
         
         membuf_lock(link->out);
         membuf_clear(link->out);
+        membuf_print_obj(link->out, command);
 
-        err = membuf_print_obj(link->out, command);
-
-        if (err == 0) 
-                err = messagelink_send_text(link,
-                                            membuf_data(link->out),
-                                            membuf_len(link->out));
+        err = messagelink_send_text(link,
+                                    membuf_data(link->out),
+                                    membuf_len(link->out));
 
         if (err == 0) 
                 r = messagelink_read(link);
@@ -954,7 +950,7 @@ static int frame_make_header(uint8_t *frame, int opcode, int masked,
 
 static int frame_append_payload(membuf_t *buf, int masked, uint8_t *mask, const char *data, uint64_t length)
 {
-        int err;
+        int err = 0;
         if (masked) {
                 int j = 0;
                 char buffer[1024];
@@ -968,12 +964,11 @@ static int frame_append_payload(membuf_t *buf, int masked, uint8_t *mask, const 
                                 buffer[i] = data[sent + i] ^ mask[j++];
                                 if (j == 4) j = 0;
                         }
-                        err = membuf_append(buf, buffer, n);
-                        if (err) break;
+                        membuf_append(buf, buffer, n);
                         sent += n;
                 }
         } else {
-                err = membuf_append(buf, data, length);
+                membuf_append(buf, data, length);
         }
         return err;
 }
@@ -989,12 +984,11 @@ static int frame_make(membuf_t *buf, int opcode, int masked,
                 _make_mask(mask);
 
         frame_size = frame_make_header(frame, opcode, masked, mask, length);
-        int err = membuf_append(buf, frame, frame_size);
+        membuf_append(buf, frame, frame_size);
 
-        if (err == 0)
-                frame_append_payload(buf, masked, mask, data, length);
+        frame_append_payload(buf, masked, mask, data, length);
 
-        return err;
+        return 0;
 }
 
 static int messagelink_send_close(messagelink_t *link, int code)
@@ -1168,7 +1162,8 @@ int messagelink_send_str(messagelink_t *link, const char* value)
 
 static int32 messagelink_serialise(messagelink_t *link, const char* s, int32 len)
 {
-        return membuf_append(link->out, s, len);
+        membuf_append(link->out, s, len);
+        return 0;
 }
 
 int messagelink_send_obj(messagelink_t *link, json_object_t value)
@@ -1196,13 +1191,11 @@ int messagelink_send_f(messagelink_t *link, const char *format, ...)
         membuf_lock(link->out);
         membuf_clear(link->out);
 
-        err = membuf_assure(link->out, len+1);
+        membuf_assure(link->out, len+1);
 
-        if (err == 0) {
-                va_start(ap, format);
-                err = membuf_vprintf(link->out, format, ap);
-                va_end(ap);
-        }
+        va_start(ap, format);
+        err = membuf_vprintf(link->out, format, ap);
+        va_end(ap);
 
         if (err == 0) 
                 err = messagelink_send_text(link, membuf_data(link->out), membuf_len(link->out));

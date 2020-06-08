@@ -379,17 +379,15 @@ int response_parse_html(response_t *response, tcp_socket_t socket, int what)
 
 int response_append(response_t *r, const char *data, int len)
 {
-        int ret;
-        ret = membuf_append(r->body, data, len);
-        if (ret != 0)
-                return -1;
-
+        membuf_append(r->body, data, len);
         return 0;
 }
 
+// ToDo: Remove return type.
 static int32 response_serialise(response_t *r, const char *s, int32 len)
 {
-        return membuf_append(r->body, s, len);
+        membuf_append(r->body, s, len);
+        return 0;
 }
 
 int response_json(response_t *r, json_object_t obj)

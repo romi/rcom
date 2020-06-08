@@ -154,11 +154,8 @@ static int request_on_body(http_parser *parser, const char *data, size_t length)
 
         if (r->body == NULL) {
                 r->body = new_membuf();
-                if (r->body == NULL)
-                        return 1;
         }
-        if (membuf_append(r->body, data, length) != 0)
-                return 1;
+        membuf_append(r->body, data, length);
         
         return 0;
 }

@@ -399,7 +399,8 @@ int messagehub_broadcast_str(messagehub_t *hub, messagelink_t *exclude, const ch
 
 static int32 messagehub_serialise(messagehub_t *hub, const char* s, int32 len)
 {
-        return membuf_append(hub->mem, s, len);
+        membuf_append(hub->mem, s, len);
+        return 0;
 }
 
 int messagehub_broadcast_obj(messagehub_t *hub, messagelink_t *exclude, json_object_t value)
