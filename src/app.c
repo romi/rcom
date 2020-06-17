@@ -48,7 +48,7 @@ static int interrupt_count = 0;
 static void app_update_logfile();
 static int diagnostics_set_signal_handlers(); 
 static int diagnostics_set_signal_handler(int signum); 
-static void diagnostics_scan_memory();
+//static void diagnostics_scan_memory();
 static void rcom_cleanup();
 static void app_set_config(const char *path);
 
@@ -175,48 +175,48 @@ static int app_check_ip()
         return 0;
 }
 
-static int app_check_ip_HIDE()
-{
-        struct ifaddrs *ifaddr, *ifa;
-        int family, s;
-        char host[NI_MAXHOST];
-
-        if (_ip != NULL)
-                return 0;
-        
-        if (getifaddrs(&ifaddr) == -1) {
-                perror("getifaddrs");
-                return -1;
-        }
-
-        for (ifa = ifaddr; ifa != NULL; ifa = ifa->ifa_next) {
-                if (ifa->ifa_addr == NULL)
-                        continue;  
-                
-                s = getnameinfo(ifa->ifa_addr, sizeof(struct sockaddr_in),
-                                host, NI_MAXHOST, NULL, 0, NI_NUMERICHOST);
-
-                if (s != 0)
-                        continue;
-
-                if (ifa->ifa_addr->sa_family == AF_INET) {
-                        if (!rstreq(host, "127.0.0.1")) {
-                                r_warn("app_check_ip: Using '%s' by default",
-                                       host);
-                                r_warn("app_check_ip: Consider using "
-                                       "the --ip=... option");
-                                _ip = r_strdup(host);
-                                break;
-                        }
-                }
-        }
-
-        if (_ip == NULL)
-                _ip = r_strdup("0.0.0.0");
-        
-        freeifaddrs(ifaddr);
-        return 0;
-}
+//static int app_check_ip_HIDE()
+//{
+//        struct ifaddrs *ifaddr, *ifa;
+//        int s;
+//        char host[NI_MAXHOST];
+//
+//        if (_ip != NULL)
+//                return 0;
+//
+//        if (getifaddrs(&ifaddr) == -1) {
+//                perror("getifaddrs");
+//                return -1;
+//        }
+//
+//        for (ifa = ifaddr; ifa != NULL; ifa = ifa->ifa_next) {
+//                if (ifa->ifa_addr == NULL)
+//                        continue;
+//
+//                s = getnameinfo(ifa->ifa_addr, sizeof(struct sockaddr_in),
+//                                host, NI_MAXHOST, NULL, 0, NI_NUMERICHOST);
+//
+//                if (s != 0)
+//                        continue;
+//
+//                if (ifa->ifa_addr->sa_family == AF_INET) {
+//                        if (!rstreq(host, "127.0.0.1")) {
+//                                r_warn("app_check_ip: Using '%s' by default",
+//                                       host);
+//                                r_warn("app_check_ip: Consider using "
+//                                       "the --ip=... option");
+//                                _ip = r_strdup(host);
+//                                break;
+//                        }
+//                }
+//        }
+//
+//        if (_ip == NULL)
+//                _ip = r_strdup("0.0.0.0");
+//
+//        freeifaddrs(ifaddr);
+//        return 0;
+//}
 
 const char *app_ip()
 {
@@ -228,40 +228,30 @@ int app_standalone()
         return get_registry_standalone();
 }
 
+static void check_result_quit_on_error(int result, char *error_message)
+{
+        if (result != 0){
+                r_panic(error_message);
+                exit(1);
+        }
+}
+
 void app_init(int *argc, char **argv)
 {
-        int ret;
-
         // ToDo: Add out of memory handler.
         if (r_init(argc, NULL) != 0)
                 exit(1);
 
         //_logdir = r_strdup(".");
         app_set_name(argv[0]);
-
-        if (r_log_init() != 0) {
-		r_panic("rcom_log_init failed");
-                exit(1);
-        }
-                
+        check_result_quit_on_error(r_log_init(), "rcom_log_init failed");
         proxy_init();
-        
-        ret = diagnostics_set_signal_handlers();
+        check_result_quit_on_error(diagnostics_set_signal_handlers(), "Abort (diagnostics_set_signal_handlers)");
         atexit(rcom_cleanup);
-        
-        if (setjmp(env) != 0) {
-		r_panic("Abort (longjmp)");
-                app_set_quit();
-                exit(1);
-        }
-
+        check_result_quit_on_error(setjmp(env), "Abort (longjmp)");
         app_parse_args(argc, argv);
+        check_result_quit_on_error(app_check_ip(), "Failed to get the IP address");
 
-        if (app_check_ip() != 0) {
-		r_panic("Failed to get the IP address");
-                app_set_quit();
-                exit(1);
-        }
 }
 
 static void app_update_logfile()
@@ -390,22 +380,26 @@ static void diagnostics_print_backtrace()
 	free(strings);
 }
 
-static void diagnostics_signal_handler(int signum, siginfo_t *info, void *unused)
+
+// ToDo: siginfo_t *info - Set as ununsed. Does any info need to be logged?
+static void diagnostics_signal_handler(int signum, siginfo_t *info  __attribute__((unused)), void *unused  __attribute__((unused)))
 {
+
         fprintf(stderr, "%s: Received %s signal (signal #%d)\n",
                 _name, strsignal(signum), interrupt_count+1);
         r_info("Received %s signal (signal #%d)", strsignal(signum), interrupt_count+1);
 
-	if ((signum == SIGINT) || (signum == SIGHUP) || (signum == SIGTERM)) {
-		r_info("quitting");
+        if ((signum == SIGINT) || (signum == SIGHUP) || (signum == SIGTERM)) {
+                r_info("quitting");
                 diagnostics_set_signal_handler(SIGINT);
                 diagnostics_set_signal_handler(SIGHUP);
                 diagnostics_set_signal_handler(SIGTERM);
                 app_set_quit();
                 interrupt_count++;
+                // ToDo: Why do this when app_quit is set above? Belt and braces? To check.
                 if (interrupt_count == 4)
                         exit(1);
-	}
+        }
 
 	if (signum == SIGSEGV) {
 		r_panic("Segment violation");
@@ -453,7 +447,7 @@ static int diagnostics_set_signal_handler(int signum)
 
 static int diagnostics_set_signal_handlers()
 {
-        int ret = 0;
+    int ret = 0;
 	ret += diagnostics_set_signal_handler(SIGINT);
 	ret += diagnostics_set_signal_handler(SIGHUP);
 	ret += diagnostics_set_signal_handler(SIGTERM);

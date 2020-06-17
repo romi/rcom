@@ -71,7 +71,6 @@ static streamer_client_t *new_streamer_client(streamer_t *streamer,
                                               tcp_socket_t socket)
 {
         streamer_client_t *client;
-        circular_buffer_t *c;
 
         client = r_new(streamer_client_t);
         if (client == NULL)
@@ -104,7 +103,7 @@ static int streamer_client_read(streamer_client_t *client, char *buffer, size_t 
                 available = circular_buffer_available(client->buffer);
         }
 
-        if (available > len)
+        if ((unsigned)available > len)
                 available = len;
         circular_buffer_read(client->buffer, buffer, available);
         
@@ -283,9 +282,6 @@ streamer_t *new_streamer(const char *name,
                          streamer_onbroadcast_t onbroadcast,
                          void *userdata)
 {
-        int ret;
-        int socklen = sizeof(struct sockaddr_in);
-        
         streamer_t *streamer = r_new(streamer_t);
         if (streamer == NULL)
                 return NULL;
@@ -353,9 +349,9 @@ streamer_t *new_streamer(const char *name,
 
 void delete_streamer(streamer_t *streamer)
 {
-        char b[128];
-        list_t *l;
-        
+        //ToDo: commented out to remove warning until code below fixed. (Issue #11 Github)
+        // list_t *l;
+
         if (streamer) {
                 streamer->cont = 0;
                 
@@ -376,12 +372,13 @@ void delete_streamer(streamer_t *streamer)
                 // delete clients
                 if (streamer->clients_mutex) {
                         streamer_lock_clients(streamer); // lock
-                        l = streamer->clients;
-                        while (l) {
-                                streamer_client_t *r = list_get(l, streamer_client_t);
-                                /* delete_streamer_client(r); */
-                                l = list_next(l);
-                        }
+// ToDo: This needs to be fixed. Possible bug in deleting streamer clients twice. (Issue #11 Github)
+//                        l = streamer->clients;
+//                        while (l) {
+//                                streamer_client_t *r = list_get(l, streamer_client_t);
+//                                /* delete_streamer_client(r); */
+//                                l = list_next(l);
+//                        }
                         delete_list(streamer->clients);
                         streamer->clients = NULL;
                         streamer_unlock_clients(streamer); // unlock
@@ -443,8 +440,6 @@ static void streamer_run_server(streamer_t *streamer)
 
 static void streamer_run_data(streamer_t *streamer)
 {
-        tcp_socket_t socket;
-
         r_info("Thread 'streamer_run_data' starting");
         
         while (!app_quit() && streamer->cont) {
@@ -563,8 +558,6 @@ int streamer_send_multipart(streamer_t* s,
 
 static void streamer_send_index_html(streamer_t *streamer, tcp_socket_t s)
 {
-        export_t *e;
-        list_t *l;
         char b[52];
         membuf_t *membuf = new_membuf();
 
@@ -606,8 +599,6 @@ cleanup:
 
 static void streamer_send_index_json(streamer_t *streamer, tcp_socket_t s)
 {
-        export_t *e;
-        list_t *l;
         char b[52];
         membuf_t *membuf = new_membuf();
 

@@ -62,7 +62,7 @@ static char *_make_accept(char *key)
 {
         unsigned char buffer[100];
         unsigned char digest[21];
-        snprintf(buffer, 100, "%s%s", key, "258EAFA5-E914-47DA-95CA-C5AB0DC85B11");
+        snprintf((char*)buffer, 100, "%s%s", key, "258EAFA5-E914-47DA-95CA-C5AB0DC85B11");
         buffer[99] = 0;
         SHA1(buffer, digest);
         digest[20] = 0;
@@ -291,6 +291,7 @@ void messagelink_set_onclose(messagelink_t *link, messagelink_onclose_t onclose)
         link->onclose = onclose;
 }
 
+__attribute__((unused))
 static int messagelink_message_complete(http_parser *parser)
 {
         messagelink_t *link = (messagelink_t *) parser->data;
@@ -390,6 +391,7 @@ static int messagelink_on_headers_complete(http_parser *parser)
         return 0;
 }
 
+__attribute__((unused))
 static int messagelink_on_url(http_parser *parser, const char *data, size_t length)
 {
         messagelink_t *link = (messagelink_t *) parser->data;
@@ -572,6 +574,7 @@ static int messagelink_read_frame(messagelink_t *link, ws_frame_t *frame)
         return 0;
 }
 
+__attribute__((unused))
 static void _print_message(ws_frame_t *frame, membuf_t* m)
 {
         switch (frame->opcode) {
@@ -960,7 +963,7 @@ static int frame_append_payload(membuf_t *buf, int masked, uint8_t *mask, const 
                         uint64_t n = length - sent;
                         if (n > 1024) n = 1024;
                         
-                        for (int i = 0; i < n; i++) {
+                        for (uint32_t i = 0; i < n; i++) {
                                 buffer[i] = data[sent + i] ^ mask[j++];
                                 if (j == 4) j = 0;
                         }
@@ -984,7 +987,7 @@ static int frame_make(membuf_t *buf, int opcode, int masked,
                 _make_mask(mask);
 
         frame_size = frame_make_header(frame, opcode, masked, mask, length);
-        membuf_append(buf, frame, frame_size);
+        membuf_append(buf, (char*)frame, frame_size);
 
         frame_append_payload(buf, masked, mask, data, length);
 
@@ -1058,16 +1061,16 @@ static int messagelink_send_pong(messagelink_t *link, membuf_t *payload)
         return err;
 }
 
-static int messagelink_send_locked(messagelink_t *link, data_t* data)
-{
-        //r_debug("messagelink_send_packet");
-        
-        if (link->socket == INVALID_TCP_SOCKET
-            || link->state != WS_OPEN) {
-                return -2;
-        }
-        
-}
+//static int messagelink_send_locked(messagelink_t *link, data_t* data)
+//{
+//        //r_debug("messagelink_send_packet");
+//
+//        if (link->socket == INVALID_TCP_SOCKET
+//            || link->state != WS_OPEN) {
+//                return -2;
+//        }
+//
+//}
 
 int messagelink_send_text(messagelink_t *link, const char *data, int length)
 {
@@ -1075,7 +1078,7 @@ int messagelink_send_text(messagelink_t *link, const char *data, int length)
         int frame_size;
         int masked = link->is_client;
         uint8_t mask[4];
-        int n, err;
+        int err;
 
         //r_debug("messagelink_send_text: %.*s", length, data);
 
@@ -1090,7 +1093,7 @@ int messagelink_send_text(messagelink_t *link, const char *data, int length)
         
         frame_size = frame_make_header(frame, WS_TEXT, masked, mask, length);
         if (frame_size > 0)
-                err = tcp_socket_send(link->socket, frame, frame_size);
+                err = tcp_socket_send(link->socket, (const char*)frame, frame_size);
 
         if (err) goto return_error;
 
@@ -1105,7 +1108,7 @@ int messagelink_send_text(messagelink_t *link, const char *data, int length)
                 //r_debug("messagelink_send_message: sent=%llu, length=%llu", sent, length);
                 
                 uint64_t n = sizeof(buffer); 
-                if (sent + n > length)
+                if (sent + n > (unsigned)length)
                         n = length - sent;
 
                 if (masked) {
@@ -1225,13 +1228,13 @@ int messagelink_send_v(messagelink_t *link, const char* format, va_list ap)
 
 messagelink_t *server_messagelink_connect(messagehub_t *hub, tcp_socket_t socket);
 
-static int server_messagelink_open_socket(messagelink_t *link,
-                                          messagehub_t *hub,
-                                          tcp_socket_t socket);
-static int server_messagelink_open_websocket(messagelink_t *link);
-static int server_messagelink_parse_request(messagelink_t *link);
-static int server_messagelink_validate_request(messagelink_t *r);
-static int server_messagelink_upgrade_connection(messagelink_t *link);
+//static int server_messagelink_open_socket(messagelink_t *link,
+//                                          messagehub_t *hub,
+//                                          tcp_socket_t socket);
+//static int server_messagelink_open_websocket(messagelink_t *link);
+//static int server_messagelink_parse_request(messagelink_t *link);
+//static int server_messagelink_validate_request(messagelink_t *r);
+//static int server_messagelink_upgrade_connection(messagelink_t *link);
 
 messagelink_t *server_messagelink_connect(messagehub_t *hub, tcp_socket_t socket)
 {
@@ -1371,8 +1374,8 @@ static int client_messagelink_parse_response(messagelink_t *link)
                         break;
                 }
                 
-                if (parsed != received
-                    && parsed != received - 1
+                if (parsed != (unsigned)received
+                    && parsed != ((unsigned)received - 1)
                     && link->cont == 1) {
                         /* Handle error. Usually just close the connection. */
                         r_err("client_messagelink_parse_response: parsed != received (%d != %d)", parsed, received);

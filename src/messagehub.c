@@ -58,8 +58,6 @@ messagehub_t* new_messagehub(int port,
                              messagehub_onconnect_t onconnect,
                              void *userdata)
 {
-        int ret;
-        
         messagehub_t* hub = r_new(messagehub_t);
         if (hub == NULL)
                 return NULL;
@@ -157,9 +155,11 @@ addr_t *messagehub_addr(messagehub_t *hub)
 int messagehub_set_onrequest(messagehub_t *hub, messagehub_onrequest_t onrequest)
 {
         hub->onrequest = onrequest;
+        return 0;
 }
 
-static int messagehub_upgrade_connection(messagehub_t *hub,
+// ToDo: Why does this not use messagehub when it's called messagehub_XXX?
+static int messagehub_upgrade_connection(messagehub_t *hub __attribute__((unused)),
                                          request_t *request,
                                          tcp_socket_t link_socket)
 {
@@ -167,7 +167,7 @@ static int messagehub_upgrade_connection(messagehub_t *hub,
         unsigned char buffer[100];
         unsigned char digest[21];
         
-        snprintf(buffer, 100, "%s%s", key, "258EAFA5-E914-47DA-95CA-C5AB0DC85B11");
+        snprintf((char*)buffer, 100, "%s%s", key, "258EAFA5-E914-47DA-95CA-C5AB0DC85B11");
         buffer[99] = 0;
 
         SHA1(buffer, digest);
@@ -311,7 +311,6 @@ static void messagehub_handle(messagehub_t *hub, tcp_socket_t link_socket)
 
 static void messagehub_wait_connection(messagehub_t *hub)
 {
-        messagelink_t *link;
         tcp_socket_t link_socket;
 
         //r_debug("messagehub_wait_connection");
@@ -421,7 +420,6 @@ int messagehub_broadcast_f(messagehub_t *hub, messagelink_t *exclude, const char
 {
         int err;
         va_list ap;
-        int len;
         
         if (messagehub_membuf(hub) != 0)
                 return -1;

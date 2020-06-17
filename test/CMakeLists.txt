@@ -16,7 +16,9 @@ add_test(
         COMMAND rcom_unit_tests
         )
 
-SETUP_TARGET_FOR_COVERAGE_LCOV(
+if(BUILD_COVERAGE)
+        SETUP_TARGET_FOR_COVERAGE_LCOV(
                             NAME rcom_unit_tests_coverage
                             EXECUTABLE ctest -V ${n_cores}
                             DEPENDENCIES rcom_unit_tests )
+endif()

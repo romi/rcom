@@ -168,8 +168,6 @@ json_object_t datalink_parse(datalink_t* link, data_t* data)
 
 int datalink_start_thread(datalink_t *link)
 {
-        int ret;
-        
         mutex_lock(link->mutex);
         if (link->thread == NULL) {
                 link->thread_quit = 0;

@@ -101,7 +101,7 @@ int print_main(membuf_t *buf)
         return 0;
 }
 
-int check_com_i(membuf_t *buf, json_object_t obj)
+int check_com_i(membuf_t *buf __attribute__((unused)), json_object_t obj)
 {
         const char *type = NULL;
         const char *topic = NULL;
@@ -150,7 +150,7 @@ int check_com(membuf_t *buf, json_object_t com)
         return 0;
 }
 
-int print_com_decl_i(membuf_t *buf, const char *name, json_object_t obj)
+int print_com_decl_i(membuf_t *buf, const char *name __attribute__((unused)), json_object_t obj)
 {
         const char *type = json_object_getstr(obj, "type");
         const char *topic = json_object_getstr(obj, "topic");
@@ -489,7 +489,6 @@ int print_new_streamer(membuf_t *buf,
         const char *onbroadcast = json_object_getstr(obj, "onbroadcast");
         const char *userdata = json_object_getstr(obj, "userdata");
         const char *mimetype = json_object_getstr(obj, "mimetype");
-        json_object_t resources;
         double port = 0;
 
         if (json_object_has(obj, "port")) {
@@ -616,7 +615,7 @@ int print_com_init(membuf_t *buf, const char *name, json_object_t com)
         return 0;
 }
 
-int print_com_controller_handlers(membuf_t *buf, const char *name, json_object_t obj)
+int print_com_controller_handlers(membuf_t *buf, const char *name __attribute__((unused)), json_object_t obj)
 {
         const char *topic = json_object_getstr(obj, "topic");
         json_object_t commands = json_object_get(obj, "commands");
@@ -702,9 +701,10 @@ int print_com_controller_handlers(membuf_t *buf, const char *name, json_object_t
         membuf_printf(buf, "        messagelink_set_onmessage(link, messagehub_%s_onmessage);\n", topic);
         membuf_printf(buf, "        return 0;\n");
         membuf_printf(buf, "}\n\n");
+        return 0;
 }
 
-int print_com_messagehub_handlers(membuf_t *buf, const char *name, json_object_t obj)
+int print_com_messagehub_handlers(membuf_t *buf, const char *name __attribute__((unused)), json_object_t obj)
 {
         const char *topic = json_object_getstr(obj, "topic");
         const char *onmessage = json_object_getstr(obj, "onmessage");
@@ -722,6 +722,7 @@ int print_com_messagehub_handlers(membuf_t *buf, const char *name, json_object_t
         membuf_printf(buf, "        messagelink_set_onmessage(link, (messagelink_onmessage_t) %s);\n", onmessage);
         membuf_printf(buf, "        return 0;\n");
         membuf_printf(buf, "}\n\n");
+        return 0;
 }
 
 int print_com_handlers(membuf_t *buf, const char *name, json_object_t com)
@@ -830,6 +831,7 @@ int print_init(membuf_t *buf, const char *name, const char *init_func)
                       "}\n");
         
         membuf_printf(buf, "\n");
+        return 0;
 }
        
 int print_cleanup(membuf_t *buf, const char *name, const char *cleanup_func)
@@ -844,6 +846,7 @@ int print_cleanup(membuf_t *buf, const char *name, const char *cleanup_func)
         }
         membuf_printf(buf, "        cleanup_com();\n}\n");
         membuf_printf(buf, "\n");
+        return 0;
 }
 
 int print_idle(membuf_t *buf, const char *idle_func)
@@ -856,6 +859,7 @@ int print_idle(membuf_t *buf, const char *idle_func)
                 membuf_printf(buf, "        clock_sleep(1.0);\n");
                 
         membuf_printf(buf, "}\n\n");
+        return 0;
 }
 
 int wite_code(const char *filename, membuf_t *buf)

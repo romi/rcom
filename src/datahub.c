@@ -56,8 +56,6 @@ datahub_t *new_datahub(datahub_onbroadcast_t onbroadcast,
                        datahub_ondata_t ondata,
                        void *userdata)
 {
-        int ret;
-        char n[80];
         datahub_t *hub;
 
         hub = r_new(datahub_t);
@@ -170,6 +168,7 @@ static addr_t *datahub_find(datahub_t *hub, addr_t *addr)
                 if (addr_eq(addr, a))
                         return a;
         }
+        return NULL;
 }
 
 int datahub_add_link(datahub_t* hub, addr_t *addr)
@@ -203,8 +202,6 @@ int datahub_add_link(datahub_t* hub, addr_t *addr)
 int datahub_remove_link(datahub_t* hub, addr_t *addr)
 {
         int ret = 0;
-
-        char b[64];
         //r_debug("datahub_remove_link: %s", addr_string(addr, b, sizeof(b)));
 
         datahub_lock(hub);
@@ -302,9 +299,6 @@ int datahub_send(datahub_t *hub, addr_t *link, data_t *m)
 
 static int datahub_send_locked(datahub_t *hub, addr_t *link, data_t *data, int stamp)
 {
-        list_t *l = hub->links;
-        list_t *rm = NULL;
-
         if (link == NULL || data == NULL) {
                 r_err("datahub_send_locked: invalid arguments");
                 return -1;

@@ -215,7 +215,7 @@ int http_send_headers(tcp_socket_t socket, int status,
                            "Access-Control-Allow-Origin: *\r\n"
                            "Connection: close\r\n\r\n",
                            status, http_status_string(status), mimetype, content_length);
-        if (len > sizeof(header) - 1) {
+        if ((unsigned)len > (sizeof(header) - 1)) {
                 r_err("http_send_headers: header fields too long");
                 return -1;
         }

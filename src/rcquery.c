@@ -134,10 +134,10 @@ static void list_nodes()
         }
 }
 
-static void print_data(void *userdata,
-                       datalink_t *link,
+static void print_data(void *userdata __attribute__((unused)),
+                       datalink_t *link __attribute__((unused)),
                        data_t *data,
-                       data_t *out)
+                       data_t *out __attribute__((unused)))
 {
         printf("%.*s\n", data_len(data), data_data(data));
 }
@@ -155,8 +155,8 @@ static void listen_datahub(const char *topic)
         registry_close_datalink(link);
 }
 
-static void print_message(void *userdata,
-                          messagelink_t *link,
+static void print_message(void *userdata __attribute__((unused)),
+                          messagelink_t *link __attribute__((unused)),
                           json_object_t message)
 {
         json_print(message, 0);
