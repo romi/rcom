@@ -112,8 +112,9 @@ void delete_registry_entry(registry_entry_t *entry)
                         r_free(entry->topic);
                 if (entry->addr)
                         delete_addr(entry->addr);
-                if (entry->endpoint)
-                        ; // FIXME!
+                // ToDo: This isn't created by the new fubction so we can't delete it can we?
+//                if (entry->endpoint)
+//                        ; // FIXME!
                 r_delete(entry);
         }
 }
@@ -127,7 +128,6 @@ registry_entry_t *registry_entry_parse(json_object_t obj, int *error)
         const char *addr_str;
         addr_t *addr;
         int type;
-        int err;
         
         id = json_object_getstr(obj, "id");
         name = json_object_getstr(obj, "name");
@@ -510,12 +510,16 @@ int registry_insert_entry(registry_t* registry, registry_entry_t *entry)
                                entry->type, entry->addr, entry->endpoint);
 }
 
+// ToDo: This seems wrong having two functions. We could use a recursive mutex.
+// ToDo: Just one lock function needed as anything calling it already has access to the lock.
 static int registry_remove_entry_locked(registry_t* registry, registry_entry_t *entry)
 {
         registry->entries = list_remove(registry->entries, entry);
         return 0;
 }
-        
+
+// ToDo: See above. Remove this function and rename the above.
+__attribute__((unused))
 static int registry_remove_entry(registry_t* registry, registry_entry_t *entry)
 {
         int r;

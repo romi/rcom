@@ -48,8 +48,8 @@ typedef struct _streamerlink_t {
 
 static int streamerlink_stop_thread(streamerlink_t *link);
 static int streamerlink_close_connection(streamerlink_t *link);
-static int streamerlink_lock(streamerlink_t *link);
-static int streamerlink_unlock(streamerlink_t *link);
+static void streamerlink_lock(streamerlink_t *link);
+static void streamerlink_unlock(streamerlink_t *link);
 
 streamerlink_t *new_streamerlink(streamerlink_ondata_t ondata,
                                  streamerlink_onresponse_t onresponse,
@@ -113,12 +113,12 @@ addr_t *streamerlink_addr(streamerlink_t *link)
         return link->addr;
 }
 
-static int streamerlink_lock(streamerlink_t *link)
+static void streamerlink_lock(streamerlink_t *link)
 {
         mutex_lock(link->mutex);
 }
 
-static int streamerlink_unlock(streamerlink_t *link)
+static void streamerlink_unlock(streamerlink_t *link)
 {
         mutex_unlock(link->mutex);
 }
@@ -220,8 +220,6 @@ static int streamerlink_ondata(void *userdata, response_t *response,
 
 static void streamerlink_run(streamerlink_t *link)
 {
-        size_t len = 80*1024;
-        char buf[len];
         int err;
 
         //r_debug("streamerlink_run: sending request");
@@ -262,7 +260,6 @@ cleanup:
 int streamerlink_connect(streamerlink_t *link)
 {
         int ret = 0;
-        char b[64];
         
         //r_debug("streamerlink_connect");
 

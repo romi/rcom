@@ -49,9 +49,6 @@ static void service_index_json(service_t* service, request_t *request, response_
 
 service_t* new_service(const char *name, int port)
 {
-        int ret;
-        int socklen = sizeof(struct sockaddr_in);
-        
         service_t* service = r_new(service_t);
         if (service == NULL)
                 return NULL;
@@ -157,7 +154,7 @@ addr_t *service_addr(service_t* service)
         return service->addr;
 }
 
-static void service_index_html(service_t* service, request_t *request, response_t *response)
+static void service_index_html(service_t* service, request_t *request __attribute__((unused)), response_t *response)
 {
         list_t *l;
         export_t *e;
@@ -199,7 +196,7 @@ static void service_index_html(service_t* service, request_t *request, response_
         response_printf(response, "  </body>\n</html>\n");
 }
 
-static void service_index_json(service_t* service, request_t *request, response_t *response)
+static void service_index_json(service_t* service, request_t *request __attribute__((unused)), response_t *response)
 {
         list_t *l;
         export_t *e;

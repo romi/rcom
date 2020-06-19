@@ -51,7 +51,7 @@ unsigned char *SHA1(const unsigned char* s, unsigned char *digest)
 {
         SHA1_CTX context;        
         SHA1Init(&context);
-        SHA1Update(&context, s, strlen(s));
+        SHA1Update(&context, s, strlen((char*)s));
         SHA1Final(digest, &context);
         return digest;
 }
@@ -69,7 +69,7 @@ char *encode_base64(const unsigned char *s)
                 '4', '5', '6', '7', '8', '9', '+', '/'
         };
 
-        int ilen = strlen(s);
+        int ilen = strlen((char*)s);
         int olen = 4 * ((ilen + 2) / 3);
 
         char *t = r_alloc(olen+1);

@@ -126,12 +126,14 @@ int response_set_onheaders(response_t *r, response_onheaders_t onheaders, void *
 {
         r->userdata = userdata;
         r->onheaders = onheaders;
+        return 0;
 }
 
 int response_set_ondata(response_t *r, response_ondata_t ondata, void *userdata)
 {
         r->userdata = userdata;
         r->ondata = ondata;
+        return 0;
 }
 
 static int response_add_header(response_t *r, const char *key, const char *value)
@@ -361,8 +363,8 @@ int response_parse_html(response_t *response, tcp_socket_t socket, int what)
                         if (received == 0)
                                 break;
                         
-                        if (parsed != received
-                            && parsed != received - 1) {
+                        if (parsed != (unsigned)received
+                            && parsed != ((unsigned)received - 1)) {
                                 /* Handle error. Usually just close the connection. */
                                 r_err("http_read_response: parsed != received (%d != %d)",
                                       (int) parsed, (int) received);
@@ -404,33 +406,11 @@ int response_printf(response_t *r, const char *format, ...)
     ret = membuf_vprintf(r->body, format, ap);
     va_end(ap);
 
-    if (r < 0) {
+    if (ret < 0) {
         r_err("response_printf: membuf_vprintf returned an error");
     }
     return ret;
 }
-
-//int response_printf(response_t *r, const char *format, ...)
-//{
-//        int len;
-//        va_list ap;
-//        int ret;
-//
-//        va_start(ap, format);
-//        len = vsnprintf(NULL, 0, format, ap);
-//        va_end(ap);
-//
-//        if (len < 0)
-//                return -1;
-//
-//        membuf_assure(r->body, len+1);
-//
-//        va_start(ap, format);
-//        ret = membuf_vprintf(r->body, format, ap);
-//        va_end(ap);
-//
-//        return ret;
-//}
 
 int response_send(response_t *response, tcp_socket_t client_socket)
 {

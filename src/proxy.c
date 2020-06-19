@@ -327,7 +327,7 @@ static void proxy_onmessage(proxy_t *proxy,
         }
 }
 
-static void proxy_onclose(proxy_t *proxy, messagelink_t *link)
+static void proxy_onclose(proxy_t *proxy __attribute__((unused)), messagelink_t *link __attribute__((unused)))
 {
 }
 
@@ -346,7 +346,7 @@ static void _proxy_onclose(void *userdata, messagelink_t *link)
 }
 
 static void proxy_handle_register_add(proxy_t* proxy,
-                                      messagelink_t *link,
+                                      messagelink_t *link __attribute__((unused)),
                                       json_object_t message)
 {
         int count;
@@ -387,11 +387,10 @@ static void proxy_handle_register_add(proxy_t* proxy,
 }
 
 static void proxy_handle_register_remove(proxy_t* proxy,
-                                         messagelink_t *link,
+                                         messagelink_t *link __attribute__((unused)),
                                          json_object_t message)
 {
         registry_entry_t *entry = NULL;
-        int err;
         const char *id;
         
         //r_debug("proxy_handle_register_remove");
@@ -406,7 +405,8 @@ static void proxy_handle_register_remove(proxy_t* proxy,
         
         entry = registry_get(proxy->registry, id);
         if (entry) {
-                err = registry_delete(proxy->registry, id);
+                // This return code will always be 0  (from registry_remove_entry_locked)
+                registry_delete(proxy->registry, id);
                 // Update connections
                 proxy_remove_connection(proxy, entry);
         }
@@ -417,7 +417,7 @@ static void proxy_handle_register_remove(proxy_t* proxy,
 }
 
 static void proxy_handle_update_address(proxy_t* proxy,
-                                        messagelink_t *link,
+                                        messagelink_t *link __attribute__((unused)),
                                         json_object_t message)
 {
         int err;
@@ -440,7 +440,7 @@ static void proxy_handle_update_address(proxy_t* proxy,
         
         err = registry_update_addr(proxy->registry, id, addr);
         if (err != 0)
-                ; // do something?
+            r_err("proxy_handle_update_address - registry_update_addr: failed");
 }
 
 static int _entry_equals(registry_entry_t* entry, registry_entry_t* e) 
@@ -462,11 +462,9 @@ static registry_entry_t *_list_contains(list_t* list, registry_entry_t *e)
 }
 
 static void proxy_handle_update_list(proxy_t* proxy,
-                                     messagelink_t *link,
+                                     messagelink_t *link __attribute__((unused)),
                                      json_object_t message)
 {
-        int err;
-
         //r_debug("proxy_handle_update_list");
         
         json_object_t obj = json_object_get(message, "list");
@@ -495,8 +493,11 @@ static void proxy_handle_update_list(proxy_t* proxy,
                 registry_entry_t *e = list_get(l, registry_entry_t);
                 int count = registry_count(proxy->registry, 0, e->name, e->topic,
                                            e->type, e->addr, NULL);
-                if (count == 0)
-                        err = registry_insert_entry(proxy->registry, e);
+                if (count == 0) {
+                    // ToDo: what happens here if it fails? log? break? Exit?
+                    registry_insert_entry(proxy->registry, e);
+                    //err = registry_insert_entry(proxy->registry, e);
+                }
         }
 
         // remove the endpoints that have vanished
@@ -575,7 +576,6 @@ static void proxy_connect_datalink(proxy_t* proxy, registry_entry_t *entry)
 static void proxy_connect_messagehub(proxy_t* proxy, registry_entry_t *entry)
 {
         list_t *list;
-        registry_entry_t *e;
         char b[64];
         
         list = registry_select(proxy->registry, 0, NULL, entry->topic,
@@ -607,9 +607,6 @@ static void proxy_connect_messagehub(proxy_t* proxy, registry_entry_t *entry)
 static void proxy_connect_streamer(proxy_t* proxy, registry_entry_t *entry)
 {
         list_t *list;
-        registry_entry_t *e;
-        char b[64];
-        
         list = registry_select(proxy->registry, 0, NULL, entry->topic,
                                TYPE_STREAMERLINK, NULL, NULL);
         if (list == NULL) return;
@@ -689,7 +686,6 @@ static void proxy_remove_datalink(proxy_t* proxy, registry_entry_t *entry)
 static void proxy_remove_messagehub(proxy_t* proxy, registry_entry_t *entry)
 {
         list_t *list;
-        registry_entry_t *e;
         
         list = registry_select(proxy->registry, 0, NULL, entry->topic,
                                TYPE_MESSAGELINK, NULL, NULL);
@@ -1008,7 +1004,6 @@ addr_t *proxy_get_messagehub(proxy_t *proxy, const char *topic)
 {
         list_t *list;
         registry_entry_t *e;
-        service_t *service;
         addr_t *addr = NULL;
         
         mutex_lock(proxy->mutex);
@@ -1059,7 +1054,6 @@ static addr_t *proxy_get_service(proxy_t *proxy, const char *topic)
 {
         list_t *list;
         registry_entry_t *e;
-        service_t *service;
         addr_t *addr = NULL;
         
         mutex_lock(proxy->mutex);
@@ -1115,7 +1109,6 @@ static addr_t *proxy_get_streamer(proxy_t *proxy, const char *topic)
 {
         list_t *list;
         registry_entry_t *e;
-        service_t *service;
         addr_t *addr = NULL;
         
         mutex_lock(proxy->mutex);
@@ -1258,8 +1251,8 @@ void registry_close_messagehub(messagehub_t *hub)
 {
         if (hub) {
                 proxy_t *proxy = proxy_get();
-                if (proxy == NULL) return;
-                return proxy_close_messagehub(proxy, hub);
+                if (proxy != NULL)
+                        proxy_close_messagehub(proxy, hub);
         }
 }
 

@@ -136,7 +136,8 @@ json_object_t request_parse(request_t *r)
         return obj;
 }
 
-static int request_message_begin(http_parser *p)
+__attribute__((unused))
+static int request_message_begin(http_parser *p __attribute__((unused)))
 {
         return 0;
 }
@@ -271,7 +272,7 @@ int request_on_headers_complete(http_parser *p)
         // make a copy
         char uri[2048];
         int len = membuf_len(r->uri_buffer);
-        if (len > sizeof(uri)) {
+        if (len > (signed)sizeof(uri)) {
                 r_err("URI too long");
                 return -1;
         }
@@ -369,8 +370,8 @@ int request_parse_html(request_t *request, tcp_socket_t client_socket, int what)
                         return -1;
                 }
 
-                if (parsed != received
-                    && parsed != received - 1
+                if (parsed != (unsigned)received
+                    && parsed != (unsigned)received - 1
                     && request->continue_parsing) {
                         /* Handle error. Usually just close the connection. */
                         r_err("request_parse: parsed != received (%d != %d)",

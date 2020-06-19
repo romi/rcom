@@ -103,7 +103,7 @@ int udp_socket_wait_data(udp_socket_t socket, int timeout)
 
 int udp_socket_read(udp_socket_t socket, data_t *data, addr_t *addr)
 {
-        int addrlen = sizeof(addr_t);
+        u_int32_t addrlen = sizeof(addr_t);
         int len;
 
         len = recvfrom(socket,
@@ -238,7 +238,7 @@ int tcp_socket_read(tcp_socket_t socket, char *data, int len)
 tcp_socket_t open_server_socket(addr_t* addr)
 {
         int ret;
-        int socklen = sizeof(struct sockaddr_in);
+        uint32_t socklen = sizeof(struct sockaddr_in);
 
         int s = socket(AF_INET, SOCK_STREAM, 0);
         if (s == -1) {
@@ -266,7 +266,7 @@ tcp_socket_t open_server_socket(addr_t* addr)
 
 tcp_socket_t server_socket_accept(tcp_socket_t s)
 {
-        int addrlen = sizeof(struct sockaddr_in);
+        uint32_t addrlen = sizeof(struct sockaddr_in);
         struct sockaddr_in addr;
         int client = -1;
 
@@ -329,7 +329,7 @@ static int posix_wait_data(int socket, int timeout)
 static addr_t *posix_socket_addr(int s)
 {
         struct sockaddr_in local_addr;
-        int socklen = sizeof(&local_addr);        
+        uint32_t socklen = sizeof(&local_addr);
         memset((char *) &local_addr, 0, socklen);        
         getsockname(s, (struct sockaddr*) &local_addr, &socklen);
         return new_addr(inet_ntoa(local_addr.sin_addr),

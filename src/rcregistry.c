@@ -113,7 +113,7 @@ addr_t *rcregistry_addr(rcregistry_t *rcregistry)
 static int rcregistry_fail(messagelink_t *link, const char *req, const char *message)
 {
         r_warn("rcregistry_fail: %s: %s", req, message);
-        messagelink_send_f(link,
+        return messagelink_send_f(link,
                            "{\"request\":\"%s\", "
                            "\"success\":false, "
                            "\"message\":\"%s\"}",
@@ -122,7 +122,7 @@ static int rcregistry_fail(messagelink_t *link, const char *req, const char *mes
 
 static int rcregistry_success(messagelink_t *link, const char *req)
 {
-        messagelink_send_f(link, "{\"request\":\"%s\", \"success\":true}", req);
+        return messagelink_send_f(link, "{\"request\":\"%s\", \"success\":true}", req);
 }
 
 static void rcregistry_register(rcregistry_t* rcregistry,
@@ -131,8 +131,6 @@ static void rcregistry_register(rcregistry_t* rcregistry,
 {
         registry_entry_t *entry;
         int err;
-        int id;
-
         json_object_t obj = json_object_get(message, "entry");
         if (json_isnull(obj)) {
                 rcregistry_fail(link, "register-response", "Invalid entry value");
@@ -305,15 +303,15 @@ static void rcregistry_onmessage(rcregistry_t* rcregistry,
         }
 }
 
-static void rcregistry_onclose(rcregistry_t* rcregistry, messagelink_t *link)
+__attribute__((unused))
+static void rcregistry_onclose(rcregistry_t* rcregistry __attribute__((unused)) , messagelink_t *link __attribute__((unused)))
 {
         //r_debug("rcregistry: onclose");
-
         // TODO: remove all links and hubs related to this link?!
 }
 
 static int rcregistry_onconnect(rcregistry_t* rcregistry,
-                                messagehub_t *hub,
+                                messagehub_t *hub __attribute__((unused)),
                                 messagelink_t *link)
 {
         //r_debug("rcregistry: onconnect");
@@ -338,7 +336,8 @@ static void _onclose(void *userdata, messagelink_t *link)
 }
 
 static int _onconnect(void *userdata, messagehub_t *hub,
-                      request_t *request, messagelink_t *link)
+                      request_t *request __attribute__((unused)),
+                      messagelink_t *link)
 {
         rcregistry_t *rcregistry = (rcregistry_t *) userdata;
         rcregistry_onconnect(rcregistry, hub, link);

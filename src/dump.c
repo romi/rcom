@@ -281,7 +281,7 @@ int dump_read_data(dump_t *dump, data_t *data)
         int err;
         uint32_t n;
         
-        err = dump_read(dump, b, 4);
+        err = dump_read(dump, (char*)b, 4);
         if (err != 0)
                 return err;
         

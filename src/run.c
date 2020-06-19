@@ -196,7 +196,7 @@ static int get_user_info(const char *user, uid_t *uid, gid_t *gid)
         struct passwd pwbuf;
         struct passwd *pwbufp = NULL;
         char *buf;
-        size_t bufsize;
+        long bufsize;
 
         // From man getpwnam_r
         bufsize = sysconf(_SC_GETPW_R_SIZE_MAX);
@@ -211,7 +211,7 @@ static int get_user_info(const char *user, uid_t *uid, gid_t *gid)
 
         int err = getpwnam_r(user, &pwbuf, buf, bufsize, &pwbufp);
         if (pwbufp == NULL) {
-                if (err = 0) {
+                if (err == 0) {
                         r_err("Failed to obtain the UID associated with '%s'", user);
                         free(buf);
                         return -1;
@@ -263,7 +263,7 @@ static int run_start_locally(run_t *r)
 {
         char *argv[32];
 	pid_t pid;
-        int i, argc, err;
+        int argc, err;
         list_t *a = r->args;
         //char dump_arg[1024];
         
@@ -350,7 +350,7 @@ static int run_start_remotely(run_t *r)
 {
         char *argv[32];
 	pid_t pid;
-        int i, argc, err;
+        int argc, err;
         list_t *a = r->args;
 
         r_info("Starting '%s' remotely", r->name);
@@ -498,9 +498,6 @@ int run_stop(run_t *r)
         int err;
         int sig = SIGHUP;
         int count = 0;
-        pid_t p;
-        int status;
-        siginfo_t info;
 
         if (r->pid == -1)
                 return 0;
@@ -550,10 +547,10 @@ static int valid_info(const char *s,
                       int maxlen,
                       const char *valid_chars)
 {
-        int len, i;
+        size_t len, i;
         if (s == NULL)
                 return (minlen == 0);
-        if (strlen(s) < minlen || strlen(s) > maxlen)
+        if (strlen(s) < (unsigned)minlen || strlen(s) > (unsigned)maxlen)
                 return 0;
         len = strlen(s);
         for (i = 0; i < len; i++) {

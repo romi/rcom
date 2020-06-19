@@ -77,8 +77,6 @@ uid_t get_uid(const char *user);
 static int start_registry(pid_t gpid)
 {
         int ret;
-        int i;
-
         ret = run_start(_registry, gpid);
         if (ret == -1) {
                 r_err("start_registry: run_start_locally returned -1");
@@ -214,6 +212,7 @@ static list_t *delete_nodes(list_t *n)
         return NULL;
 }
 
+__attribute__((unused))
 static run_t *nodes_find(list_t *n, const char *name)
 {
         while (n) {
@@ -458,7 +457,6 @@ static int parse_general(json_object_t config)
 static int parse_registry(json_object_t config)
 {
         json_object_t r;
-        const char *name;
         const char *addr;
         const char *path;
         int port;
@@ -678,7 +676,6 @@ int main(int argc, char **argv)
 {
         pid_t child_pid =  -1;
         pid_t monitor_pid;
-        pid_t pid;
         int status;
         siginfo_t info;
         int ret;
