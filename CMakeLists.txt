@@ -12,7 +12,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 # Default option is off.
 # We override this on the server for a test buid, so tests should be run with this on before checking in.
-option(ADDRESS_SANITISER_BUILD "Enable build settings to allow address sanitiser" OFF) # default to off
+option(ADDRESS_SANITISER_BUILD "Enable build settings to allow address sanitiser" ON) # default to off
 
 if(ADDRESS_SANITISER_BUILD)
 
@@ -109,6 +109,11 @@ if (NOT DEFINED libr_SOURCE_DIR)
     find_path(LIBR_DIRECTORY
             NAMES "CMakeLists.txt"
             PATHS ${LIBR_DIR})
+
+    #    Save the current Build test settings so we can restore them after including libr. We don't want to build libr tests.
+    SET(SAVED_TEST_OPTION BUILD_TESTS)
+    SET(BUILD_TESTS OFF)
+
     if (NOT LIBR_DIRECTORY)
         MESSAGE("RCOM - ${LIBR_DIR} does not exist. Downloading dependency.")
         MESSAGE("RCOM - WARNING")
@@ -128,6 +133,9 @@ if (NOT DEFINED libr_SOURCE_DIR)
         MESSAGE("RCOM - ${LIBR_DIRECTORY} exists. Not downloading dependency.")
         add_subdirectory(libr)
     endif()
+
+    # Restore build tests option.
+    SET(BUILD_TESTS OFF SAVED_TEST_OPTION)
 endif()
 
 ###########################################################3
