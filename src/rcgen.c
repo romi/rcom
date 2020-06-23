@@ -601,7 +601,8 @@ int print_com_init_i(membuf_t *buf, const char *name, json_object_t obj)
 int print_com_init(membuf_t *buf, const char *name, json_object_t com)
 {
         membuf_printf(buf, "static int init_com()\n{\n");
-        
+        membuf_printf(buf, "        int err;\n");
+
         for (int i = 0; i < json_array_length(com); i++) {
                 json_object_t obj = json_array_get(com, i);
                 int err = print_com_init_i(buf, name, obj);
