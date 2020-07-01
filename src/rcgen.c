@@ -750,14 +750,18 @@ int print_com_cleanup_i(membuf_t *buf, json_object_t obj)
         const char *topic = json_object_getstr(obj, "topic");
         if (rstreq(type, "controller")) {
                 membuf_printf(buf,
-                              "        if (messagehub_%s)\n"
-                              "                registry_close_messagehub(messagehub_%s);\n",
-                              topic, topic);
+                              "        if (messagehub_%s) {\n"
+                              "                registry_close_messagehub(messagehub_%s);\n"
+                              "                messagehub_%s = NULL;\n"
+                              "        }\n",
+                              topic, topic, topic);
         } else {
                 membuf_printf(buf,
-                              "        if (%s_%s)\n"
-                              "                registry_close_%s(%s_%s);\n",
-                              type, topic, type, type, topic);
+                              "        if (%s_%s) {\n"
+                              "                registry_close_%s(%s_%s);\n"
+                              "                %s_%s = NULL;\n"
+                              "        }\n",
+                              type, topic, type, type, topic, type, topic);
         }
         return 0;
 }
