@@ -77,16 +77,12 @@ request_t *new_request()
 void delete_request(request_t *r)
 {
         if (r) {
-                if (r->body)
-                        delete_membuf(r->body);
-                if (r->header_name)
-                        delete_membuf(r->header_name);
-                if (r->header_value)
-                        delete_membuf(r->header_value);                
-                if (r->uri)
-                        r_free(r->uri);
-                if (r->arg)
-                        r_free(r->arg);
+                delete_membuf(r->body);
+                delete_membuf(r->header_name);
+                delete_membuf(r->header_value);
+                delete_membuf(r->uri_buffer);
+                r_free(r->uri);
+                r_free(r->arg);
                 for (list_t *l = r->headers; l != NULL; l = list_next(l)) {
                         http_header_t *h = list_get(l, http_header_t);
                         delete_http_header(h);
