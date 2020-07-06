@@ -91,8 +91,6 @@ int print_main(membuf_t *buf)
                 "        while (!app_quit())\n"
                 "                idle();\n"
                 "\n"
-                "cleanup_and_exit:\n"
-                "\n"
                 "        cleanup();\n"
                 "\n"
                 "        return err? 1 : 0;\n"
