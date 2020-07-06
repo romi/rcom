@@ -85,7 +85,7 @@ int print_main(membuf_t *buf)
                 "        err = init(argc, argv);\n"
                 "        if (err != 0) {\n"
                 "                r_err(\"init() failed\");\n"
-                "                goto cleanup_and_exit;\n"
+                "                app_set_quit();\n"
                 "        }\n"
                 "\n"
                 "        while (!app_quit())\n"
