@@ -337,12 +337,15 @@ static int run_start_locally(run_t *r)
         r_info("Starting %s: %s", r->name, membuf_data(m));
         delete_membuf(m);
         
-        // execvp() uses the PATH variable to find the
-        // executable. execvp() expects the absolute path. Let's use
-        // execv for now.
-        //err = execvp(r->path, argv);
-        err = execv(r->path, argv);
-        perror("monitor: execvp:");
+        // execvp() uses the PATH variable to find the executable.
+        execvp(r->path, argv);
+
+        // If we end up here, it means execv failed. Print an error
+        // message and exit.
+        char errmsg[256];
+        strerror_r(errno, errmsg, sizeof(errmsg));
+        r_panic("run_start_locally: execvp failed: %s", errmsg);
+
         exit(0);
 }
 
@@ -605,6 +608,11 @@ int check_path(const char *path)
 {
         struct stat statbuf;
         int err;
+
+        if (path == NULL) {
+                r_err("Executable path is NULL");
+                return -1;
+        }
 
         err = stat(path, &statbuf);
         if (err != 0) {
