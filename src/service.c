@@ -29,6 +29,106 @@
 #include "request_priv.h"
 #include "service_priv.h"
 
+typedef struct _service_client_t service_client_t;
+
+static void service_add_client(service_t *service, service_client_t *client);
+static void service_remove_client(service_t *service, service_client_t *client);
+static void service_delete_clients(service_t *service);
+
+/*
+ * service_client_t
+ * 
+ * The service_client_t structure is used by the service to track all
+ * the clients.
+ */
+struct _service_client_t {
+        // The TCP socket and address
+        tcp_socket_t socket;
+
+        // Pointer to the service object that created this object.
+        service_t *service;
+
+        // The thread to handle the request
+        thread_t *thread;
+};
+
+service_client_t *new_service_client(service_t* service, tcp_socket_t socket)
+{
+        service_client_t *s = r_new(service_client_t);
+        s->service = service;
+        s->socket = socket;
+        return s;
+}
+
+void delete_service_client(service_client_t *client)
+{
+        if (client) {
+                if (client->socket != INVALID_TCP_SOCKET) {
+                        close_tcp_socket(client->socket);
+                        client->socket = INVALID_TCP_SOCKET;
+                }
+                delete_thread(client->thread);
+                r_delete(client);
+        }
+}
+
+void service_client_handle(service_client_t *client)
+{
+        int err = -1;
+        request_t* request = NULL;
+        export_t *export = NULL;
+        response_t *response = NULL;
+
+        request = new_request();
+
+        err = request_parse_html(request, client->socket, REQUEST_PARSE_ALL);
+        if (err != 0) {
+                http_send_error_headers(client->socket, HTTP_Status_Internal_Server_Error);
+                goto cleanup;
+        }
+
+        //r_debug("request_handle: request for '%s'", request_uri(request));
+
+        if (request_uri(request) == NULL) {
+                r_err("request_handle: requested uri == NULL!?");
+                http_send_error_headers(client->socket, HTTP_Status_Bad_Request);
+                goto cleanup;
+        }
+
+        export = service_get_export(client->service, request_uri(request));
+        if (export == NULL) {
+                r_err("request_handle: export == NULL: resource '%s'",
+                      request_uri(request));
+                http_send_error_headers(client->socket, HTTP_Status_Bad_Request);
+                goto cleanup;
+        }
+
+        response = new_response(HTTP_Status_OK);
+        if (response == NULL) {
+                http_send_error_headers(client->socket, HTTP_Status_Internal_Server_Error);
+                goto cleanup;
+        }
+        
+        response_set_mimetype(response, export_mimetype_out(export));
+        export_callback(export, request, response);
+
+        err = response_send(response, client->socket);
+        
+cleanup:
+        if (err != 0)
+                r_err("request_handle: failed to handle request");
+
+        service_remove_client(client->service, client);
+        
+        close_tcp_socket(client->socket);
+        client->socket = INVALID_TCP_SOCKET;
+        
+        delete_request(request);
+        delete_response(response);
+        delete_export(export);
+}
+
+
 /******************************************************************************/
         
 struct _service_t {
@@ -36,34 +136,30 @@ struct _service_t {
         addr_t *addr;
         tcp_socket_t socket;
         list_t* exports;
-        mutex_t *mutex;
+        mutex_t *exports_mutex;
         thread_t *thread;
         int cont;
+
+        list_t *clients;
+        list_t *finished_clients;
+        mutex_t *clients_mutex;
 };
 
 static void service_run(service_t *service);
-static void service_lock(service_t* s);
-static void service_unlock(service_t* s);
+static void service_lock_exports(service_t* s);
+static void service_unlock_exports(service_t* s);
+static void service_lock_clients(service_t* s);
+static void service_unlock_clients(service_t* s);
 static void service_index_html(service_t* service, request_t *request, response_t *response);
 static void service_index_json(service_t* service, request_t *request, response_t *response);
 
 service_t* new_service(const char *name, int port)
 {
         service_t* service = r_new(service_t);
-        if (service == NULL)
-                return NULL;
 
         service->name = r_strdup(name);
-        if (service->name == NULL) {
-                delete_service(service);
-                return NULL;
-        }
-
-        service->mutex = new_mutex();
-        if (service->mutex == NULL) {
-                delete_service(service);
-                return NULL;
-        }
+        service->exports_mutex = new_mutex();
+        service->clients_mutex = new_mutex();
 
         service->addr = new_addr(app_ip(), port);
         if (service->addr == NULL) {
@@ -88,7 +184,7 @@ service_t* new_service(const char *name, int port)
                  addr_string(service->addr, b, sizeof(b)));
 
         service->cont = 1;
-        service->thread = new_thread((thread_run_t) service_run, service, 0, 0);
+        service->thread = new_thread((thread_run_t) service_run, service);
         if (service->thread == NULL) {
                 delete_service(service);
                 return NULL;
@@ -104,12 +200,19 @@ void delete_service(service_t* service)
 
         if (service) {
                 service->cont = 0;
+                
                 if (service->thread) {
                         thread_join(service->thread);
                         delete_thread(service->thread);
                 }
                 
-                service_lock(service);
+                if (service->socket != INVALID_TCP_SOCKET) {
+                        close_tcp_socket(service->socket);
+                        service->socket = INVALID_TCP_SOCKET;
+                }
+                
+                // Delete exports
+                service_lock_exports(service);
                 l = service->exports;
                 while (l) {
                         e = list_get(l, export_t);
@@ -118,30 +221,50 @@ void delete_service(service_t* service)
                 }
                 delete_list(service->exports);
                 service->exports = NULL;
-                service_unlock(service);
+                service_unlock_exports(service);
+                delete_mutex(service->exports_mutex);
 
-                if (service->addr)
-                        delete_addr(service->addr);
-                if (service->name)
-                        r_free(service->name);
-                if (service->socket != INVALID_TCP_SOCKET)
-                        close_tcp_socket(service->socket);
+                // Delete clients
+                if (service->clients_mutex && service->clients) {
+                        
+                        service_lock_clients(service);
+                        list_t *l = service->clients;
+                        service->clients = NULL;
+                        service_unlock_clients(service);
 
-                if (service->mutex)
-                        delete_mutex(service->mutex);
-
+                        while (l) {
+                                service_client_t *c = list_get(l, service_client_t); 
+                                thread_join(c->thread);
+                                l = list_next(l);
+                        }
+                }
+                service_delete_clients(service);
+                delete_mutex(service->clients_mutex);
+                
+                delete_addr(service->addr);
+                r_free(service->name);                
                 r_delete(service);
         }
 }
 
-static void service_lock(service_t* s)
+static void service_lock_exports(service_t* s)
 {
-        mutex_lock(s->mutex);
+        mutex_lock(s->exports_mutex);
 }
 
-static void service_unlock(service_t* s)
+static void service_unlock_exports(service_t* s)
 {
-        mutex_unlock(s->mutex);
+        mutex_unlock(s->exports_mutex);
+}
+
+static void service_lock_clients(service_t* s)
+{
+        mutex_lock(s->clients_mutex);
+}
+
+static void service_unlock_clients(service_t* s)
+{
+        mutex_unlock(s->clients_mutex);
 }
 
 const char *service_name(service_t *service)
@@ -154,7 +277,38 @@ addr_t *service_addr(service_t* service)
         return service->addr;
 }
 
-static void service_index_html(service_t* service, request_t *request __attribute__((unused)), response_t *response)
+static void service_add_client(service_t *service, service_client_t *client)
+{
+        service_lock_clients(service);
+        service->clients = list_append(service->clients, client);
+        service_unlock_clients(service);
+}
+
+static void service_remove_client(service_t *service, service_client_t *client)
+{
+        service_lock_clients(service);
+        service->clients = list_remove(service->clients, client);
+        service->finished_clients = list_prepend(service->finished_clients, client);
+        service_unlock_clients(service);
+}
+
+static void service_delete_clients(service_t *service)
+{
+        service_lock_clients(service);
+        list_t *l = service->finished_clients;
+        while (l) {
+                service_client_t *r = list_get(l, service_client_t);
+                delete_service_client(r);
+                l = list_next(l);
+        }
+        delete_list(service->finished_clients);
+        service->finished_clients = NULL;
+        service_unlock_clients(service);
+}
+
+static void service_index_html(service_t* service,
+                               request_t *request __attribute__((unused)),
+                               response_t *response)
 {
         list_t *l;
         export_t *e;
@@ -172,7 +326,7 @@ static void service_index_html(service_t* service, request_t *request __attribut
 
         addr_string(service->addr, b, 52);
         
-        service_lock(service);
+        service_lock_exports(service);
         l = service->exports;
         while (l) {
                 e = list_get(l, export_t);
@@ -191,7 +345,7 @@ static void service_index_html(service_t* service, request_t *request __attribut
 
                 l = list_next(l);
         }
-        service_unlock(service);
+        service_unlock_exports(service);
         
         response_printf(response, "  </body>\n</html>\n");
 }
@@ -207,7 +361,7 @@ static void service_index_json(service_t* service, request_t *request __attribut
 
         addr_string(service->addr, b, 52);
         
-        service_lock(service);
+        service_lock_exports(service);
         l = service->exports;
         while (l) {
                 e = list_get(l, export_t);
@@ -225,7 +379,7 @@ static void service_index_json(service_t* service, request_t *request __attribut
                 }
                 l = list_next(l);
         }
-        service_unlock(service);
+        service_unlock_exports(service);
 
         response_printf(response, "]}");
 }
@@ -241,7 +395,7 @@ int service_export(service_t* service,
         int found = 0;
         int err = 0;
         
-        service_lock(service);
+        service_lock_exports(service);
         for (list_t *l = service->exports; l != NULL; l = list_next(l)) {
                 e = list_get(l, export_t);
                 if (export_matches(e, name)) {
@@ -252,7 +406,7 @@ int service_export(service_t* service,
                         break;
                 }
         }
-        service_unlock(service);
+        service_unlock_exports(service);
 
         if (found)
                 return err;
@@ -262,92 +416,11 @@ int service_export(service_t* service,
                 return -1;
         export_set_onrequest(e, data, onrequest);
         
-        service_lock(service);
+        service_lock_exports(service);
         service->exports = list_prepend(service->exports, e);
-        service_unlock(service);
+        service_unlock_exports(service);
 
         return 0;
-}
-
-struct service_and_socket_t {
-        service_t* service;
-        tcp_socket_t socket;
-};
-
-struct service_and_socket_t *new_service_and_socket(service_t* service,
-                                                    tcp_socket_t socket)
-{
-        struct service_and_socket_t *s;
-        s = r_new(struct service_and_socket_t);
-        if (s == NULL)
-                return NULL;
-        s->service = service;
-        s->socket = socket;
-        return s;
-}
-
-void service_handle(struct service_and_socket_t *s)
-{
-        int err = -1;
-        request_t* request = NULL;
-        export_t *export = NULL;
-        response_t *response = NULL;
-        service_t* service = s->service;
-        tcp_socket_t client_socket = s->socket;
-
-        request = new_request();
-        if (request == NULL) {
-                http_send_error_headers(client_socket, HTTP_Status_Internal_Server_Error);
-                goto cleanup;
-        }
-
-        err = request_parse_html(request, client_socket, REQUEST_PARSE_ALL);
-        if (err != 0) {
-                http_send_error_headers(client_socket, HTTP_Status_Internal_Server_Error);
-                goto cleanup;
-        }
-
-        //r_debug("request_handle: request for '%s'", request_uri(request));
-
-        if (request_uri(request) == NULL) {
-                r_err("request_handle: requested uri == NULL!?");
-                http_send_error_headers(client_socket, HTTP_Status_Bad_Request);
-                goto cleanup;
-        }
-
-        export = service_get_export(service, request_uri(request));
-        if (export == NULL) {
-                r_err("request_handle: export == NULL: resource '%s'",
-                      request_uri(request));
-                http_send_error_headers(client_socket, HTTP_Status_Bad_Request);
-                goto cleanup;
-        }
-
-        response = new_response(HTTP_Status_OK);
-        if (response == NULL) {
-                http_send_error_headers(client_socket, HTTP_Status_Internal_Server_Error);
-                goto cleanup;
-        }
-        
-        response_set_mimetype(response, export_mimetype_out(export));
-        export_callback(export, request, response);
-
-        err = response_send(response, client_socket);
-        
-cleanup:
-        if (err != 0)
-                r_err("request_handle: failed to handle request");
-
-        close_tcp_socket(client_socket);
-        
-        if (s)
-                r_delete(s);
-        if (request)
-                delete_request(request);
-        if (response)
-                delete_response(response);
-        if (export)
-                delete_export(export);
 }
 
 void service_run(service_t* service)
@@ -367,10 +440,15 @@ void service_run(service_t* service)
                         continue;
                 }
 
-                struct service_and_socket_t *s = new_service_and_socket(service,
-                                                                        client_socket);
+                service_client_t *client = new_service_client(service,
+                                                              client_socket);
 
-                new_thread((thread_run_t) service_handle, s, 0, 1);
+                service_add_client(service, client);
+
+                // Do some cleanup
+                service_delete_clients(service);
+                
+                client->thread = new_thread((thread_run_t) service_client_handle, client);
         }
 }
 
@@ -379,7 +457,7 @@ export_t *service_get_export(service_t *service, const char *name)
         list_t *l;
         export_t *n = NULL;
         
-        service_lock(service);
+        service_lock_exports(service);
         l = service->exports;
         while (l) {
                 export_t* r = list_get(l, export_t);
@@ -403,6 +481,6 @@ export_t *service_get_export(service_t *service, const char *name)
                         l = list_next(l);
                 }
         }
-        service_unlock(service);
+        service_unlock_exports(service);
         return n;
 }

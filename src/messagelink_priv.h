@@ -47,14 +47,14 @@ messagelink_t *server_messagelink_connect(messagehub_t *hub, tcp_socket_t socket
 int client_messagelink_connect(messagelink_t *link, addr_t *addr);
 int client_messagelink_disconnect(messagelink_t *link);
 
+void server_messagelink_read_in_background(messagelink_t *link);
 void messagelink_read_in_background(messagelink_t *link);
 
 int messagelink_send_ping(messagelink_t *link, const char *data, int len);
 
 addr_t *messagelink_addr(messagelink_t *link);
 
-
-
+void messagelink_stop_thread(messagelink_t *link);
 
 
 #ifdef __cplusplus

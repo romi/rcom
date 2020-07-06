@@ -287,7 +287,7 @@ int streamerlink_connect(streamerlink_t *link)
 
         //r_debug("streamerlink_connect @3");
                 
-        link->thread = new_thread((thread_run_t) streamerlink_run, link, 0, 0);
+        link->thread = new_thread((thread_run_t) streamerlink_run, link);
         if (link->thread == NULL) {
                 streamerlink_close_connection(link);
                 ret = -1;

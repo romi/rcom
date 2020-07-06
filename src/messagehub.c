@@ -39,6 +39,7 @@ struct _messagehub_t {
         tcp_socket_t socket;
 
         list_t *links;
+        list_t *closed_links;
         mutex_t *links_mutex;
 
         membuf_t *mem;
@@ -53,6 +54,7 @@ static void messagehub_add_link(messagehub_t *hub, messagelink_t *link);
 static void messagehub_lock_links(messagehub_t* hub);
 static void messagehub_unlock_links(messagehub_t* hub);
 static void messagehub_run(messagehub_t* hub);
+static void messagehub_delete_closed_links(messagehub_t *hub);
 
 messagehub_t* new_messagehub(int port,
                              messagehub_onconnect_t onconnect,
@@ -67,10 +69,15 @@ messagehub_t* new_messagehub(int port,
         hub->userdata = userdata;
         hub->mem = NULL;
         hub->links = NULL;        
-        hub->quit = 0;
+        hub->closed_links = NULL;        
         hub->links_mutex = new_mutex();
+        hub->quit = 0;
 
         hub->addr = new_addr(app_ip(), port);
+        if (hub->addr == NULL) {
+                delete_messagehub(hub);
+                return NULL;
+        }
         
         hub->socket = open_server_socket(hub->addr);
         if (hub->socket == INVALID_TCP_SOCKET) {
@@ -78,23 +85,21 @@ messagehub_t* new_messagehub(int port,
                 return NULL;
         }
 
-        char b[64];
-        r_info("Messagehub listening at http://%s:%d",
-                 addr_ip(hub->addr, b, 64), addr_port(hub->addr));
-
-        hub->thread = new_thread((thread_run_t) messagehub_run, hub, 0, 0);
+        hub->thread = new_thread((thread_run_t) messagehub_run, hub);
         if (hub->thread == NULL) {
                 delete_messagehub(hub);
                 return NULL;
         }
+
+        char b[64];
+        r_info("Messagehub listening at http://%s:%d",
+                 addr_ip(hub->addr, b, 64), addr_port(hub->addr));
         
         return hub;
 }
 
 void delete_messagehub(messagehub_t*hub)
 {
-        list_t *l;
-
         r_debug("delete_messagehub");
         
         if (hub) {
@@ -113,28 +118,22 @@ void delete_messagehub(messagehub_t*hub)
                 }
                 
                 if (hub->links_mutex) {
-                        int count = 0;
-                        while (hub->links) {
-                                // The head of the list is removed one
-                                // at the time, protected by the
-                                // mutex. Then owner_messagelink_close
-                                // is called outside of the mutex to
-                                // avoid a deadlock because
-                                // owner_messagelink_close calls
-                                // messagehub_remove_link, which also
-                                // uses the mutex.
-                                messagehub_lock_links(hub);
-                                l = hub->links;
-                                hub->links = list_next(l);
-                                messagehub_unlock_links(hub);                
 
-                                r_debug("delete_messagehub: deleting messagelink %d",
-                                          count++);
+                        messagehub_lock_links(hub);
+                        list_t *l = hub->links;
+                        hub->links = NULL;
+                        messagehub_unlock_links(hub);                
+                        
+                        // stop the active links
+                        while (l) {
                                 messagelink_t *link = list_get(l, messagelink_t);
-                                delete_messagelink(link);
-                                delete1_list(l);
-
+                                messagelink_stop_thread(link);
+                                l = list_next(l);
                         }
+                        delete_list(l);
+
+                        // delete all inactive links
+                        messagehub_delete_closed_links(hub);                        
                         delete_mutex(hub->links_mutex);
                 }
 
@@ -225,7 +224,11 @@ static void messagehub_handle_websocket(messagehub_t* hub,
 
         delete_request(request);
         messagehub_add_link(hub, link);
-        messagelink_read_in_background(link);
+
+        // Do some cleanup.
+        messagehub_delete_closed_links(hub);
+        
+        server_messagelink_read_in_background(link);
 }
 
 struct request_and_socket_t {
@@ -248,42 +251,22 @@ struct request_and_socket_t *new_request_and_socket(messagehub_t* hub,
         return s;
 }
 
-static void _messagehub_handle_request(struct request_and_socket_t *s)
-{
-        messagehub_t* hub = s->hub;
-        request_t *request = s->request;
-        tcp_socket_t link_socket = s->socket;
-        r_delete(s);
-        
-        response_t *response = new_response(HTTP_Status_OK);
-        if (response == NULL) {
-                http_send_error_headers(link_socket, HTTP_Status_Internal_Server_Error);
-                delete_request(request);
-                close_tcp_socket(link_socket);
-                return;
-        }
-        
-        hub->onrequest(hub->userdata, request, response);
-        response_send(response, link_socket);
-
-        delete_request(request);
-        delete_response(response);
-        close_tcp_socket(link_socket);
-}
-
 static void messagehub_handle_request(messagehub_t* hub,
                                       request_t *request,
                                       tcp_socket_t link_socket)
 {
         if (hub->onrequest == NULL) {
                 http_send_error_headers(link_socket, HTTP_Status_Not_Found);
-                delete_request(request);
-                close_tcp_socket(link_socket);
-                return;
-        }
 
-        struct request_and_socket_t *s = new_request_and_socket(hub, request, link_socket);
-        new_thread((thread_run_t) _messagehub_handle_request, s, 0, 1);
+        } else {
+                response_t *response = new_response(HTTP_Status_OK);
+                hub->onrequest(hub->userdata, request, response);
+                response_send(response, link_socket);
+                delete_response(response);
+        }
+        
+        delete_request(request);
+        close_tcp_socket(link_socket);
 }
 
 static void messagehub_handle(messagehub_t *hub, tcp_socket_t link_socket)
@@ -350,8 +333,24 @@ static void messagehub_add_link(messagehub_t *hub, messagelink_t *link)
 
 void messagehub_remove_link(messagehub_t *hub, messagelink_t *link)
 {
+        r_debug("messagehub_remove_link");
         messagehub_lock_links(hub);
         hub->links = list_remove(hub->links, link);
+        hub->closed_links = list_prepend(hub->closed_links, link);
+        messagehub_unlock_links(hub);
+}
+
+// Should be called with the links mutex locked.
+static void messagehub_delete_closed_links(messagehub_t *hub)
+{
+        messagehub_lock_links(hub);
+        r_debug("messagehub_delete_closed_links");
+        for (list_t *l = hub->closed_links; l != NULL; l = list_next(l)) {
+                messagelink_t *link = list_get(l, messagelink_t);
+                delete_messagelink(link);
+        }
+        delete_list(hub->closed_links);
+        hub->closed_links = NULL;
         messagehub_unlock_links(hub);
 }
 
