@@ -292,9 +292,6 @@ run_t *run_parse(json_object_t node, const char *default_user)
                 return NULL;
         }
 
-        if (check_path(path) != 0)
-                return NULL;
-
         const char *s = strrchr(path, '/');
         if (s == NULL)
                 s = path;
@@ -458,7 +455,7 @@ static int parse_registry(json_object_t config)
 {
         json_object_t r;
         const char *addr;
-        const char *path;
+        const char *path = NULL;
         int port;
 
         r = json_object_get(config, "registry");
@@ -481,14 +478,8 @@ static int parse_registry(json_object_t config)
                 path = json_object_getstr(r, "path");
         }
 
-        if (path == NULL) {
-                path = "/usr/local/bin/rcregistry";
-        }
-
-        if (check_path(path) != 0) {
-                r_panic("monitor: can't find ltregistry executable. Tried %s.", path);
-                return -1;
-        }
+        if (path == NULL) 
+                path = "rcregistry";
 
         _registry = new_run("registry", path, NULL, _user);
         if (_registry == NULL)
@@ -521,19 +512,16 @@ list_t *load_config(const char *filename)
         if (json_falsy(launch)) {
                 r_panic("No launch section: exiting");
                 json_unref(config);
-                json_unref(launch);
                 return NULL;
         }
 
         if (parse_general(launch) != 0) {
                 json_unref(config);
-                json_unref(launch);
                 return NULL;
         }
 
         if (parse_registry(launch) != 0) {
                 json_unref(config);
-                json_unref(launch);
                 return NULL;
         }
 
@@ -542,13 +530,11 @@ list_t *load_config(const char *filename)
         list = parse_nodes(launch, _user);
         if (list == NULL) {
                 json_unref(config);
-                json_unref(launch);
                 return NULL;
         }
 
         r_debug("parsing done");
 
-        json_unref(launch);
         json_unref(config);
         return list;
 }
