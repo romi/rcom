@@ -85,14 +85,13 @@ datahub_t *new_datahub(datahub_onbroadcast_t onbroadcast,
                 goto error_recovery;
 
         if (hub->ondata)  {
-                hub->data_thread = new_thread((thread_run_t) datahub_run_data, hub, 1, 0);
+                hub->data_thread = new_thread((thread_run_t) datahub_run_data, hub);
                 if (hub->data_thread == NULL)
                         goto error_recovery;
         }
 
         if (hub->onbroadcast)  {
-                hub->broadcast_thread = new_thread((thread_run_t) datahub_run_broadcast,
-                                                   hub, 1, 0);
+                hub->broadcast_thread = new_thread((thread_run_t) datahub_run_broadcast, hub);
                 if (hub->broadcast_thread == NULL)
                         goto error_recovery;
         }

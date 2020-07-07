@@ -38,6 +38,90 @@
 #include "messagehub_priv.h"
 #include "messagelink_priv.h"
 
+/** Messagelinks are created on the server-side by a messagehub to
+ *  handle an incoming connection. Let's call it a server-side
+ *  messagelink. They are also created on the client-side to
+ *  communicate with the message hub. These are client-side
+ *  messagelinks.
+ * 
+ *  Server-side messagelink always run in their own thread. They wait
+ *  for incoming messages and pass them to the 'onmessage' handler.
+ *
+ *  The message hub does roughly something like this when a connection
+ *  comes in:
+ *
+ *  void messagehub_handle_websocket(...)
+ *  {
+ *      messagehub_upgrade_connection(); // finalize the websocket handshake
+ *
+ *      messagelink = server_messagelink_connect(); 
+ *      // server_messagelink_connect() calls new_messagelink() and does 
+ *      // some additional initialization.
+ *
+ *      server_messagelink_read_in_background(link);
+ *      // this creates a background thread that calls messagelink_read,
+ *      // the onmessage handler, and messagehub_remove_link() after a close 
+ *      // message was received.
+ *  }
+ *
+ *  Client-side messagelink can run in their own thread but can also
+ *  be used without a thread. When they are used with a thread, the
+ *  onmessage handler must be specified. In that case, the thread
+ *  waits for incoming messages from the messagehub and passes them to
+ *  the onmessage handler.
+ *
+ *  The code looks something like this:
+ *
+ *  void my_onmessage(...) 
+ *  {
+ *      // handle incoming message
+ *  }
+ *
+ *  int main() 
+ *  {
+ *      // intialisation...
+ *
+ *      messagelink = registry_open_messagelink(..., my_onmessage, ...);
+ *      // calls new_messagelink
+ *
+ *      // ... do other stuff.
+ *
+ *      // when done:
+ *      registry_close_messagelink(messagelink);
+ *      // calls delete_messagelink
+ *
+ *      return 0;
+ *  }
+ *    
+ *
+ *  If the client didn't specify an 'onmessage' handler, it can handle
+ *  the communication itself by using the messagelink_read() and
+ *  messagelink_send_*() methods (the messagelink_send_command()
+ *  is a convenience function that combines a send & read).
+ *
+ *  The code looks something like this:
+ *
+ *  int main() 
+ *  {
+ *      json_object_t reply;
+ *      // intialisation...
+ *
+ *      messagelink = registry_open_messagelink(..., NULL, ...);
+ *      // calls new_messagelink
+ *
+ *      for (int i = 0; i < 10; i++) 
+ *          reply = messagelink_send_command(messagelink, "hello");
+ *
+ *      // we're done:
+ *      registry_close_messagelink(messagelink);
+ *      // calls delete_messagelink
+ *
+ *      return 0;
+ *  }
+ *    
+ *
+ */
+
 /**********************************************
  * utility functions
  */
@@ -126,7 +210,10 @@ const char *get_state_str(int state)
  */
 
 typedef struct _messagelink_t {
+        /* Pointer to the messagehub that created the messagelink. For
+         * server-side messagelinks only.  */
         messagehub_t *hub;
+        
         tcp_socket_t socket;
         addr_t *addr;
         addr_t *remote_addr;
@@ -151,7 +238,15 @@ typedef struct _messagelink_t {
         messagelink_onclose_t onclose;
         void *userdata;
 
+        /* The background thread that handles incoming
+         * messages. Server-side messagelinks always use a
+         * thread. Client-side messagelinks that have an 'onmessage'
+         * handler also use a thread. Client-side messagelinks without
+         * an 'onmessage' handler manage the communication
+         * themselves.  */
         thread_t *thread;
+        int thread_quit;
+        
         mutex_t *send_mutex;
         mutex_t *state_mutex;
 
@@ -159,7 +254,6 @@ typedef struct _messagelink_t {
 
 static void owner_messagelink_close(messagelink_t *link, int code);
 
-static void messagelink_run(messagelink_t *link);
 static int messagelink_read_message(messagelink_t *link, ws_frame_t *frame);
 
 static int messagelink_send_close(messagelink_t *link, int code);
@@ -169,7 +263,6 @@ static int messagelink_send_pong(messagelink_t *link, membuf_t *payload);
 // json_null(). In that case, the connection will have been closed and
 // should no longer be used.
 static json_object_t _messagelink_read(messagelink_t *link);
-static void messagelink_stop_background(messagelink_t *link);
 
 
 messagelink_t *new_messagelink(messagelink_onmessage_t onmessage,
@@ -194,6 +287,7 @@ messagelink_t *new_messagelink(messagelink_onmessage_t onmessage,
         link->onclose = onclose;
         link->userdata = userdata;
         link->thread = NULL;
+        link->thread_quit = 0;
         link->http_status = 0;
         link->uri = NULL;
 
@@ -217,18 +311,15 @@ messagelink_t *new_messagelink(messagelink_onmessage_t onmessage,
 
 void delete_messagelink(messagelink_t *link)
 {
-        //r_debug("delete_messagelink");
+        r_debug("delete_messagelink");
         if (link) {
-                if (link->hub)
-                        messagehub_remove_link(link->hub, link);
+                messagelink_stop_thread(link);
                 if (link->state_mutex) {
                         mutex_lock(link->state_mutex);
                         if (link->state == WS_OPEN)
                                 owner_messagelink_close(link, 1001);
                         mutex_unlock(link->state_mutex);
                 }
-                if (link->thread)
-                        messagelink_stop_background(link);
                 if (link->uri)
                         r_free(link->uri);
                 if (link->in)
@@ -431,8 +522,10 @@ static void messagelink_close_socket(messagelink_t *link)
         }
 }
 
-// This function is called when the close handshake in initiated by
-// the owner of this link.
+/** 
+ *  This function is called when the close handshake in initiated by
+ *  the owner of this link.
+ */
 static void owner_messagelink_close(messagelink_t *link, int code)
 {
         //r_debug("owner_messagelink_close: code %d", code);
@@ -441,9 +534,6 @@ static void owner_messagelink_close(messagelink_t *link, int code)
             || link->state == WS_CLOSING)
                 return;
         
-        link->state = WS_CLOSING;
-        messagelink_stop_background(link);
-
         //r_info("owner_messagelink_close: sending close");
         int err = owner_messagelink_send_close(link, code);
         if (err) {
@@ -472,10 +562,13 @@ static int owner_messagelink_send_close(messagelink_t *link, int code)
         return messagelink_send_close(link, code);
 }
 
-// Returns
-// 0: got close message
-// -1: a read error occured
-// -2: time-out, waiting too long for reply
+/**
+ *
+ * Returns
+ *  0: got close message
+ *  -1: a read error occured
+ *  -2: time-out, waiting too long for reply
+ */
 static int owner_messagelink_wait_close(messagelink_t *link)
 {
         //r_debug("owner_messagelink_wait_close");
@@ -497,8 +590,9 @@ static int owner_messagelink_wait_close(messagelink_t *link)
         }
 }
 
-// Send a close message but don't bother waiting for the returning
-// close message.
+/** Send a close message but don't bother waiting for the returning
+ *  close message.
+ */
 static void owner_messagelink_close_oneway(messagelink_t *link, int code)
 {
         //r_debug("owner_messagelink_close_oneway: code %d", code);
@@ -508,8 +602,6 @@ static void owner_messagelink_close_oneway(messagelink_t *link, int code)
                 clock_sleep(4);
         messagelink_close_socket(link);
 }
-
-//----
 
 static int remote_messagelink_close_code(messagelink_t *link)
 {
@@ -523,6 +615,9 @@ static int remote_messagelink_close_code(messagelink_t *link)
         return (int) code;
 }
 
+/** This function is called when the remote end of the link sent a
+ *  close message.
+ */
 static int remote_messagelink_close(messagelink_t *link)
 {
         //r_debug("remote_messagelink_close");
@@ -546,11 +641,6 @@ static int remote_messagelink_close(messagelink_t *link)
         if (link->onclose)
                 link->onclose(link->userdata, link);
 
-        messagelink_stop_background(link);
-
-        if (link->hub)
-                delete_messagelink(link);
-        
         return 0;
 }
 
@@ -868,13 +958,15 @@ static json_object_t _messagelink_read(messagelink_t *link)
         return json_null();
 }
 
-static void messagelink_run(messagelink_t *link)
+static void _messagelink_loop(messagelink_t *link)
 {
-        //r_debug("messagelink_run");
-        
-        while (link->state == WS_OPEN && !app_quit()) {
+        while (!link->thread_quit
+               && link->state == WS_OPEN
+               && !app_quit()) {
                 
+                //r_debug("_messagelink_loop: reading message");
                 json_object_t message = _messagelink_read(link);
+                //r_debug("_messagelink_loop: done reading message");
                 if (!json_isnull(message)) {
                         link->onmessage(link->userdata, link, message);
                         json_unref(message);
@@ -882,21 +974,49 @@ static void messagelink_run(messagelink_t *link)
         }
 }
 
-void messagelink_read_in_background(messagelink_t *link)
+static void server_messagelink_run(messagelink_t *link)
 {
-        //r_debug("messagelink_read_in_background");
+        r_debug("server_messagelink_run: started");
+        
+        _messagelink_loop(link);
+        
+        if (link->hub)
+                messagehub_remove_link(link->hub, link);
+
+        r_debug("server_messagelink_run: finished");
+}
+
+static void client_messagelink_run(messagelink_t *link)
+{
+        r_debug("client_messagelink_run: started");
+        
+        _messagelink_loop(link);
+        
+        r_debug("server_messagelink_run: finished");
+}
+
+void server_messagelink_read_in_background(messagelink_t *link)
+{
+        link->thread_quit = 0;
+        link->thread = new_thread((thread_run_t) server_messagelink_run, link);
+}
+
+static void client_messagelink_read_in_background(messagelink_t *link)
+{
         if (link->thread == NULL && link->onmessage != NULL) {
-                link->thread = new_thread((thread_run_t) messagelink_run, link, 0, 0);
+                link->thread_quit = 0;
+                link->thread = new_thread((thread_run_t) client_messagelink_run, link);
         }
 }
 
-static void messagelink_stop_background(messagelink_t *link)
+void messagelink_stop_thread(messagelink_t *link)
 {
-        //r_debug("messagelink_stop_background");
+        r_debug("messagelink_stop_background");
         if (link->thread) {
-                //r_debug("messagelink_stop_background: joining read thread");
+                link->thread_quit = 1;
+                r_debug("messagelink_stop_background: joining read thread");
                 thread_join(link->thread);
-                //r_debug("messagelink_stop_background: joined");
+                r_debug("messagelink_stop_background: joined");
                 delete_thread(link->thread);
                 link->thread = NULL;
         }
@@ -1435,9 +1555,10 @@ static int client_messagelink_validate_response(messagelink_t *link, const char 
         return 0;
 }
 
-
-// -1: error
-// -2: already connected
+/**
+ * -1: error
+ * -2: already connected
+ */
 int client_messagelink_connect(messagelink_t *link, addr_t *addr)
 {
         int err;
@@ -1493,7 +1614,7 @@ int client_messagelink_connect(messagelink_t *link, addr_t *addr)
         
         mutex_unlock(link->state_mutex);
 
-        messagelink_read_in_background(link);
+        client_messagelink_read_in_background(link);
         
         return 0;
 }

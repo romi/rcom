@@ -473,7 +473,7 @@ int run_start(run_t *r, pid_t gpid)
         }
         r->status = k_starting;
         r->gpid = gpid;
-        r->thread = new_thread(_run, (void*) r, 0, 0);
+        r->thread = new_thread(_run, (void*) r);
         return 0;
 }
 

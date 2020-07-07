@@ -38,7 +38,9 @@ static void streamer_send_index_json(streamer_t *streamer, tcp_socket_t s);
 static int streamer_onclient(streamer_t *streamer, streamer_client_t *client);
 static void streamer_add_client(streamer_t *streamer, streamer_client_t *client);
 static void streamer_remove_client(streamer_t *streamer, streamer_client_t *client);
+static void streamer_delete_clients(streamer_t *streamer);
 static const char *streamer_mimetype(streamer_t *streamer);
+static int streamer_quit(streamer_t *streamer);
 
 /*
  * streamer_client_t
@@ -62,10 +64,12 @@ typedef struct _streamer_client_t {
 
         void *context;
         streamer_client_delete_context_t del;
+
+        thread_t *thread;
 } streamer_client_t;
 
 static void delete_streamer_client(streamer_client_t *client);
-static void streamer_client_handle_request(streamer_client_t *client);
+static void streamer_client_run(streamer_client_t *client);
 
 static streamer_client_t *new_streamer_client(streamer_t *streamer,
                                               tcp_socket_t socket)
@@ -73,18 +77,9 @@ static streamer_client_t *new_streamer_client(streamer_t *streamer,
         streamer_client_t *client;
 
         client = r_new(streamer_client_t);
-        if (client == NULL)
-                return NULL;
-        
         client->streamer = streamer;
         client->socket = socket;
-        client->request = NULL;
-        
         client->buffer = new_circular_buffer(1 * 1024 * 1024);
-        if (client->buffer == NULL) {
-                delete_streamer_client(client);
-                return NULL;
-        }
         return client;
 }
 
@@ -92,12 +87,9 @@ static int streamer_client_read(streamer_client_t *client, char *buffer, size_t 
 {
         int available;
 
-        if (app_quit())
-                return 0;
-
         available = circular_buffer_available(client->buffer);
         while (available == 0) {
-                if (app_quit())
+                if (streamer_quit(client->streamer))
                         return 0;
                 clock_sleep(0.010);
                 available = circular_buffer_available(client->buffer);
@@ -115,10 +107,9 @@ static void delete_streamer_client(streamer_client_t *client)
         if (client) {
                 if (client->socket != INVALID_TCP_SOCKET)
                         close_tcp_socket(client->socket);
-                if (client->buffer)
-                        delete_circular_buffer(client->buffer);
-                if (client->request)
-                        delete_request(client->request);
+                delete_circular_buffer(client->buffer);
+                delete_request(client->request);
+                delete_thread(client->thread);
                 if (client->context && client->del)
                         client->del(client);
                 r_delete(client);
@@ -150,98 +141,52 @@ static int streamer_client_parse_request(streamer_client_t *client)
 {
 
         client->request = new_request();
-        if (client->request == NULL) {
-                http_send_error_headers(client->socket, HTTP_Status_Internal_Server_Error);
-                goto cleanup;
-        }
 
         int err = request_parse_html(client->request, client->socket, REQUEST_PARSE_ALL);
         if (err != 0) {
                 http_send_error_headers(client->socket, HTTP_Status_Internal_Server_Error);
-                goto cleanup;
+                delete_request(client->request);
+                client->request = NULL;
+                return -1;
         }
 
         if (request_uri(client->request) == NULL) {
                 http_send_error_headers(client->socket, HTTP_Status_Bad_Request);
-                goto cleanup;
-        }
-
-        return 0;
-        
-cleanup:
-        if (client->request != NULL) {
                 delete_request(client->request);
                 client->request = NULL;
-        }
-        return -1;
-}
-
-static int streamer_client_run(streamer_client_t *client)
-{
-        //r_debug("streamer_client_run");
-        
-        int err = http_send_streaming_headers(client->socket,
-                                              streamer_mimetype(client->streamer));
-        if (err != 0)
                 return -1;
-        
-        while (!app_quit()) {
-                char buf[16384];
-                int received = streamer_client_read(client, buf, sizeof(buf));
-                err = http_send_chunk(client->socket, buf, received);
-                if (err == -1) return -1;
         }
 
         return 0;
 }
 
-static void streamer_client_handle_request(streamer_client_t *client)
+static void streamer_client_run(streamer_client_t *client)
 {
-        //r_debug("streamer_client_handle_request 1");
-        if (streamer_client_parse_request(client) != 0)
-                return;
-        
-        // In case index.html or index.json is requested,
-        // short-circuit the normal pathway and send back an index
-        // page.
-        const char *uri = request_uri(client->request);
-        if (rstreq(uri, "/") || rstreq(uri, "/index.html")) {
-                streamer_send_index_html(client->streamer, client->socket);
-                delete_streamer_client(client);
-                return;
-        } else if (rstreq(uri, "/index.json")) {
-                streamer_send_index_json(client->streamer, client->socket);
-                delete_streamer_client(client);
-                return;                
-        }
-
-        if (!rstreq(uri, "/stream.html")) {
-                http_send_error_headers(client->socket, HTTP_Status_Bad_Request);
+        char buf[16384];
+        int received;
+        int err = http_send_streaming_headers(client->socket,
+                                              streamer_mimetype(client->streamer));
+        if (err != 0) {
+                close_tcp_socket(client->socket);
+                client->socket = INVALID_TCP_SOCKET;        
+                streamer_remove_client(client->streamer, client);
                 return;
         }
         
-        //r_debug("streamer_client_handle_request 3");
-        if (streamer_onclient(client->streamer, client) != 0) {
-                http_send_error_headers(client->socket, HTTP_Status_Internal_Server_Error);
-                delete_streamer_client(client);
-                return;
+        while (!streamer_quit(client->streamer)) {
+                
+                received = streamer_client_read(client, buf, sizeof(buf));
+                
+                err = http_send_chunk(client->socket, buf, received);
+                if (err == -1)
+                        break;
         }
 
-        //r_debug("streamer_client_handle_request 4");
-        streamer_add_client(client->streamer, client);
-
-        //r_debug("streamer_client_handle_request 5");
-        streamer_client_run(client);
-        
-        //r_debug("streamer_client_handle_request 6");
+        close_tcp_socket(client->socket);
+        client->socket = INVALID_TCP_SOCKET;
         streamer_remove_client(client->streamer, client);
         
-        //r_debug("streamer_client_handle_request 7");
-        delete_streamer_client(client);
-
-        //r_debug("streamer_client_handle_request 8");
-        
-        r_info("streamer_client: thread finished");
+        r_info("streamer_client_run: thread finished");
 }
 
 /*****************************************************/
@@ -258,6 +203,7 @@ struct _streamer_t
         mutex_t *mutex;
 
         list_t *clients;
+        list_t *finished_clients;
         mutex_t *clients_mutex;
         
         thread_t* server_thread;
@@ -283,29 +229,15 @@ streamer_t *new_streamer(const char *name,
                          void *userdata)
 {
         streamer_t *streamer = r_new(streamer_t);
-        if (streamer == NULL)
-                return NULL;
 
         streamer->name = r_strdup(name);
         streamer->topic = r_strdup(topic);
         streamer->mimetype = r_strdup(mimetype);
-        if (streamer->name == NULL
-            || streamer->mimetype == NULL
-            || streamer->topic == NULL) {
-                r_delete(streamer);
-                return NULL;
-        }
 
         streamer->onclient = onclient;
         streamer->onbroadcast = onbroadcast;
         streamer->userdata = userdata;
-        streamer->clients = NULL;
-        
         streamer->clients_mutex = new_mutex();
-        if (streamer->clients_mutex == NULL) {
-                r_delete(streamer);
-                return NULL;
-        }
         
         streamer->addr = new_addr(app_ip(), port);
         if (streamer->addr == NULL) {
@@ -327,7 +259,7 @@ streamer_t *new_streamer(const char *name,
         streamer->cont = 1;        
 
         streamer->server_thread = new_thread((thread_run_t) streamer_run_server,
-                                             (void*) streamer, 0, 0);
+                                             (void*) streamer);
         if (streamer->server_thread == NULL) {
                 r_err("Failed to start the server thread");
                 delete_streamer(streamer);
@@ -336,7 +268,7 @@ streamer_t *new_streamer(const char *name,
 
         if (streamer->onbroadcast) {
                 streamer->data_thread = new_thread((thread_run_t) streamer_run_data,
-                                                   (void*) streamer, 0, 0);
+                                                   (void*) streamer);
                 if (streamer->data_thread == NULL) {
                         r_err("Failed to start the server thread");
                         delete_streamer(streamer);
@@ -369,29 +301,27 @@ void delete_streamer(streamer_t *streamer)
                 
                 //r_debug("delete_streamer: deleting clients");
                 
-                // delete clients
-                if (streamer->clients_mutex) {
-                        streamer_lock_clients(streamer); // lock
-// ToDo: This needs to be fixed. Possible bug in deleting streamer clients twice. (Issue #11 Github)
-//                        l = streamer->clients;
-//                        while (l) {
-//                                streamer_client_t *r = list_get(l, streamer_client_t);
-//                                /* delete_streamer_client(r); */
-//                                l = list_next(l);
-//                        }
-                        delete_list(streamer->clients);
+                // Delete clients
+                if (streamer->clients_mutex && streamer->clients) {
+                        
+                        streamer_lock_clients(streamer);
+                        list_t *l = streamer->clients;
                         streamer->clients = NULL;
-                        streamer_unlock_clients(streamer); // unlock
-                        delete_mutex(streamer->clients_mutex);
+                        streamer_unlock_clients(streamer);
+
+                        while (l) {
+                                streamer_client_t *c = list_get(l, streamer_client_t); 
+                                thread_join(c->thread);
+                                l = list_next(l);
+                        }
                 }
-                if (streamer->topic)
-                        r_free(streamer->topic);
-                if (streamer->name)
-                        r_free(streamer->name);
-                if (streamer->mimetype)
-                        r_free(streamer->mimetype);
-                if (streamer->addr)
-                        delete_addr(streamer->addr);
+                streamer_delete_clients(streamer);
+                delete_mutex(streamer->clients_mutex);
+                
+                r_free(streamer->topic);
+                r_free(streamer->name);
+                r_free(streamer->mimetype);
+                delete_addr(streamer->addr);
                 if (streamer->socket != INVALID_TCP_SOCKET)
                         close_tcp_socket(streamer->socket);
 
@@ -404,13 +334,27 @@ addr_t *streamer_addr(streamer_t *s)
         return s->addr;
 }
 
+static void streamer_start_stream(streamer_t *streamer, streamer_client_t *client)
+{
+        if (streamer_onclient(streamer, client) != 0) {
+                http_send_error_headers(client->socket,
+                                        HTTP_Status_Internal_Server_Error);
+                return;
+        }
+        
+        streamer_add_client(streamer, client);
+                
+        r_info("streamer_start_stream: spinning off new thread to handle client");
+        client->thread = new_thread((thread_run_t) streamer_client_run, client);
+}
+
 static void streamer_run_server(streamer_t *streamer)
 {
         tcp_socket_t socket;
 
         r_info("Thread 'streamer_run_server' starting");
         
-        while (!app_quit() && streamer->cont) {
+        while (!streamer_quit(streamer)) {
                 //r_info("streamer_run_server: waiting for new connection");
                 
                 socket = server_socket_accept(streamer->socket);
@@ -422,17 +366,35 @@ static void streamer_run_server(streamer_t *streamer)
                         continue;
                 }
 
+                // Check whether finished client need cleaning up.
+                streamer_delete_clients(streamer);
+
                 //r_info("streamer_run_server: got connection");
                 streamer_client_t *client = new_streamer_client(streamer, socket);
-                if (client == NULL) {
-                        r_err("out of memory");
-                        http_send_error_headers(socket, 500);
-                        close_tcp_socket(socket);
+
+                if (streamer_client_parse_request(client) != 0) {
+                        close_tcp_socket(client->socket);
+                        client->socket = INVALID_TCP_SOCKET;
                         continue;
                 }
+        
+                const char *uri = request_uri(client->request);
+
+                if (rstreq(uri, "/") || rstreq(uri, "/index.html")) {
+                        streamer_send_index_html(streamer, socket);
+                        delete_streamer_client(client);
+                        
+                } else if (rstreq(uri, "/index.json")) {
+                        streamer_send_index_json(streamer, socket);
+                        delete_streamer_client(client);
+                        
+                } else if (rstreq(uri, "/stream.html")) {
+                        streamer_start_stream(streamer, client);
                 
-                //r_info("streamer_run_server: spinning off new thread to handle client");
-                new_thread((thread_run_t) streamer_client_handle_request, client, 0, 1);
+                } else {
+                        http_send_error_headers(socket, HTTP_Status_Bad_Request);
+                        delete_streamer_client(client);
+                }
         }
 
         r_info("Thread 'streamer_run_server' finished");
@@ -442,9 +404,8 @@ static void streamer_run_data(streamer_t *streamer)
 {
         r_info("Thread 'streamer_run_data' starting");
         
-        while (!app_quit() && streamer->cont) {
+        while (!streamer_quit(streamer))
                 streamer->onbroadcast(streamer->userdata, streamer);
-        }
 
         r_info("Thread 'streamer_run_data' finished");
 }
@@ -501,6 +462,21 @@ static void streamer_remove_client(streamer_t *streamer, streamer_client_t *clie
 {
         streamer_lock_clients(streamer);
         streamer->clients = list_remove(streamer->clients, client);
+        streamer->finished_clients = list_prepend(streamer->finished_clients, client);
+        streamer_unlock_clients(streamer);
+}
+
+static void streamer_delete_clients(streamer_t *streamer)
+{
+        streamer_lock_clients(streamer);
+        list_t *l = streamer->finished_clients;
+        while (l) {
+                streamer_client_t *r = list_get(l, streamer_client_t);
+                delete_streamer_client(r);
+                l = list_next(l);
+        }
+        delete_list(streamer->finished_clients);
+        streamer->finished_clients = NULL;
         streamer_unlock_clients(streamer);
 }
 
@@ -633,6 +609,11 @@ cleanup:
 static const char *streamer_mimetype(streamer_t *streamer)
 {
         return streamer->mimetype;
+}
+
+static int streamer_quit(streamer_t *streamer)
+{
+        return app_quit() || streamer->cont == 0;
 }
 
 /* static void *_dumper_thread_run(void *data) */

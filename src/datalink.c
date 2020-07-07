@@ -171,7 +171,7 @@ int datalink_start_thread(datalink_t *link)
         mutex_lock(link->mutex);
         if (link->thread == NULL) {
                 link->thread_quit = 0;
-                link->thread = new_thread(datalink_run, (void*) link, 0, 0);
+                link->thread = new_thread(datalink_run, (void*) link);
         }
         mutex_unlock(link->mutex);
         
