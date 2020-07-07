@@ -394,16 +394,14 @@ static mime_map_t map[] = { {".html", "text/html"},
 
 const char *filename_to_mimetype(const char *filename)
 {
-        int i = 0;
-        while (map[i].ext) {
+        for (int i = 0; map[i].ext != NULL; i++) {
                 int n = strlen(map[i].ext);
                 int m = strlen(filename);
                 if (m < n + 1)
                         continue;
                 const char *p = filename + m - n;
                 if (rstreq(p, map[i].ext))
-                    return map[i].mimetype;
-                i++;
+                        return map[i].mimetype;
         }
         return NULL;
 }
