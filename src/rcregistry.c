@@ -73,7 +73,8 @@ rcregistry_t* new_rcregistry()
                 return NULL;
         }
         
-        rcregistry->hub = new_messagehub(get_registry_port(), _onconnect, rcregistry);
+        rcregistry->hub = new_messagehub("registry", get_registry_port(),
+                                         _onconnect, rcregistry);
         if (rcregistry->hub == NULL) {
                 r_err("Failed to create the registry hub. Quiting.");
                 delete_rcregistry(rcregistry);

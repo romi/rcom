@@ -374,12 +374,6 @@ static int parse_general(json_object_t config)
                 return 0;
         }
 
-        /* const char *log = json_object_getstr(r, "log-dir"); */
-        /* if (log != NULL) { */
-        /*         // app_set_logdir also update the log file. */
-        /*         app_set_logdir(log); */
-        /* } */
-
         const char *user = json_object_getstr(r, "user");
         if (user != NULL) {
                 _user = r_strdup(user);
@@ -422,26 +416,6 @@ static int parse_general(json_object_t config)
                 rprintf(path, sizeof(path), "%s/%s", sessions_dir, datetime);
                 app_set_session(path);
         }
-
-        /* _dump_dir = json_object_getstr(r, "dump-dir"); */
-        /* if (_dump_dir != NULL && get_dumping()) { */
-        /*         char path[1024]; */
-        /*         char timestamp[128]; */
-        /*         int err; */
-
-        /*         clock_datetime(timestamp, 128, '-', '_', '-'); */
-        /*         snprintf(path, 1024, "%s/%s", _dump_dir, timestamp); */
-        /*         path[1023] = 0; */
-
-        /*         err = mkdir(path, 0777); */
-        /*         if (err != 0) { */
-        /*                 char reason[200]; */
-        /*                 strerror_r(errno, reason, 200); */
-        /*                 r_err("Failed to create the directory '%s'", path); */
-        /*                 return -1; */
-        /*         } */
-        /*         set_dumping_dir(path); */
-        /* } */
 
         /* _replay_path = json_object_getstr(r, "replay-path"); */
         /* if (_replay_path == NULL) { */

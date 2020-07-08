@@ -34,6 +34,7 @@
 #include "request_priv.h"
 
 struct _messagehub_t {
+        char *name;
         thread_t *thread;
         addr_t *addr;
         tcp_socket_t socket;
@@ -56,7 +57,8 @@ static void messagehub_unlock_links(messagehub_t* hub);
 static void messagehub_run(messagehub_t* hub);
 static void messagehub_delete_closed_links(messagehub_t *hub);
 
-messagehub_t* new_messagehub(int port,
+messagehub_t* new_messagehub(const char *name,
+                             int port,
                              messagehub_onconnect_t onconnect,
                              void *userdata)
 {
@@ -64,6 +66,7 @@ messagehub_t* new_messagehub(int port,
         if (hub == NULL)
                 return NULL;
 
+        hub->name = r_strdup(name);
         hub->onconnect = onconnect;
         hub->onrequest = NULL;
         hub->userdata = userdata;
@@ -109,8 +112,8 @@ void delete_messagehub(messagehub_t*hub)
                         delete_thread(hub->thread);
                 }
                 
-                if (hub->mem)
-                        delete_membuf(hub->mem);
+                r_free(hub->name);
+                delete_membuf(hub->mem);
                 
                 if (hub->socket != INVALID_TCP_SOCKET) {
                         close_tcp_socket(hub->socket);
@@ -137,8 +140,7 @@ void delete_messagehub(messagehub_t*hub)
                         delete_mutex(hub->links_mutex);
                 }
 
-                if (hub->addr)
-                        delete_addr(hub->addr);
+                delete_addr(hub->addr);
                 
                 r_delete(hub);
         }
@@ -149,6 +151,11 @@ void delete_messagehub(messagehub_t*hub)
 addr_t *messagehub_addr(messagehub_t *hub)
 {
         return hub->addr;
+}
+
+const char *messagehub_name(messagehub_t *hub)
+{
+        return hub->name;
 }
 
 int messagehub_set_onrequest(messagehub_t *hub, messagehub_onrequest_t onrequest)

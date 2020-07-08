@@ -35,7 +35,8 @@ typedef void (*messagelink_onpong_t)(messagelink_t *link,
                                      void *userdata,
                                      const char *data, int len);
 
-messagelink_t *new_messagelink(messagelink_onmessage_t onmessage,
+messagelink_t *new_messagelink(const char *name,
+                               messagelink_onmessage_t onmessage,
                                messagelink_onclose_t onclose,
                                void *userdata);
 void delete_messagelink(messagelink_t *link);

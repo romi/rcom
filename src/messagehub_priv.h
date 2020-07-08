@@ -32,11 +32,13 @@ extern "C" {
 #endif
 
 // Set the port equal to 0 to let the OS pick one for you.
-messagehub_t *new_messagehub(int port,
+messagehub_t *new_messagehub(const char *name,
+                             int port,
                              messagehub_onconnect_t onconnect,
                              void *userdata);
 void delete_messagehub(messagehub_t *hub);
 addr_t *messagehub_addr(messagehub_t *hub);
+const char *messagehub_name(messagehub_t *hub);
 
 void messagehub_remove_link(messagehub_t *hub, messagelink_t *link);
                 
