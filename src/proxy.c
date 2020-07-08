@@ -214,7 +214,8 @@ static proxy_t* new_proxy(addr_t *addr)
         }
         
         if (addr) {
-                proxy->link = new_messagelink(_proxy_onmessage,
+                proxy->link = new_messagelink("registry",
+                                              _proxy_onmessage,
                                               _proxy_onclose,
                                               proxy);
 
@@ -932,7 +933,7 @@ static messagelink_t *proxy_open_messagelink(proxy_t *proxy,
         messagelink_t *link;
         registry_entry_t *entry;
 
-        link = new_messagelink(onmessage, NULL, userdata);
+        link = new_messagelink(topic, onmessage, NULL, userdata);
         if (link == NULL)
                 return NULL;
 
@@ -979,7 +980,7 @@ static messagehub_t *proxy_open_messagehub(proxy_t *proxy,
         messagehub_t *hub;
         registry_entry_t *entry;
 
-        hub = new_messagehub(port, onconnect, userdata);
+        hub = new_messagehub(topic, port, onconnect, userdata);
         if (hub == NULL)
                 return NULL;
 

@@ -51,47 +51,27 @@ struct _response_t {
 response_t *new_response(int status)
 {
         response_t *r = r_new(response_t);
-        if (r == NULL)
-                return NULL;
-
         r->status = status;
         r->headers = 0;
         r->body = new_membuf();
-        if (r->body == NULL) {
-                delete_response(r);
-                return NULL;
-        }
-
-        //r->cur_header = NULL;
         r->parser_header_state = k_header_new;
         r->header_name = new_membuf();
         r->header_value = new_membuf();
         r->status_buffer = new_membuf();
-        
-        if (r->header_name == NULL
-            || r->header_value == NULL
-            || r->status_buffer == NULL) {
-                delete_response(r);
-                return NULL;
-        }
         return r;
 }
 
 void delete_response(response_t *r)
 {
         if (r) {
-                if (r->body)
-                        delete_membuf(r->body);                
+                delete_membuf(r->body);                
                 for (list_t *l = r->headers; l != NULL; l = list_next(l)) {
                         http_header_t *h = list_get(l, http_header_t);
                         delete_http_header(h);
                 }
-                if (r->header_name)
-                        delete_membuf(r->header_name);
-                if (r->header_value)
-                        delete_membuf(r->header_value);                
-                if (r->status_buffer)
-                        delete_membuf(r->status_buffer);                
+                delete_membuf(r->header_name);
+                delete_membuf(r->header_value);                
+                delete_membuf(r->status_buffer);                
                 delete_list(r->headers);
                 r_delete(r);
         }

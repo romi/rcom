@@ -213,6 +213,7 @@ typedef struct _messagelink_t {
         /* Pointer to the messagehub that created the messagelink. For
          * server-side messagelinks only.  */
         messagehub_t *hub;
+        char *name;
         
         tcp_socket_t socket;
         addr_t *addr;
@@ -265,7 +266,8 @@ static int messagelink_send_pong(messagelink_t *link, membuf_t *payload);
 static json_object_t _messagelink_read(messagelink_t *link);
 
 
-messagelink_t *new_messagelink(messagelink_onmessage_t onmessage,
+messagelink_t *new_messagelink(const char *name,
+                               messagelink_onmessage_t onmessage,
                                messagelink_onclose_t onclose,
                                void *userdata)
 {
@@ -275,6 +277,7 @@ messagelink_t *new_messagelink(messagelink_onmessage_t onmessage,
         if (link == NULL) return NULL;
         
         link->hub = NULL;
+        link->name = r_strdup(name);
         link->socket = INVALID_TCP_SOCKET;
         link->addr = new_addr0();
         link->remote_addr = NULL;
@@ -290,21 +293,12 @@ messagelink_t *new_messagelink(messagelink_onmessage_t onmessage,
         link->thread_quit = 0;
         link->http_status = 0;
         link->uri = NULL;
-
         link->send_mutex = new_mutex();
         link->state_mutex = new_mutex();
-
         link->out = new_membuf();
         link->in = new_membuf();
         link->header_name = new_membuf();
         link->header_value = new_membuf();
-        if (link->out == NULL
-            || link->in == NULL
-            || link->header_name == NULL
-            || link->header_value == NULL) {
-                delete_messagelink(link);
-                return NULL;
-        }
         
         return link;
 }
@@ -320,24 +314,17 @@ void delete_messagelink(messagelink_t *link)
                                 owner_messagelink_close(link, 1001);
                         mutex_unlock(link->state_mutex);
                 }
-                if (link->uri)
-                        r_free(link->uri);
-                if (link->in)
-                        delete_membuf(link->in);
-                if (link->out)
-                        delete_membuf(link->out);
-                if (link->header_name)
-                        delete_membuf(link->header_name);
-                if (link->header_value)
-                        delete_membuf(link->header_value);
-                if (link->addr)
-                        delete_addr(link->addr);
-                if (link->remote_addr)
-                        delete_addr(link->remote_addr);
-                if (link->send_mutex)
-                        delete_mutex(link->send_mutex);
-                if (link->state_mutex)
-                        delete_mutex(link->state_mutex);
+                r_free(link->name);
+                r_free(link->uri);
+                delete_membuf(link->in);
+                delete_membuf(link->out);
+                delete_membuf(link->header_name);
+                delete_membuf(link->header_value);
+                delete_addr(link->addr);
+                delete_addr(link->remote_addr);
+                delete_mutex(link->send_mutex);
+                delete_mutex(link->state_mutex);
+
                 for (list_t *l = link->headers; l != NULL; l = list_next(l)) {
                         http_header_t *h = list_get(l, http_header_t);
                         delete_http_header(h);
@@ -797,7 +784,7 @@ static int messagelink_try_read_message(messagelink_t *link, ws_frame_t *frame)
         while (1) {
                 if (link->state != WS_OPEN)
                         return -3;
-                if (app_quit())
+                if (app_quit() || link->thread_quit)
                         return -4;
                 if (tcp_socket_wait_data(link->socket, 1))
                         return messagelink_read_message(link, frame);
@@ -988,11 +975,11 @@ static void server_messagelink_run(messagelink_t *link)
 
 static void client_messagelink_run(messagelink_t *link)
 {
-        r_debug("client_messagelink_run: started");
+        r_debug("client_messagelink_run (%s): started", link->name);
         
         _messagelink_loop(link);
         
-        r_debug("server_messagelink_run: finished");
+        r_debug("server_messagelink_run (%s): finished", link->name);
 }
 
 void server_messagelink_read_in_background(messagelink_t *link)
@@ -1011,12 +998,13 @@ static void client_messagelink_read_in_background(messagelink_t *link)
 
 void messagelink_stop_thread(messagelink_t *link)
 {
-        r_debug("messagelink_stop_background");
+        r_debug("messagelink_stop_background (%s)", link->name);
         if (link->thread) {
                 link->thread_quit = 1;
-                r_debug("messagelink_stop_background: joining read thread");
+                r_debug("messagelink_stop_background (%s): joining read thread",
+                        link->name);
                 thread_join(link->thread);
-                r_debug("messagelink_stop_background: joined");
+                r_debug("messagelink_stop_background (%s): joined", link->name);
                 delete_thread(link->thread);
                 link->thread = NULL;
         }
@@ -1359,7 +1347,7 @@ messagelink_t *server_messagelink_connect(messagehub_t *hub, tcp_socket_t socket
 messagelink_t *server_messagelink_connect(messagehub_t *hub, tcp_socket_t socket)
 {
         // The callbacks will be set later, in onconnect().
-        messagelink_t *link = new_messagelink(NULL, NULL, NULL);
+        messagelink_t *link = new_messagelink(messagehub_name(hub), NULL, NULL, NULL);
         if (link == NULL) { 
                 r_err("server_messagelink_connect: out of memory");
                 close_tcp_socket(socket);

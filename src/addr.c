@@ -37,7 +37,7 @@ addr_t *new_addr0()
 addr_t *new_addr(const char *ip, int port)
 {
         addr_t *addr = r_new(addr_t);
-        if (addr == NULL) return addr;
+
         addr->sin_family = AF_INET;
         if (addr_set(addr, ip, port) != 0) {
                 r_delete(addr);
