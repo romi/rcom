@@ -33,7 +33,7 @@
 #include "messagelink_priv.h"
 #include "registry_priv.h"
 
-static void restart_node(const char *name)
+static int restart_node(const char *name)
 {
         char line[1024];
         char cmd[128];
@@ -46,6 +46,8 @@ static void restart_node(const char *name)
         pclose(pidof);
 
         kill(pid, SIGHUP);
+
+        return 0;
 }
 
 static void open_browser(char *url)
@@ -72,12 +74,12 @@ static void open_browser(char *url)
         exit(0);       
 }
 
-static void show_topic(const char *topic)
+static int show_topic(const char *topic)
 {
         addr_t *addr = registry_get_service(topic);
         if (addr == NULL) {
                 fprintf(stderr, "Failed to find the service\n");
-                return;
+                return 1;
         }
 
         char b[52];
@@ -85,25 +87,35 @@ static void show_topic(const char *topic)
         rprintf(buffer, sizeof(buffer), "http://%s", addr_string(addr, b, 52));
         open_browser(buffer);
         delete_addr(addr);
+
+        return 0;
 }
 
-static void stream_topic(const char *topic)
+static int stream_topic(const char *topic)
 {
         addr_t *addr = registry_get_streamer(topic);
         if (addr == NULL) {
                 fprintf(stderr, "Failed to find the streamer for %s\n", topic);
-                return;
+                return 1;
         }
 
         char b[52];
         char buffer[1024];
         rprintf(buffer, sizeof(buffer), "http://%s/stream.html", addr_string(addr, b, 52));
         open_browser(buffer);
+
+        return 0;
 }
 
-static void list_nodes()
+static int list_nodes()
 {
         proxy_t *proxy = proxy_get();
+        if (proxy == NULL)
+        if (proxy == NULL) {
+                fprintf(stderr, "Failed to initialize the proxy\n");
+                return 1;
+        }
+                
         int n = proxy_count_nodes(proxy);
         
         if (n > 0) {
@@ -132,6 +144,7 @@ static void list_nodes()
                 printf("No nodes active\n");
                 printf("--------------------------------\n");
         }
+        return 0;
 }
 
 static void print_data(void *userdata __attribute__((unused)),
@@ -142,17 +155,19 @@ static void print_data(void *userdata __attribute__((unused)),
         printf("%.*s\n", data_len(data), data_data(data));
 }
 
-static void listen_datahub(const char *topic)
+static int listen_datahub(const char *topic)
 {
         datalink_t *link;
 
         link = registry_open_datalink("rcquery", topic, print_data, NULL);
-        if (link == NULL) return;
+        if (link == NULL)
+                return 1;
 
         while (!app_quit())
                 clock_sleep(1);
 
         registry_close_datalink(link);
+        return 0;
 }
 
 static void print_message(void *userdata __attribute__((unused)),
@@ -162,17 +177,19 @@ static void print_message(void *userdata __attribute__((unused)),
         json_print(message, 0);
 }
 
-static void listen_messagehub(const char *topic)
+static int listen_messagehub(const char *topic)
 {
         messagelink_t *link;
 
         link = registry_open_messagelink("rcquery", topic, print_message, NULL);
-        if (link == NULL) return;
+        if (link == NULL)
+                return 1;
 
         while (!app_quit())
                 clock_sleep(1);
         
         registry_close_messagelink(link);
+        return 0;
 }
 
 static int print_status(json_object_t reply)
@@ -193,21 +210,42 @@ static int print_status(json_object_t reply)
         return -1; // ??
 }
 
-static void send_request(const char *topic, const char *command)
+static int send_request(const char *topic, const char *command)
 {
         messagelink_t *link;
         json_object_t reply;
         
         link = registry_open_messagelink("rcquery", topic, NULL, NULL);
-        if (link == NULL) return;
+        if (link == NULL)
+                return 1;
 
         reply = messagelink_send_command_f(link, "%s", command);
         int err = print_status(reply);
         
         registry_close_messagelink(link);
 
-        if (err) exit(1);
-        else exit(0);
+        return (err)? 1 : 0;
+}
+
+static int send_data(const char *topic, const char *text)
+{
+        messagelink_t *link;
+        json_object_t reply;
+        int exit_code = 0;
+        
+        link = registry_open_messagelink("rcquery", topic, NULL, NULL);
+        if (link == NULL)
+                return 1;
+
+        reply = messagelink_send_command_f(link, "%s", text);
+        json_print(reply, 0);
+
+        if (json_isnull(reply))
+                exit_code = 1;
+        
+        registry_close_messagelink(link);
+
+        return exit_code;
 }
 
 static void print_usage_listen()
@@ -230,10 +268,16 @@ static void print_usage_stream()
 
 static void print_usage_request()
 {
-        printf("Sends a request to a controller/messagehub and prints the response.\n");
+        printf("Sends a request to a controller and prints the status.\n");
         printf("Usage: rcom request <topic-name> <json-message>\n");
         printf("The message most likely has the following format: \n");
         printf("    \"{'command': '<command>', ...}\"\n");
+}
+
+static void print_usage_send()
+{
+        printf("Sends a (json) string to a messagehub and prints the response.\n");
+        printf("Usage: rcom send <topic-name> <data>\n");
 }
 
 static void print_usage_restart()
@@ -262,16 +306,13 @@ int main(int argc, char **argv)
         command = argv[1];
 
         if (rstreq(command, "help")) {
-                print_usage();
-                
+                print_usage();                
         }
 
-        proxy_t *proxy = proxy_get();
-        if (proxy == NULL) 
-                return 1;
+        int exit_code = 0;
         
         if (rstreq(command, "list")) {
-                list_nodes();
+                exit_code = list_nodes();
                 
         } else if (rstreq(command, "listen")) {
                 if ((argc >= 3 && rstreq(argv[2], "help"))  || argc < 4) {
@@ -280,9 +321,9 @@ int main(int argc, char **argv)
                         const char *what = argv[2];
                         const char *topic = argv[3];
                         if (rstreq(what, "datahub")) {
-                                listen_datahub(topic);
+                                exit_code = listen_datahub(topic);
                         } else if (rstreq(what, "messagehub")) {
-                                listen_messagehub(topic);
+                                exit_code = listen_messagehub(topic);
                         } else {
                                 printf("Unknown type %s\n", what);
                                 print_usage_listen();
@@ -295,7 +336,16 @@ int main(int argc, char **argv)
                 } else {
                         const char *topic = argv[2];
                         const char *request = argv[3];
-                        send_request(topic, request);
+                        exit_code = send_request(topic, request);
+                }
+                
+        } else if (rstreq(command, "send")) {
+                if ((argc >= 3 && rstreq(argv[2], "help")) || argc < 4) {
+                        print_usage_send();
+                } else {
+                        const char *topic = argv[2];
+                        const char *text = argv[3];
+                        exit_code = send_data(topic, text);
                 }
                 
         } else if (rstreq(command, "show")) {
@@ -303,7 +353,7 @@ int main(int argc, char **argv)
                         print_usage_show();
                 } else {
                         const char *topic = argv[2];
-                        show_topic(topic);
+                        exit_code = show_topic(topic);
                 }
                 
         } else if (rstreq(command, "stream")) {
@@ -311,7 +361,7 @@ int main(int argc, char **argv)
                         print_usage_stream();
                 } else {
                         const char *topic = argv[2];
-                        stream_topic(topic);
+                        exit_code = stream_topic(topic);
                 }
                 
         } else if (rstreq(command, "restart")) {
@@ -319,13 +369,13 @@ int main(int argc, char **argv)
                         print_usage_restart();
                 } else {
                         const char *name = argv[2];
-                        restart_node(name);
+                        exit_code = restart_node(name);
                 }
                 
         } else {
                 printf("Unknown command %s\n", command);
-                return 1;
+                exit_code = 1;
         }
         
-        return 0;
+        exit(exit_code);
 }
