@@ -21,17 +21,19 @@ There are four type of communication between nodes:
 
 Data messages are implemented on top of UDP and are therefore limited in size (1.5kB). Messagehub use WebSockets to pass data. Services use classical HTTP requests. Streamers use HTTP request and return the data using the multipart/x-mixed-replace format.
 
+Although the data messages are agnostic about the content of the messages most messages are encoded in JSON. Message hubs always use JSON encoded messages. 
+
 In addition, to those four basic link types, the rcgen utility (discussed below) recognizes the "controller" type. A controller is a messagehub that expects a command/response interaction.
+
+All end-points have a type, a topic, and an address. The address is a combination of IP address and port number. The possible types are: datahub, datalink, messagehub, messagelink, service, streamer, streamerlink.
+
+Both datahubs and messagehubs create one-to-many connections, with many links connected to the same hub. There can be only one messagehub for a given topic but there can be both a datahub and a messagehub with the same topic because there is no ambiguity between the two.
+
 
 The rcom library does not have a "bus" type of communication but it can be built quite easily using a messagehub. 
 
-Although the connections are agnostic about the content of the messages most messages are encoded in JSON.  
-
-
-
-
 There are several utilities:
-* rcregistry: 
+* rcregistry: Maintains the list of all the rcom end-points, inluding their type, topic, and address. 
 * rcom: The application offers a number of utility functions, inluding querying the registry, listening to the message of nodes.
 * rclaunch: 
 * rcgen: takes a description of an app as input and generates C code that provides a skeleton for the app.

@@ -214,6 +214,7 @@ typedef struct _messagelink_t {
          * server-side messagelinks only.  */
         messagehub_t *hub;
         char *name;
+        char *topic;
         
         tcp_socket_t socket;
         addr_t *addr;
@@ -267,6 +268,7 @@ static json_object_t _messagelink_read(messagelink_t *link);
 
 
 messagelink_t *new_messagelink(const char *name,
+                               const char *topic,
                                messagelink_onmessage_t onmessage,
                                messagelink_onclose_t onclose,
                                void *userdata)
@@ -278,6 +280,7 @@ messagelink_t *new_messagelink(const char *name,
         
         link->hub = NULL;
         link->name = r_strdup(name);
+        link->topic = r_strdup(topic);
         link->socket = INVALID_TCP_SOCKET;
         link->addr = new_addr0();
         link->remote_addr = NULL;
@@ -305,8 +308,10 @@ messagelink_t *new_messagelink(const char *name,
 
 void delete_messagelink(messagelink_t *link)
 {
-        r_debug("delete_messagelink");
         if (link) {
+                
+                r_debug("delete_messagelink (%s:%s)", link->name, link->topic);
+
                 messagelink_stop_thread(link);
                 if (link->state_mutex) {
                         mutex_lock(link->state_mutex);
@@ -315,6 +320,7 @@ void delete_messagelink(messagelink_t *link)
                         mutex_unlock(link->state_mutex);
                 }
                 r_free(link->name);
+                r_free(link->topic);
                 r_free(link->uri);
                 delete_membuf(link->in);
                 delete_membuf(link->out);
@@ -339,6 +345,16 @@ addr_t *messagelink_addr(messagelink_t *link)
         return link->addr;
 }
 
+const char *messagelink_name(messagelink_t *link)
+{
+        return link->name;
+}
+
+const char *messagelink_topic(messagelink_t *link)
+{
+        return link->topic;
+}
+
 const char *messagelink_uri(messagelink_t *link)
 {
         return link->uri;
@@ -356,6 +372,7 @@ void *messagelink_get_userdata(messagelink_t *link)
 
 void messagelink_set_onmessage(messagelink_t *link, messagelink_onmessage_t onmessage)
 {
+        r_debug("messagelink_set_onmessage (%s:%s)", link->name, link->topic);
         link->onmessage = onmessage;
 }
 
@@ -642,8 +659,11 @@ static int messagelink_read_frame(messagelink_t *link, ws_frame_t *frame)
         //r_debug("messagelink_read_frame");
         int received = tcp_socket_read(link->socket, (char*) b, 2);
         if (received != 2) {
+                r_err("messagelink_read_frame: tcp_socket_read failed, "
+                      "received %d", received);
                 return -1;
         }
+        
         frame->fin = (b[0] & 0x80) >> 7;
         frame->opcode = (b[0] & 0x0f);
         frame->mask = (b[1] & 0x80) >> 7;
@@ -689,14 +709,15 @@ static void _print_message(ws_frame_t *frame, membuf_t* m)
 static int messagelink_read_message(messagelink_t *link, ws_frame_t *frame)
 {
 
-        // FIXME: user a read_mutex to serialize access
+        // FIXME: use a read_mutex to serialize access
         
         int received;
         uint64_t length;
         int err;
         
         err = messagelink_read_frame(link, frame);
-        if (err != 0) return err;
+        if (err != 0)
+                return err;
         
         if (frame->length < 126) {
                 length = frame->length;
@@ -705,7 +726,8 @@ static int messagelink_read_message(messagelink_t *link, ws_frame_t *frame)
                 uint16_t netshort;
                 received = tcp_socket_read(link->socket, (char*) &netshort, 2);
                 if (received != 2) {
-                        r_err("messagelink_read_message: tcp_socket_read failed (2), received %d", received);
+                        r_err("messagelink_read_message: tcp_socket_read failed (2), "
+                              "received %d", received);
                         return -1;
                 }
                 length = ntohs(netshort);
@@ -714,7 +736,8 @@ static int messagelink_read_message(messagelink_t *link, ws_frame_t *frame)
                 uint64_t netlong;
                 received = tcp_socket_read(link->socket, (char*) &netlong, 8);
                 if (received != 8) {
-                        r_err("messagelink_read_message: tcp_socket_read failed (3), received %d", received);
+                        r_err("messagelink_read_message: tcp_socket_read failed (3), "
+                              "received %d", received);
                         return -1;
                 }
                 length = ntohll(netlong);
@@ -725,7 +748,8 @@ static int messagelink_read_message(messagelink_t *link, ws_frame_t *frame)
         if (frame->mask) {
                 received = tcp_socket_read(link->socket, (char*) &mask, 4);
                 if (received != 4) {
-                        r_err("messagelink_read_message: tcp_socket_read failed (4), received %d", received);
+                        r_err("messagelink_read_message: tcp_socket_read failed (4), "
+                              "received %d", received);
                         return -1;
                 }
         }
@@ -748,12 +772,14 @@ static int messagelink_read_message(messagelink_t *link, ws_frame_t *frame)
                 
                 received = tcp_socket_recv(link->socket, buffer, num_to_read);
                 if (received < 0) {
-                        r_err("messagelink_read_message: tcp_socket_recv failed (5), received %d", received);
+                        r_err("messagelink_read_message: tcp_socket_recv failed (5), "
+                              "received %d", received);
                         printf("received: %.*s\n", (int) received, buffer);
                         return received;
                 }
                 if (received == 0) {
-                        r_err("messagelink_read_message: socket closed while reading message");
+                        r_err("messagelink_read_message: socket closed "
+                              "while reading message");
                         return -1;
                 }
                 
@@ -865,7 +891,8 @@ static json_object_t _messagelink_read(messagelink_t *link)
                 int err = messagelink_try_read_message(link, &frame);
                 
                 if (err == -1) { 
-                        r_warn("messagelink_read: a read error occured, closing connection.");
+                        r_warn("messagelink_read (%s:%s): a read error occured, "
+                               "closing connection.", link->name, link->topic);
                         owner_messagelink_close_oneway(link, 1011);
                         return json_null();
                 }
@@ -951,9 +978,14 @@ static void _messagelink_loop(messagelink_t *link)
                && link->state == WS_OPEN
                && !app_quit()) {
                 
-                //r_debug("_messagelink_loop: reading message");
+                /* r_debug("_messagelink_loop (%s:%s): reading message", */
+                /*         link->name, link->topic); */
+                
                 json_object_t message = _messagelink_read(link);
-                //r_debug("_messagelink_loop: done reading message");
+                
+                /* r_debug("_messagelink_loop (%s:%s): done reading message", */
+                /*         link->name, link->topic); */
+                
                 if (!json_isnull(message)) {
                         link->onmessage(link->userdata, link, message);
                         json_unref(message);
@@ -963,23 +995,23 @@ static void _messagelink_loop(messagelink_t *link)
 
 static void server_messagelink_run(messagelink_t *link)
 {
-        r_debug("server_messagelink_run: started");
+        r_debug("server_messagelink_run (%s:%s): started", link->name, link->topic);
         
         _messagelink_loop(link);
         
         if (link->hub)
                 messagehub_remove_link(link->hub, link);
 
-        r_debug("server_messagelink_run: finished");
+        r_debug("server_messagelink_run (%s:%s): finished", link->name, link->topic);
 }
 
 static void client_messagelink_run(messagelink_t *link)
 {
-        r_debug("client_messagelink_run (%s): started", link->name);
+        r_debug("client_messagelink_run (%s:%s): started", link->name, link->topic);
         
         _messagelink_loop(link);
         
-        r_debug("server_messagelink_run (%s): finished", link->name);
+        r_debug("server_messagelink_run (%s:%s): finished", link->name, link->topic);
 }
 
 void server_messagelink_read_in_background(messagelink_t *link)
@@ -990,6 +1022,7 @@ void server_messagelink_read_in_background(messagelink_t *link)
 
 static void client_messagelink_read_in_background(messagelink_t *link)
 {
+        r_debug("client_messagelink_read_in_background (%s:%s)", link->name, link->topic);
         if (link->thread == NULL && link->onmessage != NULL) {
                 link->thread_quit = 0;
                 link->thread = new_thread((thread_run_t) client_messagelink_run, link);
@@ -998,13 +1031,14 @@ static void client_messagelink_read_in_background(messagelink_t *link)
 
 void messagelink_stop_thread(messagelink_t *link)
 {
-        r_debug("messagelink_stop_background (%s)", link->name);
+        r_debug("messagelink_stop_background (%s:%s)", link->name, link->topic);
         if (link->thread) {
                 link->thread_quit = 1;
-                r_debug("messagelink_stop_background (%s): joining read thread",
-                        link->name);
+                r_debug("messagelink_stop_background (%s:%s): joining read thread",
+                        link->name, link->topic);
                 thread_join(link->thread);
-                r_debug("messagelink_stop_background (%s): joined", link->name);
+                r_debug("messagelink_stop_background (%s:%s): joined",
+                        link->name, link->topic);
                 delete_thread(link->thread);
                 link->thread = NULL;
         }
@@ -1347,7 +1381,9 @@ messagelink_t *server_messagelink_connect(messagehub_t *hub, tcp_socket_t socket
 messagelink_t *server_messagelink_connect(messagehub_t *hub, tcp_socket_t socket)
 {
         // The callbacks will be set later, in onconnect().
-        messagelink_t *link = new_messagelink(messagehub_name(hub), NULL, NULL, NULL);
+        messagelink_t *link = new_messagelink(messagehub_name(hub),
+                                              messagehub_topic(hub),
+                                              NULL, NULL, NULL);
         if (link == NULL) { 
                 r_err("server_messagelink_connect: out of memory");
                 close_tcp_socket(socket);
@@ -1552,6 +1588,8 @@ int client_messagelink_connect(messagelink_t *link, addr_t *addr)
         int err;
         
         link->is_client = 1;
+        
+        r_debug("client_messagelink_connect (%s:%s)", link->name, link->topic);
 
         mutex_lock(link->state_mutex);
         
