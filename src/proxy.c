@@ -72,18 +72,10 @@ static int proxy_send_list_request(proxy_t* proxy);
 static int proxy_send_update_address_request(proxy_t* proxy, const char *id, const char *addr);
 
 // response handlers
-static void proxy_handle_register_add(proxy_t* proxy,
-                                      messagelink_t *link,
-                                      json_object_t message);
-static void proxy_handle_register_remove(proxy_t* proxy,
-                                         messagelink_t *link,
-                                         json_object_t message);
-static void proxy_handle_update_list(proxy_t* proxy,
-                                     messagelink_t *link,
-                                     json_object_t message);
-static void proxy_handle_update_address(proxy_t* proxy,
-                                        messagelink_t *link,
-                                        json_object_t message);
+static void proxy_handle_register_add(proxy_t* proxy, json_object_t message);
+static void proxy_handle_register_remove(proxy_t* proxy, json_object_t message);
+static void proxy_handle_update_list(proxy_t* proxy,  json_object_t message);
+static void proxy_handle_update_address(proxy_t* proxy, json_object_t message);
 
 // update the connections
 static void proxy_add_connection(proxy_t* proxy, registry_entry_t *entry);
@@ -214,7 +206,8 @@ static proxy_t* new_proxy(addr_t *addr)
         }
         
         if (addr) {
-                proxy->link = new_messagelink("registry",
+                proxy->link = new_messagelink("proxy",
+                                              "registry",
                                               _proxy_onmessage,
                                               _proxy_onclose,
                                               proxy);
@@ -267,68 +260,82 @@ static int proxy_is_local(registry_entry_t *entry)
         return entry->endpoint != NULL;
 }
 
-static void proxy_onmessage(proxy_t *proxy,
-                            messagelink_t *link,
+static void proxy_onevent(proxy_t *proxy,
+                          const char *event,
+                          json_object_t message)
+{
+        if (rstreq(event, "proxy-add")) {
+                proxy_handle_register_add(proxy, message);
+                
+        } else if (rstreq(event, "proxy-remove")) {
+                proxy_handle_register_remove(proxy, message);
+                
+        } else if (rstreq(event, "proxy-update-address")) {
+                proxy_handle_update_address(proxy, message);
+                
+        } else {
+                r_warn("proxy_onevent: unknown event: %s", event);
+        }
+}
+
+static void proxy_onresponse(proxy_t *proxy,
+                            const char *response,
                             json_object_t message)
 {
-        //r_debug("proxy_onmessage");
+        int success = json_object_getbool(message, "success");
         
-        const char *request;
+        if (rstreq(response, "register")) {
+                if (!success) {
+                        r_panic("register failed: %s. Quitting.",
+                                json_object_getstr(message, "message"));
+                        app_set_quit();
+                }
+                
+        } else if (rstreq(response, "unregister")) {
+                if (!success)
+                        r_err("unregister failed: %s",
+                                json_object_getstr(message, "message"));
+                
+        } else if (rstreq(response, "update-address")) {
+                if (!success)
+                        r_err("updating of address failed: %s",
+                                json_object_getstr(message, "message"));
+                
+        } else if (rstreq(response, "list")) {
+                if (!success)
+                        r_err("updating of list failed: %s",
+                                json_object_getstr(message, "message"));
+                
+                proxy_handle_update_list(proxy, message);
+                
+        } else {
+                r_warn("proxy_onresponse: unknown response: %s", response);
+        }
+}
+
+static void proxy_onmessage(proxy_t *proxy,
+                            messagelink_t *link __attribute__((unused)),
+                            json_object_t message)
+{
+        const char *response;
+        const char *event;
         
         if (json_isnull(message)) {
                 r_err("proxy_onmessage: message is null");
                 return;
         }
         
-        request = json_object_getstr(message, "request");
+        response = json_object_getstr(message, "response");
+        event = json_object_getstr(message, "event");
         
-        if (request == NULL)
-                return;
-
-        
-        //r_debug("proxy_onmessage: request=%s", request);
-        
-        if (rstreq(request, "register-response")) {
-                int success = json_object_getbool(message, "success");
-                if (!success) {
-                        r_panic("register failed: %s. Quitting.",
-                                json_object_getstr(message, "message"));
-                        app_set_quit();
-                }
-                //else r_debug("register succeeded");
-                
-        } else if (rstreq(request, "unregister-response")) {
-                int success = json_object_getbool(message, "success");
-                if (!success)
-                        r_err("unregister failed: %s",
-                                json_object_getstr(message, "message"));
-                //else r_debug("unregister succeeded");
-                
-        } else if (rstreq(request, "update-address-response")) {
-                int success = json_object_getbool(message, "success");
-                if (!success)
-                        r_err("updating of address failed: %s",
-                                json_object_getstr(message, "message"));
-                //else r_debug("updating of address succeeded");
-                
-        } else if (rstreq(request, "proxy-add")) {
-                proxy_handle_register_add(proxy, link, message);
-                
-        } else if (rstreq(request, "proxy-remove")) {
-                proxy_handle_register_remove(proxy, link, message);
-                
-        } else if (rstreq(request, "proxy-update-address")) {
-                proxy_handle_update_address(proxy, link, message);
-                
-        } else if (rstreq(request, "proxy-update-list")) {
-                proxy_handle_update_list(proxy, link, message);
-                
-        } else {
-                r_warn("proxy_onmessage: unknown request: %s", request);
-        }
+        if (response != NULL)
+                proxy_onresponse(proxy, response, message);
+        else if (event != NULL)
+                proxy_onevent(proxy, event, message);
 }
 
-static void proxy_onclose(proxy_t *proxy __attribute__((unused)), messagelink_t *link __attribute__((unused)))
+static void proxy_onclose(proxy_t *proxy __attribute__((unused)),
+                          messagelink_t *link __attribute__((unused)))
 {
 }
 
@@ -346,15 +353,11 @@ static void _proxy_onclose(void *userdata, messagelink_t *link)
         proxy_onclose(proxy, link);
 }
 
-static void proxy_handle_register_add(proxy_t* proxy,
-                                      messagelink_t *link __attribute__((unused)),
-                                      json_object_t message)
+static void proxy_handle_register_add(proxy_t* proxy, json_object_t message)
 {
         int count;
         registry_entry_t *entry;
         int err = 0;
-
-        //r_debug("proxy_handle_register_add");
 
         json_object_t obj = json_object_get(message, "entry");
         if (json_isnull(obj))
@@ -387,14 +390,10 @@ static void proxy_handle_register_add(proxy_t* proxy,
         delete_registry_entry(entry);        
 }
 
-static void proxy_handle_register_remove(proxy_t* proxy,
-                                         messagelink_t *link __attribute__((unused)),
-                                         json_object_t message)
+static void proxy_handle_register_remove(proxy_t* proxy, json_object_t message)
 {
         registry_entry_t *entry = NULL;
         const char *id;
-        
-        //r_debug("proxy_handle_register_remove");
         
         id = json_object_getstr(message, "id");
         if (id == NULL) {
@@ -417,15 +416,11 @@ static void proxy_handle_register_remove(proxy_t* proxy,
         if (entry) delete_registry_entry(entry);
 }
 
-static void proxy_handle_update_address(proxy_t* proxy,
-                                        messagelink_t *link __attribute__((unused)),
-                                        json_object_t message)
+static void proxy_handle_update_address(proxy_t* proxy, json_object_t message)
 {
         int err;
         const char *id;
         const char *addr;
-        
-        //r_debug("proxy_handle_update_address");
         
         id = json_object_getstr(message, "id");
         if (id == NULL) {
@@ -462,12 +457,8 @@ static registry_entry_t *_list_contains(list_t* list, registry_entry_t *e)
         return NULL;
 }
 
-static void proxy_handle_update_list(proxy_t* proxy,
-                                     messagelink_t *link __attribute__((unused)),
-                                     json_object_t message)
+static void proxy_handle_update_list(proxy_t* proxy, json_object_t message)
 {
-        //r_debug("proxy_handle_update_list");
-        
         json_object_t obj = json_object_get(message, "list");
         if (json_isnull(obj) || !json_isarray(obj)) {
                 r_err("proxy_handle_update_list: 'list' value is not an array");
@@ -933,7 +924,7 @@ static messagelink_t *proxy_open_messagelink(proxy_t *proxy,
         messagelink_t *link;
         registry_entry_t *entry;
 
-        link = new_messagelink(topic, onmessage, NULL, userdata);
+        link = new_messagelink(name, topic, onmessage, NULL, userdata);
         if (link == NULL)
                 return NULL;
 
@@ -980,7 +971,7 @@ static messagehub_t *proxy_open_messagehub(proxy_t *proxy,
         messagehub_t *hub;
         registry_entry_t *entry;
 
-        hub = new_messagehub(topic, port, onconnect, userdata);
+        hub = new_messagehub(name, topic, port, onconnect, userdata);
         if (hub == NULL)
                 return NULL;
 

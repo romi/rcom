@@ -35,6 +35,7 @@
 
 struct _messagehub_t {
         char *name;
+        char *topic;
         thread_t *thread;
         addr_t *addr;
         tcp_socket_t socket;
@@ -58,6 +59,7 @@ static void messagehub_run(messagehub_t* hub);
 static void messagehub_delete_closed_links(messagehub_t *hub);
 
 messagehub_t* new_messagehub(const char *name,
+                             const char *topic,
                              int port,
                              messagehub_onconnect_t onconnect,
                              void *userdata)
@@ -67,6 +69,7 @@ messagehub_t* new_messagehub(const char *name,
                 return NULL;
 
         hub->name = r_strdup(name);
+        hub->topic = r_strdup(topic);
         hub->onconnect = onconnect;
         hub->onrequest = NULL;
         hub->userdata = userdata;
@@ -112,7 +115,6 @@ void delete_messagehub(messagehub_t*hub)
                         delete_thread(hub->thread);
                 }
                 
-                r_free(hub->name);
                 delete_membuf(hub->mem);
                 
                 if (hub->socket != INVALID_TCP_SOCKET) {
@@ -141,6 +143,8 @@ void delete_messagehub(messagehub_t*hub)
                 }
 
                 delete_addr(hub->addr);
+                r_free(hub->name);
+                r_free(hub->topic);
                 
                 r_delete(hub);
         }
@@ -156,6 +160,11 @@ addr_t *messagehub_addr(messagehub_t *hub)
 const char *messagehub_name(messagehub_t *hub)
 {
         return hub->name;
+}
+
+const char *messagehub_topic(messagehub_t *hub)
+{
+        return hub->topic;
 }
 
 int messagehub_set_onrequest(messagehub_t *hub, messagehub_onrequest_t onrequest)
@@ -223,6 +232,9 @@ static void messagehub_handle_websocket(messagehub_t* hub,
         
         if (hub->onconnect)
                 if (hub->onconnect(hub->userdata, hub, request, link) != 0) {
+                        r_debug("messagehub_handle_websocket (%s:%s): "
+                                "onconnect return non-zero",
+                                hub->name, hub->topic);
                         delete_messagelink(link);
                         delete_request(request);
                         return;
@@ -340,7 +352,7 @@ static void messagehub_add_link(messagehub_t *hub, messagelink_t *link)
 
 void messagehub_remove_link(messagehub_t *hub, messagelink_t *link)
 {
-        r_debug("messagehub_remove_link");
+        r_debug("messagehub_remove_link (%s:%s)", hub->name, hub->topic);
         messagehub_lock_links(hub);
         hub->links = list_remove(hub->links, link);
         hub->closed_links = list_prepend(hub->closed_links, link);
@@ -350,15 +362,19 @@ void messagehub_remove_link(messagehub_t *hub, messagelink_t *link)
 // Should be called with the links mutex locked.
 static void messagehub_delete_closed_links(messagehub_t *hub)
 {
+        int count = 0;
+        r_debug("messagehub_delete_closed_links (%s:%s)", hub->name, hub->topic);
         messagehub_lock_links(hub);
-        r_debug("messagehub_delete_closed_links");
         for (list_t *l = hub->closed_links; l != NULL; l = list_next(l)) {
                 messagelink_t *link = list_get(l, messagelink_t);
                 delete_messagelink(link);
+                count++;
         }
         delete_list(hub->closed_links);
         hub->closed_links = NULL;
         messagehub_unlock_links(hub);
+        r_debug("messagehub_delete_closed_links (%s:%s): deleted %d",
+                hub->name, hub->topic, count);
 }
 
 static int messagehub_membuf(messagehub_t *hub)
