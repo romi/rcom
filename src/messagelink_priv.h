@@ -36,6 +36,7 @@ typedef void (*messagelink_onpong_t)(messagelink_t *link,
                                      const char *data, int len);
 
 messagelink_t *new_messagelink(const char *name,
+                               const char *topic,
                                messagelink_onmessage_t onmessage,
                                messagelink_onclose_t onclose,
                                void *userdata);
@@ -54,6 +55,8 @@ void messagelink_read_in_background(messagelink_t *link);
 int messagelink_send_ping(messagelink_t *link, const char *data, int len);
 
 addr_t *messagelink_addr(messagelink_t *link);
+const char *messagelink_name(messagelink_t *link);
+const char *messagelink_topic(messagelink_t *link);
 
 void messagelink_stop_thread(messagelink_t *link);
 

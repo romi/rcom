@@ -73,7 +73,8 @@ rcregistry_t* new_rcregistry()
                 return NULL;
         }
         
-        rcregistry->hub = new_messagehub("registry", get_registry_port(),
+        rcregistry->hub = new_messagehub("registry", "registry",
+                                         get_registry_port(),
                                          _onconnect, rcregistry);
         if (rcregistry->hub == NULL) {
                 r_err("Failed to create the registry hub. Quiting.");
@@ -115,7 +116,7 @@ static int rcregistry_fail(messagelink_t *link, const char *req, const char *mes
 {
         r_warn("rcregistry_fail: %s: %s", req, message);
         return messagelink_send_f(link,
-                           "{\"request\":\"%s\", "
+                           "{\"response\":\"%s\", "
                            "\"success\":false, "
                            "\"message\":\"%s\"}",
                            req, message);
@@ -123,7 +124,7 @@ static int rcregistry_fail(messagelink_t *link, const char *req, const char *mes
 
 static int rcregistry_success(messagelink_t *link, const char *req)
 {
-        return messagelink_send_f(link, "{\"request\":\"%s\", \"success\":true}", req);
+        return messagelink_send_f(link, "{\"response\":\"%s\", \"success\":true}", req);
 }
 
 static void rcregistry_register(rcregistry_t* rcregistry,
@@ -134,31 +135,31 @@ static void rcregistry_register(rcregistry_t* rcregistry,
         int err;
         json_object_t obj = json_object_get(message, "entry");
         if (json_isnull(obj)) {
-                rcregistry_fail(link, "register-response", "Invalid entry value");
+                rcregistry_fail(link, "register", "Invalid entry value");
                 return; 
         }
         
         entry = registry_entry_parse(obj, &err);
         switch (err) {
         case 0: break; 
-        case -1: rcregistry_fail(link, "register-response", "Invalid name"); return; 
-        case -2: rcregistry_fail(link, "register-response", "Invalid topic"); return; 
-        case -3: rcregistry_fail(link, "register-response", "Invalid type"); return; 
-        case -4: rcregistry_fail(link, "register-response", "Invalid address"); return; 
-        case -5: rcregistry_fail(link, "register-response", "Invalid ID"); return; 
-        default: rcregistry_fail(link, "register-response", "Unknown error"); return; 
+        case -1: rcregistry_fail(link, "register", "Invalid name"); return; 
+        case -2: rcregistry_fail(link, "register", "Invalid topic"); return; 
+        case -3: rcregistry_fail(link, "register", "Invalid type"); return; 
+        case -4: rcregistry_fail(link, "register", "Invalid address"); return; 
+        case -5: rcregistry_fail(link, "register", "Invalid ID"); return; 
+        default: rcregistry_fail(link, "register", "Unknown error"); return; 
         }
 
         err = registry_insert(rcregistry->registry, entry->id, entry->name,
                               entry->topic, entry->type, entry->addr, NULL);
         
         if (err != 0) {
-                rcregistry_fail(link, "register-response", "Internal error");
+                rcregistry_fail(link, "register", "Internal error");
                 delete_registry_entry(entry);
                 return;
         }
         
-        err = rcregistry_success(link, "register-response");
+        err = rcregistry_success(link, "register");
         if (err != 0) {
                 r_err("rcregistry_success returned an error");
         }
@@ -198,11 +199,11 @@ static void rcregistry_unregister(rcregistry_t* rcregistry,
         
         err = registry_delete(rcregistry->registry, id);
         if (err != 0) {
-                rcregistry_fail(link, "unregister-response", "Internal error");
+                rcregistry_fail(link, "unregister", "Internal error");
                 return;
         }
         
-        err = rcregistry_success(link, "unregister-response");
+        err = rcregistry_success(link, "unregister");
         if (err != 0)
                 r_err("rcregistry_success returned an error");
 
@@ -217,14 +218,16 @@ static void rcregistry_send_list(rcregistry_t* rcregistry, messagelink_t *link)
 {
         list_t *entries = registry_select_all(rcregistry->registry);
         json_object_t list = registry_entry_encode_list(entries);
-        json_object_t message = json_object_create();
-        json_object_setstr(message, "request", "proxy-update-list");
-        json_object_set(message, "list", list);
+        json_object_t response = json_object_create();
+        json_object_setstr(response, "response", "list");
+        json_object_set(response, "success", json_true());
+        json_object_setstr(response, "message", "OK");
+        json_object_set(response, "list", list);
         json_unref(list);
 
-        messagelink_send_obj(link, message);
+        messagelink_send_obj(link, response);
         
-        json_unref(message);
+        json_unref(response);
         delete_registry_entry_list(entries);
 }
 
@@ -250,11 +253,11 @@ static void rcregistry_update_address(rcregistry_t* rcregistry,
         
         err = registry_update_addr(rcregistry->registry, id, addr);
         if (err != 0) {
-                rcregistry_fail(link, "update-address-response", "Internal error");
+                rcregistry_fail(link, "update-address", "Internal error");
                 return;
         }
         
-        err = rcregistry_success(link, "update-address-response");
+        err = rcregistry_success(link, "update-address");
         if (err != 0)
                 r_err("rcregistry_success returned an error");
         
