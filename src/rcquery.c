@@ -110,7 +110,7 @@ static int stream_topic(const char *topic)
 static int list_nodes()
 {
         proxy_t *proxy = proxy_get();
-        if (proxy == NULL)
+
         if (proxy == NULL) {
                 fprintf(stderr, "Failed to initialize the proxy\n");
                 return 1;
