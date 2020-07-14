@@ -189,7 +189,7 @@ target_link_libraries(rcregistry rcom)
 add_executable(rcgen src/rcgen.c)
 target_link_libraries(rcgen rcom)
 
-add_executable(rcom-bin src/rcquery.c)
+add_executable(rcom-bin src/rcom.c)
 target_link_libraries(rcom-bin rcom)
 set_target_properties(rcom-bin PROPERTIES OUTPUT_NAME rcom)
 

@@ -110,7 +110,7 @@ static int stream_topic(const char *topic)
 static int list_nodes()
 {
         proxy_t *proxy = proxy_get();
-        if (proxy == NULL)
+
         if (proxy == NULL) {
                 fprintf(stderr, "Failed to initialize the proxy\n");
                 return 1;
@@ -289,7 +289,7 @@ static void print_usage_restart()
 static void print_usage()
 {
         printf("Usage: rcom command [options]\n");
-        printf("  Available commands: list, listen, request, show, stream, help, restart\n");
+        printf("  Available commands: list, listen, send, request, show, stream, help, restart\n");
 }
 
 int main(int argc, char **argv)
