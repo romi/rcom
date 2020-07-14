@@ -31,7 +31,6 @@
 membuf_t *escape_string(const char* s)
 {
         membuf_t *t = new_membuf();
-        if (t == NULL) return NULL;
         while (*s != '\0') {
                 switch (*s) {
                 case '\t': membuf_put(t, '\\'); membuf_put(t, 't'); break;

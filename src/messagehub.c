@@ -407,13 +407,16 @@ int messagehub_broadcast_str(messagehub_t *hub, messagelink_t *exclude, const ch
         if (messagehub_membuf(hub) != 0)
                 return -1;        
         membuf_t *t = escape_string(value);
-        if (t == NULL) return -1;
+
         membuf_lock(hub->mem);
         membuf_clear(hub->mem);
         err = membuf_printf(hub->mem, "\"%s\"", membuf_data(t));
         if (err == 0)
-                err = messagehub_broadcast_text(hub, exclude, membuf_data(hub->mem), membuf_len(hub->mem));
+                err = messagehub_broadcast_text(hub, exclude,
+                                                membuf_data(hub->mem),
+                                                membuf_len(hub->mem));
         membuf_unlock(hub->mem);
+        
         delete_membuf(t);
         return err;
 }

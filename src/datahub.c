@@ -47,8 +47,10 @@ struct _datahub_t {
 
 static void datahub_lock(datahub_t *d);
 static void datahub_unlock(datahub_t *d);
-static int datahub_send_locked(datahub_t *d, addr_t *exclude, data_t *data, int stamp);
-static int datahub_broadcast_locked(datahub_t *d, addr_t *exclude, data_t *data, int stamp);
+static int datahub_send_locked(datahub_t *d, addr_t *exclude,
+                               data_t *data, int stamp);
+static int datahub_broadcast_locked(datahub_t *d, addr_t *exclude,
+                                    data_t *data, int stamp);
 static void datahub_run_data(datahub_t *hub);
 static void datahub_run_broadcast(datahub_t *hub);
 
@@ -59,8 +61,6 @@ datahub_t *new_datahub(datahub_onbroadcast_t onbroadcast,
         datahub_t *hub;
 
         hub = r_new(datahub_t);
-        if (hub == NULL)
-                return NULL;
 
         hub->socket = open_udp_socket();
         if (hub->socket == INVALID_UDP_SOCKET)
@@ -76,25 +76,14 @@ datahub_t *new_datahub(datahub_onbroadcast_t onbroadcast,
         hub->quit_thread = 0;
         
         hub->output = new_data();
-        hub->input = new_data();
-        if (hub->output == NULL || hub->input == NULL)
-                goto error_recovery;
-        
+        hub->input = new_data();        
         hub->mutex = new_mutex();
-        if (hub->mutex == NULL)
-                goto error_recovery;
 
-        if (hub->ondata)  {
+        if (hub->ondata)
                 hub->data_thread = new_thread((thread_run_t) datahub_run_data, hub);
-                if (hub->data_thread == NULL)
-                        goto error_recovery;
-        }
 
-        if (hub->onbroadcast)  {
+        if (hub->onbroadcast)
                 hub->broadcast_thread = new_thread((thread_run_t) datahub_run_broadcast, hub);
-                if (hub->broadcast_thread == NULL)
-                        goto error_recovery;
-        }
         
         return hub;
 
@@ -121,7 +110,8 @@ void delete_datahub(datahub_t *hub)
                         delete_thread(hub->broadcast_thread);
                 }
                 
-                if (hub->mutex) datahub_lock(hub);
+                if (hub->mutex)
+                        datahub_lock(hub);
                 l = hub->links;
                 while (l) {
                         addr_t *link = list_get(l, addr_t);
@@ -130,16 +120,13 @@ void delete_datahub(datahub_t *hub)
                 }
                 delete_list(hub->links);
                 hub->links = NULL;
-                if (hub->mutex) datahub_unlock(hub);                
-                
-                if (hub->output)
-                        delete_data(hub->output);
-                if (hub->input)
-                        delete_data(hub->input);
-                if (hub->addr)
-                        delete_addr(hub->addr);
                 if (hub->mutex)
-                        delete_mutex(hub->mutex);
+                        datahub_unlock(hub);                
+                
+                delete_data(hub->output);
+                delete_data(hub->input);
+                delete_addr(hub->addr);
+                delete_mutex(hub->mutex);
                 
                 r_delete(hub);
         }
@@ -175,24 +162,22 @@ int datahub_add_link(datahub_t* hub, addr_t *addr)
         int ret = 0;
 
         char b[64];
-        //r_debug("datahub_add_link: %s", addr_string(addr, b, sizeof(b)));
+        r_debug("datahub_add_link: %s", addr_string(addr, b, sizeof(b)));
 
         datahub_lock(hub);
         addr_t *a = datahub_find(hub, addr);
         if (a != NULL) {
-                r_debug("datahub_add_link: %s is already listed", addr_string(addr, b, sizeof(b)));
+                r_debug("datahub_add_link: %s is already listed",
+                        addr_string(addr, b, sizeof(b)));
                 datahub_unlock(hub);
                 return 0;
         }
         datahub_unlock(hub);
 
         addr_t *clone = addr_clone(addr);
-        if (clone == NULL)
-                return -1;
         
         datahub_lock(hub);
         hub->links = list_append(hub->links, clone);
-        if (hub->links == NULL) ret = -1;
         datahub_unlock(hub);
         
         return ret;
@@ -201,7 +186,8 @@ int datahub_add_link(datahub_t* hub, addr_t *addr)
 int datahub_remove_link(datahub_t* hub, addr_t *addr)
 {
         int ret = 0;
-        //r_debug("datahub_remove_link: %s", addr_string(addr, b, sizeof(b)));
+        char b[64];
+        r_debug("datahub_remove_link: %s", addr_string(addr, b, sizeof(b)));
 
         datahub_lock(hub);
         addr_t *a = datahub_find(hub, addr);
@@ -218,7 +204,8 @@ int datahub_send_num(datahub_t *hub, addr_t *link, double value)
         int r;
         datahub_lock(hub);
         r = data_printf(hub->output, "%f", value);
-        if (r == 0) r = datahub_send_locked(hub, link, hub->output, 1);
+        if (r == 0)
+                r = datahub_send_locked(hub, link, hub->output, 1);
         datahub_unlock(hub);
         return r;
 }
@@ -227,11 +214,13 @@ int datahub_send_str(datahub_t *hub, addr_t *link, const char *value)
 {
         int r;
         membuf_t *t = escape_string(value);
-        if (t == NULL) return -1;
+        
         datahub_lock(hub);
         r = data_printf(hub->output, "\"%s\"", membuf_data(t)); 
-        if (r == 0) r = datahub_send_locked(hub, link, hub->output, 1);
+        if (r == 0)
+                r = datahub_send_locked(hub, link, hub->output, 1);
         datahub_unlock(hub);
+
         delete_membuf(t);
         return r;
 }
@@ -335,11 +324,13 @@ int datahub_broadcast_str(datahub_t *hub, addr_t *exclude, const char *value)
 {
         int r;
         membuf_t *t = escape_string(value);
-        if (t == NULL) return -1;
+        
         datahub_lock(hub);
         r = data_printf(hub->output, "\"%s\"", membuf_data(t)); 
-        if (r == 0) r = datahub_broadcast_locked(hub, exclude, hub->output, 1);
+        if (r == 0)
+                r = datahub_broadcast_locked(hub, exclude, hub->output, 1);
         datahub_unlock(hub);
+        
         delete_membuf(t);
         return r;
 }

@@ -54,22 +54,10 @@ datalink_t* new_datalink(datalink_ondata_t callback, void* userdata)
         datalink_t* link;
                 
         link = r_new(datalink_t);
-        if (link == NULL)
-                return NULL;
-        
         link->in = new_data();
         link->out = new_data();
         link->parser = json_parser_create();
-        if (link->in == NULL || link->out == NULL || link->parser == NULL) {
-                delete_datalink(link);
-                return NULL;
-        }
-
         link->mutex = new_mutex();
-        if (link->mutex == NULL) {
-                delete_datalink(link);
-                return NULL;
-        }
         
         // create a UDP socket
         link->socket = open_udp_socket(0);
@@ -84,6 +72,11 @@ datalink_t* new_datalink(datalink_ondata_t callback, void* userdata)
                 return NULL;
         }
 
+        {
+                char b[64];
+                r_debug("new_datalink: %s", addr_string(link->addr, b, sizeof(b)));
+        }
+        
         link->userdata = userdata;
         link->ondata = callback;
 
@@ -102,20 +95,14 @@ void delete_datalink(datalink_t* link)
 {
         if (link) {
                 datalink_stop_thread(link);
-                if (link->socket > 0)
+                if (link->socket != INVALID_UDP_SOCKET)
                         close_udp_socket(link->socket);
-                if (link->in != NULL)
-                        delete_data(link->in);
-                if (link->out != NULL)
-                        delete_data(link->out);
-                if (link->parser != NULL)
-                        json_parser_destroy(link->parser);
-                if (link->addr != NULL)
-                        delete_addr(link->addr);
-                if (link->remote_addr != NULL)
-                        delete_addr(link->remote_addr);
-                if (link->mutex != NULL)
-                        delete_mutex(link->mutex);
+                delete_data(link->in);
+                delete_data(link->out);
+                json_parser_destroy(link->parser);
+                delete_addr(link->addr);
+                delete_addr(link->remote_addr);
+                delete_mutex(link->mutex);
                 r_delete(link);
         }
 }
@@ -123,28 +110,32 @@ void delete_datalink(datalink_t* link)
 static void datalink_handle_input(datalink_t* link)
 {
         if (link->remote_addr == NULL) {
-                // waiting for remote node
                 //r_debug("datalink_handle_input: remote_addr == NULL");
+                // waiting for remote node
                 clock_sleep(1);
                 return;
         }
-        
-        data_t *data = datalink_read(link, 1);
-        if (data == NULL) // FIXME: error? timeout?
-                return;
-        
-        if (link->ondata) {
+
+        int wait_status;
+        data_t *data = datalink_read(link, 1, &wait_status);
+        if (wait_status == RCOM_WAIT_OK
+            && data != NULL
+            && link->ondata != NULL) {
                 // Initilize the timestamp and reset the length of the
                 // reply data. The client can improve the accuracy of
-                // the timestamp is needed.
+                // the timestamp if needed.
                 data_set_timestamp(link->out);
                 data_set_len(link->out, 0);
                 
                 link->ondata(link->userdata, link, link->in, link->out);
                 
-                if (data_len(link->out) > 0) {
+                if (data_len(link->out) > 0)
                         datalink_send(link, link->out);
-                }
+                
+        } else if (wait_status == RCOM_WAIT_ERROR) {
+                r_debug("datalink_handle_input: datalink_read returned an error");
+        } else if (wait_status == RCOM_WAIT_TIMEOUT) {
+                r_debug("datalink_handle_input: datalink_read timed out");
         }
 }
 
@@ -235,16 +226,21 @@ void datalink_set_remote_addr(datalink_t *link, addr_t *addr)
         mutex_unlock(link->mutex);
 }
 
-// returns: 0 is all ok, -1 if error, 1 if timeout
-data_t *datalink_read(datalink_t* link, int timeout)
+// returns: data packet, or NULL if an error or timeout occured.  The
+// wait_status will be set to one of RCOM_WAIT_OK, RCOM_WAIT_TIMEOUT, or
+// RCOM_WAIT_ERROR.
+data_t *datalink_read(datalink_t* link, int timeout, int *wait_status)
 {
-        if (timeout >= 0) {
-                int r = udp_socket_wait_data(link->socket, timeout);
-                if (r <= 0) return NULL;
+        data_t *data = NULL;
+        
+        *wait_status = udp_socket_wait_data(link->socket, timeout);
+        if (*wait_status == RCOM_WAIT_OK) {
+                addr_t addr; // FIXME
+                if (udp_socket_read(link->socket, link->in, &addr) == 0)
+                        data = link->in;
         }
-        addr_t addr; // FIXME
-        int ret = udp_socket_read(link->socket, link->in, &addr);
-        return (ret == 0)? link->in : NULL;
+        
+        return data;
 }
 
 int datalink_sendto(datalink_t *link, addr_t *addr, data_t *data)
@@ -271,38 +267,44 @@ int datalink_send_f(datalink_t* link, const char *format, ...)
         err = data_vprintf(link->out, format, ap);
         va_end(ap);
 
-        if (err != 0) return err;
-        
-        data_set_timestamp(link->out);
-        
-        return datalink_send(link, link->out);
+        if (err == 0) {
+                data_set_timestamp(link->out);
+                err = datalink_send(link, link->out);
+        }
+
+        return err;
 }
 
 int datalink_send_obj(datalink_t *link, json_object_t obj)
 {
         int err = data_serialise(link->out, obj);
-        if (err != 0) return err;
-        data_set_timestamp(link->out);
-        return datalink_send(link, link->out);
+        if (err == 0) {
+                data_set_timestamp(link->out);
+                err = datalink_send(link, link->out);
+        }
+        return err;
 }
 
 json_object_t datalink_read_obj(datalink_t *link, int timeout)
 {
-        data_t *data = datalink_read(link, timeout);
-        if (data == NULL)
-                return json_null();
-        return data_parse(data, link->parser);
+        json_object_t r = json_null();
+        int wait_status;
+        data_t *data = datalink_read(link, timeout, &wait_status);
+        if (wait_status == RCOM_WAIT_OK
+            && data != NULL)
+                r = data_parse(data, link->parser);
+        return r;
 }
 
 json_object_t datalink_rpc_obj(datalink_t* link, json_object_t obj)
 {
+        json_object_t r = json_null();
         int ret;
 
         ret = datalink_send_obj(link, obj);
-        if (ret != 0)
-                return json_null();
-
-        return datalink_read_obj(link, 5);
+        if (ret == 0)
+                r = datalink_read_obj(link, 5);
+        return r;
 }
 
 
@@ -310,21 +312,19 @@ json_object_t datalink_rpc_f(datalink_t* link, const char* format, ...)
 {
         int ret;
         va_list ap;
+        json_object_t r = json_null();
 
         va_start(ap, format);
         ret = data_vprintf(link->out, format, ap);
         va_end(ap);
 
-        if (ret != 0) 
-                return json_null();
-        
-        data_set_timestamp(link->out);
-        
-        ret = datalink_send(link, link->out);
-        if (ret != 0) 
-                return json_null();
-        
-        return datalink_read_obj(link, 5);
+        if (ret == 0) {
+                data_set_timestamp(link->out);
+                ret = datalink_send(link, link->out);
+                if (ret == 0) 
+                        r = datalink_read_obj(link, 5);
+        }
+        return r;
 }
 
 

@@ -268,11 +268,12 @@ tcp_socket_t server_socket_accept(tcp_socket_t s)
 {
         uint32_t addrlen = sizeof(struct sockaddr_in);
         struct sockaddr_in addr;
-        int client = -1;
+        int client = INVALID_TCP_SOCKET;
 
         // The code waits for incoming connections for one
         // second. 
-        if (posix_wait_data(s, 1)) {
+        int wait_status =  posix_wait_data(s, 1);
+        if (wait_status == RCOM_WAIT_OK) {
                 //r_debug("server_socket_accept: calling accept");
                 client =  accept(s, (struct sockaddr*) &addr, &addrlen);
                 if (client == -1) {
@@ -280,30 +281,30 @@ tcp_socket_t server_socket_accept(tcp_socket_t s)
                         // FIXME: is this true?
                         r_err("server_socket_accept: accept failed: %s (socket %d)",
                                 strerror(errno), s); 
-                        return INVALID_TCP_SOCKET;
+                        client = INVALID_TCP_SOCKET;
+                } else {
+                        //r_debug("server_socket_accept: new connection");
                 }
-                //r_debug("server_socket_accept: new connection");
-                return client;
-        } else
-                return TCP_SOCKET_TIMEOUT;
+        } else if (wait_status == RCOM_WAIT_TIMEOUT) {
+                client = TCP_SOCKET_TIMEOUT;
+        } else {
+                client = INVALID_TCP_SOCKET;
+        }
+
+        return client;
 }
 
 
 //*********************************************************
 // posix  
 
-static int posix_wait_data(int socket, int timeout)
+static int posix_wait_data_positive(int socket, int timeout)
 {
         struct timeval timev;
         struct timeval* tp = NULL;
         fd_set readset;
-        int ret = 0;
-        
-        if (timeout < 0) {
-                r_err("posix_wait_data: invalid value for timeout: %d", timeout);
-                return -1;
-        }
-        
+        int ret;
+                
         FD_ZERO(&readset);
         FD_SET(socket, &readset);
 
@@ -313,23 +314,38 @@ static int posix_wait_data(int socket, int timeout)
         timev.tv_sec = timeout;
         timev.tv_usec = 0;
         tp = &timev;
-
         
-        ret = select(socket+1, &readset, NULL, NULL, tp);
-        if (ret < 0) {
+        int n = select(socket+1, &readset, NULL, NULL, tp);
+        if (n < 0) {
                 r_err("udp_socket_wait_data: error: %s", strerror(errno));
-                return -1;
-        } else if (ret == 0) {
-                //r_err("http_wait_data: time out");
-                return 0;
+                ret = RCOM_WAIT_ERROR;
+        } else if (n == 0) {
+                ret = RCOM_WAIT_TIMEOUT;
+        } else if (n > 0) {
+                ret = RCOM_WAIT_OK;
         }
-        return 1; 
+
+        return ret;
+}
+
+/**
+ * Negative values of timeout generate a RCOM_WAIT_ERROR.  A timeout
+ * value of zero can be used for polling.
+ *
+ * Returns one of RCOM_WAIT_OK, RCOM_WAIT_TIMEOUT, or RCOM_WAIT_ERROR.
+ */
+static int posix_wait_data(int socket, int timeout)
+{
+        int ret = RCOM_WAIT_ERROR;
+        if (timeout >= 0)
+                ret = posix_wait_data_positive(socket, timeout);
+        return ret; 
 }
 
 static addr_t *posix_socket_addr(int s)
 {
         struct sockaddr_in local_addr;
-        uint32_t socklen = sizeof(&local_addr);
+        uint32_t socklen = sizeof(local_addr);
         memset((char *) &local_addr, 0, socklen);        
         getsockname(s, (struct sockaddr*) &local_addr, &socklen);
         return new_addr(inet_ntoa(local_addr.sin_addr),

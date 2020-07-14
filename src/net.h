@@ -26,6 +26,7 @@
 
 #include "rcom/data.h"
 #include "rcom/addr.h"
+#include "rcom/defines.h"
 
 #ifdef __cplusplus
 extern "C" {

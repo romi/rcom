@@ -1292,7 +1292,8 @@ int messagelink_send_num(messagelink_t *link, double value)
         membuf_clear(link->out);
         err = membuf_printf(link->out, "%f", value);
         if (err == 0)
-                err = messagelink_send_text(link, membuf_data(link->out), membuf_len(link->out));
+                err = messagelink_send_text(link, membuf_data(link->out),
+                                            membuf_len(link->out));
         membuf_unlock(link->out);
         return err;
 }
@@ -1301,13 +1302,15 @@ int messagelink_send_str(messagelink_t *link, const char* value)
 {
         int err;
         membuf_t *t = escape_string(value);
-        if (t == NULL) return -1;
+
         membuf_lock(link->out);
         membuf_clear(link->out);
         err = membuf_printf(link->out, "\"%s\"", membuf_data(t));
         if (err == 0)
-                err = messagelink_send_text(link, membuf_data(link->out), membuf_len(link->out));
+                err = messagelink_send_text(link, membuf_data(link->out),
+                                            membuf_len(link->out));
         membuf_unlock(link->out);
+
         delete_membuf(t);
         return err;
 }
@@ -1325,7 +1328,8 @@ int messagelink_send_obj(messagelink_t *link, json_object_t value)
         membuf_clear(link->out);
         err = json_serialise(value, 0, (json_writer_t) messagelink_serialise, link);
         if (err == 0)
-                err = messagelink_send_text(link, membuf_data(link->out), membuf_len(link->out));
+                err = messagelink_send_text(link, membuf_data(link->out),
+                                            membuf_len(link->out));
         membuf_unlock(link->out);
         return err;
 }
@@ -1350,7 +1354,8 @@ int messagelink_send_f(messagelink_t *link, const char *format, ...)
         va_end(ap);
 
         if (err == 0) 
-                err = messagelink_send_text(link, membuf_data(link->out), membuf_len(link->out));
+                err = messagelink_send_text(link, membuf_data(link->out),
+                                            membuf_len(link->out));
         
         membuf_unlock(link->out);
         
@@ -1366,7 +1371,8 @@ int messagelink_send_v(messagelink_t *link, const char* format, va_list ap)
         // vnsprintf(NULL,0,format,ap) first?
         err = membuf_vprintf(link->out, format, ap); 
         if (err == 0) 
-                err = messagelink_send_text(link, membuf_data(link->out), membuf_len(link->out));
+                err = messagelink_send_text(link, membuf_data(link->out),
+                                            membuf_len(link->out));
         membuf_unlock(link->out);
         return err;
 }
@@ -1414,9 +1420,11 @@ messagelink_t *server_messagelink_connect(messagehub_t *hub, tcp_socket_t socket
 
 static int client_messagelink_open_socket(messagelink_t *link, addr_t *addr);
 static int client_messagelink_open_websocket(messagelink_t *link, const char *host);
-static int client_messagelink_send_request(messagelink_t *link, const char *host, const char *key);
+static int client_messagelink_send_request(messagelink_t *link, const char *host,
+                                           const char *key);
 static int client_messagelink_parse_response(messagelink_t *link);
-static int client_messagelink_validate_response(messagelink_t *link, const char *accept);
+static int client_messagelink_validate_response(messagelink_t *link,
+                                                const char *accept);
 
 
 static int client_messagelink_open_socket(messagelink_t *link, addr_t *addr)

@@ -170,7 +170,7 @@ static void rcregistry_register(rcregistry_t* rcregistry,
         // Broadcast new node
         char b[64];
         messagehub_broadcast_f(rcregistry->hub, NULL, 
-                               "{\"request\": \"proxy-add\","
+                               "{\"event\": \"proxy-add\","
                                "\"entry\": {" 
                                "\"id\": \"%s\","
                                "\"name\": \"%s\","
@@ -211,7 +211,7 @@ static void rcregistry_unregister(rcregistry_t* rcregistry,
 
         // Broadcast 
         messagehub_broadcast_f(rcregistry->hub, NULL, 
-                               "{\"request\": \"proxy-remove\", \"id\": \"%s\"}", id);
+                               "{\"event\": \"proxy-remove\", \"id\": \"%s\"}", id);
 }
 
 static void rcregistry_send_list(rcregistry_t* rcregistry, messagelink_t *link)
@@ -263,7 +263,7 @@ static void rcregistry_update_address(rcregistry_t* rcregistry,
         
         // Broadcast update
         messagehub_broadcast_f(rcregistry->hub, link, 
-                               "{\"request\": \"proxy-update-address\","
+                               "{\"event\": \"proxy-update-address\","
                                "\"id\": \"%s\", \"addr\": \"%s\"}", id, addr);
 }
 

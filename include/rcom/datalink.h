@@ -42,8 +42,9 @@ typedef void (*datalink_ondata_t)(void *userdata,
 
 int datalink_send(datalink_t *datalink, data_t *data);
 
-// returns: 0 is all ok, -1 if error, 1 if timeout
-data_t *datalink_read(datalink_t *datalink, int timeout);
+// The wait_status value is set to RCOM_WAIT_ERROR, RCOM_WAIT_OK, or
+// RCOM_WAIT_TIMEOUT.
+data_t *datalink_read(datalink_t *datalink, int timeout, int *wait_status);
 json_object_t datalink_read_obj(datalink_t *datalink, int timeout);
 
 // Utility function

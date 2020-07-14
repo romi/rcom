@@ -264,6 +264,7 @@ static void proxy_onevent(proxy_t *proxy,
                           const char *event,
                           json_object_t message)
 {
+        r_debug("proxy_onevent: %s", event);
         if (rstreq(event, "proxy-add")) {
                 proxy_handle_register_add(proxy, message);
                 
@@ -282,6 +283,7 @@ static void proxy_onresponse(proxy_t *proxy,
                             const char *response,
                             json_object_t message)
 {
+        r_debug("proxy_onresponse: %s", response);
         int success = json_object_getbool(message, "success");
         
         if (rstreq(response, "register")) {
@@ -332,6 +334,8 @@ static void proxy_onmessage(proxy_t *proxy,
                 proxy_onresponse(proxy, response, message);
         else if (event != NULL)
                 proxy_onevent(proxy, event, message);
+        else 
+                r_warn("proxy_onmessage: received unknown message");
 }
 
 static void proxy_onclose(proxy_t *proxy __attribute__((unused)),
