@@ -1022,16 +1022,20 @@ void server_messagelink_read_in_background(messagelink_t *link)
 
 static void client_messagelink_read_in_background(messagelink_t *link)
 {
-        r_debug("client_messagelink_read_in_background (%s:%s)", link->name, link->topic);
         if (link->thread == NULL && link->onmessage != NULL) {
+                r_debug("client_messagelink_read_in_background (%s:%s)",
+                        link->name, link->topic);
                 link->thread_quit = 0;
                 link->thread = new_thread((thread_run_t) client_messagelink_run, link);
+        } else {
+                r_debug("client_messagelink_read_in_background (%s:%s): "
+                        "no onmessage handler",
+                        link->name, link->topic);
         }
 }
 
 void messagelink_stop_thread(messagelink_t *link)
 {
-        r_debug("messagelink_stop_background (%s:%s)", link->name, link->topic);
         if (link->thread) {
                 link->thread_quit = 1;
                 r_debug("messagelink_stop_background (%s:%s): joining read thread",
@@ -1041,6 +1045,9 @@ void messagelink_stop_thread(messagelink_t *link)
                         link->name, link->topic);
                 delete_thread(link->thread);
                 link->thread = NULL;
+        } else {
+                r_debug("messagelink_stop_background (%s:%s): "
+                        "no read thread", link->name, link->topic);
         }
 }
 

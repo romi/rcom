@@ -192,38 +192,62 @@ static int listen_messagehub(const char *topic)
         return 0;
 }
 
-static int print_status(json_object_t reply)
+static int print_status(const char *request, json_object_t reply)
 {
+        int err = 0;
         const char *status = json_object_getstr(reply, "status");
         if (status == NULL) {
                 fprintf(stderr, "Controller returned an invalid status message");
-                return -1;
+                err = -1;
                 
         } else if (rstreq(status, "ok")) {
-                return 0;
+                fprintf(stderr, "Success: %s\n", request);
+                err = 0;
                 
         } else if (rstreq(status, "error")) {
                 const char *s = json_object_getstr(reply, "message");
-                fprintf(stderr, "Error: %s", s);
-                return -1;
-        }
-        return -1; // ??
+                fprintf(stderr, "Error: %s\n", s);
+                err = -1;
+        } else {
+                fprintf(stderr, "Invalid reply message");
+                err = -1;
+        } 
+        return err;
 }
 
 static int send_request(const char *topic, const char *command)
 {
         messagelink_t *link;
+        json_object_t request;
         json_object_t reply;
+        const char *command_str;
+        int err;
+        char errmsg[256];
         
+        request = json_parse_ext(command, &err, errmsg, sizeof(errmsg));
+        if (err != 0) {
+                r_warn("Request is invalid JSON: %s", errmsg); 
+                r_warn("Proceesing anyway."); 
+        } else {
+                command_str = json_object_getstr(request, "command");
+                if (command_str == NULL) {
+                        r_warn("Couldn't find a command string. "
+                               "Proceeding anyway."); 
+                }
+        }
+
         link = registry_open_messagelink("rcquery", topic, NULL, NULL);
         if (link == NULL)
                 return 1;
 
         reply = messagelink_send_command_f(link, "%s", command);
-        int err = print_status(reply);
+        err = print_status(command_str, reply);
         
         registry_close_messagelink(link);
 
+        json_unref(reply);
+        json_unref(request);
+        
         return (err)? 1 : 0;
 }
 
@@ -245,6 +269,8 @@ static int send_data(const char *topic, const char *text)
         
         registry_close_messagelink(link);
 
+        json_unref(reply);
+        
         return exit_code;
 }
 
