@@ -404,7 +404,7 @@ int request_is_websocket(request_t *r)
         const char *connection = request_get_header_value(r, "Connection");
         if (connection == NULL)
                 return 0;
-        if (strstr(connection, "Upgrade") == NULL)
+        if ((strstr(connection, "Upgrade") == NULL) && (strstr(connection, "upgrade") == NULL))
                 return 0;
         
         return 1;
