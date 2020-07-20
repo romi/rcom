@@ -31,7 +31,7 @@ add_custom_command(TARGET rcom_unit_tests POST_BUILD
 
 include(FindPythonInterp)
 add_test(NAME rcom_integration_test
-        COMMAND ${PYTHON_EXECUTABLE} ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/integration_test.py )
+        COMMAND python3 ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/integration_test.py )
 
 #COMMAND ${PYTHON_EXECUTABLE} ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/integration_test.py WORKING_DIRECTORY ${EXECUTABLE_OUTPUT_PATH} )
 

@@ -6,14 +6,14 @@ import sys
 import pathlib
 
 current_path = pathlib.Path(__file__).parent.absolute()
-print(current_path)
-
-rcreg = subprocess.Popen(["current_path" + "/rcregistry", "-P", "10109"])
+rcreg_exe = current_path / "rcregistry"
+print("rcreg_exe '%s'" % rcreg_exe)
+rcreg = subprocess.Popen([str(rcreg_exe), "-P", "10108"])
 
 # rcreg = subprocess.Popen(["/home/dboari/Development/romi-rover-build-and-test/cmake-build-debug/bin/rcregistry", "-P", "10109"])
 time.sleep(1)
 
-ws = create_connection("ws://127.0.0.1:10109")
+ws = create_connection("ws://127.0.0.1:10108")
 print("Sending {'request':'list'}")
 ws.send("{'request':'list'}")
 print("Sent")
