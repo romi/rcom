@@ -8,9 +8,10 @@ compiler:
 before_install:
   - sudo apt-get update
   - sudo apt-get install python3
-  
+  - sudo apt-get install python3-pip
+
 install:
-  - pip install websocket-client
+  - pip3 install websocket-client
 
 before_script:
   # create a build folder for the out-of-source build
