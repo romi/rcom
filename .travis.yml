@@ -1,5 +1,10 @@
 dist: bionic
 
+addons:
+  apt:
+    packages:
+      - socat
+
 language: cpp
 
 compiler:
