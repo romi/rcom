@@ -29,11 +29,10 @@
 //}
 
 std::string
-SerialPortDiscover::ConnectedDevice(const std::string& path)
+SerialPortDiscover::ConnectedDevice(const std::string& path, const int32_t timeout_ms)
 {
     std::string device;
     std::string command = "?";
-    int32 timeout_ms = 200;
     const int bufflen = 256;
     char buffer[bufflen];
     memset(buffer, 0, bufflen);

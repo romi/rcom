@@ -1,19 +1,20 @@
 from websocket import create_connection
+import random
 import json
 import subprocess
 import time
 import sys
 import pathlib
 
+connection_port = random.randrange(2000, 65535)
 current_path = pathlib.Path(__file__).parent.absolute()
 rcreg_exe = current_path / "rcregistry"
 print("rcreg_exe '%s'" % rcreg_exe)
-rcreg = subprocess.Popen([str(rcreg_exe), "-P", "10108"])
+rcreg = subprocess.Popen([str(rcreg_exe), "-P", str(connection_port)])
 
-# rcreg = subprocess.Popen(["/home/dboari/Development/romi-rover-build-and-test/cmake-build-debug/bin/rcregistry", "-P", "10109"])
 time.sleep(1)
 
-ws = create_connection("ws://127.0.0.1:10108")
+ws = create_connection("ws://127.0.0.1:"+str(connection_port))
 print("Sending {'request':'list'}")
 ws.send("{'request':'list'}")
 print("Sent")
@@ -21,7 +22,7 @@ print("Receiving...")
 result = ws.recv()
 ws.close()
 print("Received '%s'" % result)
-print("Done\r\n\r\n")
+print("Done\r\n")
 
 result_dictionary = json.loads(result)
 rcreg.terminate()

@@ -54,13 +54,11 @@ namespace CppLinuxSerial {
                              + device0Name_ + std::string(" pty,raw,echo=0,link=")
                              + device1Name_ + std::string(" &");
                 std::cout << command << std::endl;
-                std::system((std::string("nohup sudo socat -d -d pty,raw,echo=0,link=") 
-                    + device0Name_ + " pty,raw,echo=0,link="
-                    + device1Name_ + " &").c_str());
+                std::system(command.c_str() );
 
                 // Hacky! Since socat is detached, we have no idea at what point it has created
-                // ttyS10 and ttyS11. Assume 1 second is long enough...
-                std::this_thread::sleep_for(1s);
+                // ttyS10 and ttyS11. Assume 2 seconds is long enough...
+                std::this_thread::sleep_for(2s);
                 std::system((std::string("sudo chmod a+rw ") + GetDevice0Name()).c_str());
                 std::system((std::string("sudo chmod a+rw ") + GetDevice1Name()).c_str());
             }
@@ -79,8 +77,8 @@ namespace CppLinuxSerial {
                 return device1Name_;
             }
 
-            std::string device0Name_ = "/dev/ttyS20";
-            std::string device1Name_ = "/dev/ttyS21";
+            std::string device0Name_ = "/dev/ttyS10";
+            std::string device1Name_ = "/dev/ttyS11";
 
         protected:
 

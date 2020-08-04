@@ -58,8 +58,9 @@ TEST_F(SerialPortDiscover_tests, SerialPortDiscover_ConnectedDevice_bad_port_ret
 {
     // Arrange
     SerialPortDiscover SerialPortDiscover;
+    const int32_t timeout_ms = 100;
     // Act
-    auto device = SerialPortDiscover.ConnectedDevice(std::string("/dev/notreal"));
+    auto device = SerialPortDiscover.ConnectedDevice(std::string("/dev/notreal"), timeout_ms);
 
     //Assert
     ASSERT_TRUE(device.empty());
@@ -70,16 +71,18 @@ TEST_F(SerialPortDiscover_tests, SerialPortDiscover_ConnectedDevice_times_out_re
     // Arrange
     SerialPortDiscover SerialPortDiscover;
     std::string port0 = CppLinuxSerial::TestUtil::GetInstance().GetDevice0Name();
+    const int32_t timeout_ms = 100;
     // Act
-    auto device = SerialPortDiscover.ConnectedDevice(port0);
+    auto device = SerialPortDiscover.ConnectedDevice(port0, timeout_ms);
 
     //Assert
     ASSERT_TRUE(device.empty());
 }
 
-std::string ThreadFunction(const std::string& port, const std::string& controller)
+int ThreadFunction(const std::string& port, const std::string& controller)
 {
     const int bufflen = 256;
+    int result = -1;
     char buffer[bufflen];
     memset(buffer, 0, bufflen);
 
@@ -88,28 +91,37 @@ std::string ThreadFunction(const std::string& port, const std::string& controlle
     {
         if (serial_read_timeout(serial_port, buffer, bufflen, 1000) == 0)
         {
-            serial_write(serial_port, controller.c_str(), controller.length());
+            if (serial_write(serial_port, controller.c_str(), controller.length()) == 0)
+            {
+                result = 0;
+            }
         }
     }
     else
     {
-        std::cout << "ThreadFunction timed out on read " << port << std::endl;
+        std::cout << "ThreadFunction failed to open " << port << std::endl;
     }
     delete_serial(serial_port);
-    return std::string("done");
+    return result;
 }
 
 TEST_F(SerialPortDiscover_tests, SerialPortDiscover_ConnectedDevice_returns_connected_device)
 {
+    // Arrange
     std::string controller("brushmotorcontroller\n");
 
     std::string port0 = CppLinuxSerial::TestUtil::GetInstance().GetDevice0Name();
     std::string port1 = CppLinuxSerial::TestUtil::GetInstance().GetDevice1Name();
 
     auto future = std::async(ThreadFunction, port1, controller);
-
     SerialPortDiscover SerialPortDiscover;
-    auto device = SerialPortDiscover.ConnectedDevice(port0);
-    std::string result = future.get();
+    const int timeout_ms = 500;
+    // Act
+    auto device = SerialPortDiscover.ConnectedDevice(port0, timeout_ms);
+    int thread_result = future.get();
+
+    // Assert
+    ASSERT_EQ(thread_result, 0);
     ASSERT_EQ(controller, device);
+
 }

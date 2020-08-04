@@ -28,7 +28,7 @@ before_script:
 
 script:
   # once CMake has done its job we just build using make as usual
-  - make
+  - make -j4
   # if the project uses ctest we can run the tests like this
   - make rcom_unit_tests_coverage
 

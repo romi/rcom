@@ -131,7 +131,7 @@ TEST_F(SerialPortIdentification_tests, Connected_devices_returns_empty_vector_wh
     // Arrange
     CreateFiles();
     Mocks::SerialPortDiscoverMock serialPortDiscoverMock;
-    EXPECT_CALL(serialPortDiscoverMock, ConnectedDevice(testing::_))
+    EXPECT_CALL(serialPortDiscoverMock, ConnectedDevice(testing::_, testing::_))
             .Times(2)
             .WillRepeatedly(Return(std::string()));
 
@@ -152,7 +152,7 @@ TEST_F(SerialPortIdentification_tests, Connected_devices_returns_valid_devices)
     std::string BrushMotorController("BrushMotorController");
     std::string CNC("CNC");
     Mocks::SerialPortDiscoverMock serialPortDiscoverMock;
-    EXPECT_CALL(serialPortDiscoverMock, ConnectedDevice(testing::_))
+    EXPECT_CALL(serialPortDiscoverMock, ConnectedDevice(testing::_, testing::_))
             .Times(3)
             .WillOnce(Return(BrushMotorController))
             .WillOnce(Return(std::string("")))

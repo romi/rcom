@@ -13,7 +13,7 @@ namespace Mocks
     class SerialPortDiscoverMock : public ISerialPortDiscover
     {
     public:
-        MOCK_METHOD1(ConnectedDevice, std::string (const std::string& path));
+        MOCK_METHOD2(ConnectedDevice, std::string (const std::string& path, const int32_t timeout_ms));
     };
 #pragma GCC diagnostic pop
 }

@@ -9,7 +9,7 @@ class SerialPortDiscover : public ISerialPortDiscover {
     public:
         SerialPortDiscover() = default;
         virtual ~SerialPortDiscover() = default;
-        std::string ConnectedDevice(const std::string& path);
+        std::string ConnectedDevice(const std::string& path, const int32_t timeout_ms) override;
 };
 
 #endif //RCDISCOVER_SERIALPORTDISCOVER_H
