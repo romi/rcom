@@ -15,15 +15,15 @@ set(SRCS
         ../include/SerialPortDiscover.h
         ../src/SerialPortDiscover.cpp)
 
-add_executable(rcdiscover_unit_tests ${SRCS})
+add_executable(rcom_rcdiscover_unit_tests ${SRCS})
 
-target_link_libraries(  rcdiscover_unit_tests
+target_link_libraries(  rcom_rcdiscover_unit_tests
                         gtest
                         gmock
                         rcom
                         stdc++fs)
 
 add_test(
-        NAME rcdiscover_unit_tests
-        COMMAND rcdiscover_unit_tests
+        NAME rcom_rcdiscover_unit_tests
+        COMMAND rcom_rcdiscover_unit_tests
         )
