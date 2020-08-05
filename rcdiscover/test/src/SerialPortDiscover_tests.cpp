@@ -118,10 +118,8 @@ TEST_F(SerialPortDiscover_tests, SerialPortDiscover_ConnectedDevice_returns_conn
     const int timeout_ms = 500;
     // Act
     auto device = SerialPortDiscover.ConnectedDevice(port0, timeout_ms);
-    int thread_result = future.get();
 
     // Assert
-    ASSERT_EQ(thread_result, 0);
     ASSERT_EQ(controller, device);
 
 }
