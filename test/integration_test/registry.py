@@ -15,7 +15,7 @@ class RegistryTests:
         rcreg_exe = current_path / "rcregistry"
         print("rcreg_exe '%s'" % rcreg_exe)
         self.rcreg = subprocess.Popen([str(rcreg_exe), "-P", str(connection_port)])
-        time.sleep(1)
+        time.sleep(2)
         if self.rcreg is not None:
             return True
         return False
