@@ -10,7 +10,7 @@ logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
 
 class RegistryTests:
     ws = None;
-    # websocket.enableTrace(True)
+    websocket.enableTrace(True)
 
     connection_port = None
     rcreg = None
