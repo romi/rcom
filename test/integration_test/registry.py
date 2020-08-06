@@ -53,7 +53,7 @@ class RegistryTests:
         result_dictionary = json.loads(result)
         if result_dictionary["success"] != success_response:
             print("[----------] '%s'" % result)
-            print("[  FAILED  ] success != " + "\"" + success_response + "\"")
+            print("[  FAILED  ] success != " + "\"" + str(success_response) + "\"")
         elif result_dictionary["message"] != message_response:
             print("[----------] '%s'" % result)
             print("[  FAILED  ] message != " + "\"" + message_response + "\"")
@@ -68,7 +68,6 @@ class RegistryTests:
               + str(success_response) + "\" \"" + message_response + "\"")
         self.ws.send(send_data)
         result = self.ws.recv()
-        # print("RESULT: '%s'" % result)
         if not self.registry_check_results(result, success_response, message_response):
             return_code = 1
         return return_code
