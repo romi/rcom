@@ -6,7 +6,7 @@ import traceback
 test_return_value = 1
 OK = "OK"
 Unknown_Request = "Unknown request"
-test_array = None
+test_array = []
 
 # Construct registry tests with logging value
 registry_tests = registry.RegistryTests(False)
@@ -53,5 +53,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-

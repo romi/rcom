@@ -41,31 +41,28 @@ class RegistryTests:
         self.ws.connect("ws://127.0.0.1:"+str(self.connection_port))
         return self.ws.connected
 
-    def registry_check_results(self, result, success_response, message_response):
+    @staticmethod
+    def registry_check_results(result, success_response, message_response):
         test_results = False
         result_dictionary = json.loads(result)
         if result_dictionary["success"] != success_response:
-            print("RESULT: '%s'" % result)
-            print("TEST ERROR: success != " + "\"" + success_response + "\"")
+            print("[----------] '%s'" % result)
+            print("[  FAILED  ] success != " + "\"" + success_response + "\"")
         elif result_dictionary["message"] != message_response:
-            print("RESULT: '%s'" % result)
-            print("Test ERROR: message != " + "\"" + message_response + "\"")
+            print("[----------] '%s'" % result)
+            print("[  FAILED  ] message != " + "\"" + message_response + "\"")
         else:
+            print("[       OK ]")
             test_results = True
         return test_results
 
     def registry_send_test(self, send_data, success_response, message_response):
         return_code = 0
-        print("TEST: registry_send_test \"" + send_data + "\" \"" + str(success_response) + "\" \"" + message_response + "\"")
+        print("[ RUN      ] registry_send_test \"" + send_data + "\" \""
+              + str(success_response) + "\" \"" + message_response + "\"")
         self.ws.send(send_data)
         result = self.ws.recv()
         # print("RESULT: '%s'" % result)
-        if self.registry_check_results(result, success_response, message_response):
-            print("TEST SUCCESS")
-        else:
-            print("TEST FAILED")
+        if not self.registry_check_results(result, success_response, message_response):
             return_code = 1
         return return_code
-
-
-
