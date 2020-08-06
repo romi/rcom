@@ -1,7 +1,6 @@
 #include <experimental/filesystem>
 #include <fstream>
 #include <string>
-#include <thread>
 #include <future>
 
 #include <r.h>
@@ -11,9 +10,6 @@
 
 #include "SerialPortDiscover.h"
 #include "TestUtil.hpp"
-
-
-
 
 namespace fs = std::experimental::filesystem;
 using testing::UnorderedElementsAre;

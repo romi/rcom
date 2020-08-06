@@ -1,13 +1,17 @@
 cmake_minimum_required(VERSION 3.10)
 
 include_directories(mocks
-                        support)
+                    support)
 
 set(SRCS
         support/TestUtil.hpp
         src/tests_main.cpp
         src/SerialPortIdentification_tests.cpp
         src/SerialPortDiscover_tests.cpp
+        src/SerialPortConfigurationGenerator_tests.cpp
+        ../include/ISerialPortConfigurationGenerator.h
+        ../include/SerialPortConfigurationGenerator.h
+        ../src/SerialPortConfigurationGenerator.cpp
         ../include/ISerialPortIdentification.h
         ../include/SerialPortIdentification.h
         ../src/SerialPortIdentification.cpp

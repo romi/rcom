@@ -10,7 +10,7 @@ using namespace CppLinuxSerial;
 
 class Environment : public testing::Environment {
 public:
-    virtual ~Environment() {}
+    virtual ~Environment() = default;
     // Override this to define how to set up the environment.
     virtual void SetUp() {
         std::cout << __PRETTY_FUNCTION__ << " called." << std::endl;
