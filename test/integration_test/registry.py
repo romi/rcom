@@ -1,11 +1,13 @@
-import websocket
+import traceback
 import json
-import subprocess
-import time
-import pathlib
-import sys
-import ssl
 import logging
+import pathlib
+import ssl
+import subprocess
+import sys
+import time
+import websocket
+
 logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
 
 
@@ -37,8 +39,12 @@ class RegistryTests:
 
     def registry_connect(self):
         print("connecting to: " + "ws://127.0.0.1:"+str(self.connection_port))
-        self.ws = websocket.WebSocket(sslopt={"cert_reqs": ssl.CERT_NONE})
-        self.ws.connect("ws://127.0.0.1:"+str(self.connection_port))
+        try:
+            self.ws = websocket.WebSocket(sslopt={"cert_reqs": ssl.CERT_NONE})
+            self.ws.connect("ws://127.0.0.1:"+str(self.connection_port))
+        except websocket.WebSocketException:
+            traceback.print_exc()
+            print("HEADERS: " + str(self.ws.getheaders()))
         return self.ws.connected
 
     @staticmethod
