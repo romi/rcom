@@ -19,7 +19,7 @@ add_test(
 add_custom_command(TARGET rcom_unit_tests POST_BUILD
         COMMAND
         ${CMAKE_COMMAND} -E copy
-                ./integration_test.py
+                ./integration_test/*.py
                 ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
         WORKING_DIRECTORY
                 ${CMAKE_CURRENT_SOURCE_DIR}

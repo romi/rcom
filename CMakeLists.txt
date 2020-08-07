@@ -6,7 +6,7 @@ project(rcom)
 set(rcom_VERSION_MAJOR 0)
 set(rcom_VERSION_MINOR 1)
 
-set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
@@ -97,7 +97,8 @@ if (BUILD_COVERAGE AND BUILD_TESTS)
     set( COVERAGE_EXCLUDES
             "/usr/*"
             "${CMAKE_SOURCE_DIR}/thirdparty/*"
-            "*test/*")
+            "*test/*"
+            "*include/*")
     append_coverage_compiler_flags()
 
 endif()
@@ -182,6 +183,8 @@ target_link_libraries(rcom
                       m
                       r )
 
+add_subdirectory(rcdiscover)
+
 # Main rcom apps
 add_executable(rcregistry src/rcregistry_main.c)
 target_link_libraries(rcregistry rcom)
@@ -204,7 +207,6 @@ target_link_libraries(rclaunch rcom)
 
 #add_executable(rcdev src/rcdev.c)
 #target_link_libraries(rcdev rcom usb-1.0)
-
 
 if(BUILD_TESTS)
     add_subdirectory(test)

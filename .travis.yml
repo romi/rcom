@@ -1,5 +1,10 @@
 dist: bionic
 
+addons:
+  apt:
+    packages:
+      - socat
+
 language: cpp
 
 compiler:
@@ -14,18 +19,14 @@ install:
   - pip3 install websocket-client
 
 before_script:
-  # create a build folder for the out-of-source build
-  - mkdir build_tests_coverage
-  # switch to build directory
-  - cd build_tests_coverage
-  # CMakeLists.txt is located at '..' Coverage is on by default.
+  # out-of-source build
+  - mkdir build_tests
+  - cd build_tests
   - cmake ..
 
 script:
-  # once CMake has done its job we just build using make as usual
-  - make
-  # if the project uses ctest we can run the tests like this
-  - make rcom_unit_tests_coverage
+  - make -j4
+  - ctest -V -R rcom_*
 
 after_success:
   - bash <(curl -s https://codecov.io/bash)
