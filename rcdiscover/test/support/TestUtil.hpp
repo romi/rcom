@@ -58,7 +58,7 @@ namespace CppLinuxSerial {
 
                 // Hacky! Since socat is detached, we have no idea at what point it has created
                 // ttyS10 and ttyS11. Assume 1 seconds is long enough...
-                std::this_thread::sleep_for(1s);
+                std::this_thread::sleep_for(2s);
                 std::system((std::string("sudo chmod a+rw ") + GetDevice0Name()).c_str());
                 std::system((std::string("sudo chmod a+rw ") + GetDevice1Name()).c_str());
             }
