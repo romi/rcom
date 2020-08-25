@@ -9,6 +9,9 @@ SerialPortDiscover::SerialPortDiscover(const std::map<std::string, std::string>&
 std::string
 SerialPortDiscover::ConnectedDevice(const std::string& path, const int32_t timeout_ms)
 {
+    const int retrycount = 3;
+    int retrycurrent = 0;
+    bool checked = false;
     std::string device;
     std::string command = "?";
     const int bufflen = 256;
@@ -17,12 +20,16 @@ SerialPortDiscover::ConnectedDevice(const std::string& path, const int32_t timeo
     serial_t * serial_port = new_serial(path.c_str(), 115200, 0);
     if ( serial_port )
     {
-        if  (serial_println(serial_port, command.c_str()) == 0)
+        while ((checked == false) && (retrycurrent++ < retrycount))
         {
-            if (serial_read_timeout(serial_port, buffer, bufflen, timeout_ms) == 0)
+            if  (serial_println(serial_port, command.c_str()) == 0)
             {
-                std::cout << path << " " << buffer << std::endl;
-                device = FilterDevice(buffer);
+                if (serial_read_timeout(serial_port, buffer, bufflen, timeout_ms) == 0)
+                {
+                    std::cout << path << " " << buffer << std::endl;
+                    device = FilterDevice(buffer);
+                    checked = true;
+                }
             }
         }
     }
