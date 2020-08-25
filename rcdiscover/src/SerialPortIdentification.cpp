@@ -33,7 +33,7 @@ std::vector< std::pair <std::string, std::string> >
 SerialPortIdentification::ConnectedDevices(std::vector<std::string>& serialDevices)
 {
     std::vector< std::pair <std::string, std::string> > devices;
-    const int32_t timeout_ms = 250;
+    const int32_t timeout_ms = 500;
     for (const auto& device : serialDevices)
     {
         std::string deviceName = serialPortDiscover.ConnectedDevice(device, timeout_ms);
