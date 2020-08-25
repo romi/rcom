@@ -10,10 +10,12 @@ std::string dev = "/dev";
  * key in the config file. */
 const std::map<std::string, std::string> device_to_json_key =
         {
-                { "Grbl", "grbl" },
+                { "Grbl", "cnc" },
+                { "Alarm", "cnc" },
                 { "BrushMotorController","brush_motors" },
                 { "RomiControlPanel",  "control_panel" }
         };
+
 int main() {
 
     SerialPortDiscover serialPortDiscover(device_to_json_key);

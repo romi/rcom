@@ -8,7 +8,7 @@
 
 SerialPortConfigurationGenerator::SerialPortConfigurationGenerator()
 :
-        serial_port_configuration_key("port_configuration"), serial_port_key("port"), serial_device_key("device")
+        serial_ports_configuration_key("ports"), serial_port_key("port"), serial_device_type("type"), serial_type("serial")
 {
 
 }
@@ -21,15 +21,15 @@ std::string SerialPortConfigurationGenerator::CreateConfiguration(std::vector<st
     std::string json_string;
 
     json_object_t configuration_object = json_object_create();
-    json_object_t ports_array = json_array_create();
-    json_object_set(configuration_object, serial_port_configuration_key.c_str(), ports_array);
+    json_object_t ports_object = json_object_create();
+    json_object_set(configuration_object, serial_ports_configuration_key.c_str(), ports_object);
 
     for (const auto& device : devices)
     {
         json_object_t device_object = json_object_create();
+        json_object_setstr(device_object, serial_device_type.c_str(), serial_type.c_str());
         json_object_setstr(device_object, serial_port_key.c_str(), device.first.c_str());
-        json_object_setstr(device_object, serial_device_key.c_str(), device.second.c_str());
-        json_array_push(ports_array, device_object);
+        json_object_set(ports_object, device.second.c_str(), device_object);
         json_unref(device_object);
     }
 
@@ -37,7 +37,7 @@ std::string SerialPortConfigurationGenerator::CreateConfiguration(std::vector<st
     json_string = json_string_buff;
 
     json_unref(configuration_object);
-    json_unref(ports_array);
+    json_unref(ports_object);
 
     return json_string;
 }

@@ -14,9 +14,10 @@ public:
         std::string CreateConfiguration(std::vector<std::pair<std::string, std::string>>& devices) override;
         bool SaveConfiguration(const std::string& configuration_file, const std::string& configuration_json) override;
 private:
-        const std::string serial_port_configuration_key;
+        const std::string serial_ports_configuration_key;
         const std::string serial_port_key;
-        const std::string serial_device_key;
+        const std::string serial_device_type;
+        const std::string serial_type;
 };
 
 

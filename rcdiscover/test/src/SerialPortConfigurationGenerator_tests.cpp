@@ -66,7 +66,7 @@ TEST_F(SerialPortConfigurationGenerator_tests, SerialPortConfigurationGenerator_
     // Arrange
     std::vector<std::pair<std::string, std::string>> attached_devices;
     SerialPortConfigurationGenerator SerialPortConfigurationGenerator;
-    std::string expected_json("{\"port_configuration\":[]}"
+    std::string expected_json("{\"ports\":{}}"
     );
 
     // Act
@@ -84,7 +84,7 @@ TEST_F(SerialPortConfigurationGenerator_tests, SerialPortConfigurationGenerator_
 
     attached_devices.push_back(std::make_pair(std::string("/dev/ACM0"), std::string("brushmotorcontroller")));
     attached_devices.push_back(std::make_pair(std::string("/dev/ACM1"), std::string("cnc")));
-    std::string expected_json("{\"port_configuration\":[{\"port\":\"/dev/ACM0\",\"device\":\"brushmotorcontroller\"}, {\"port\":\"/dev/ACM1\",\"device\":\"cnc\"}]}");
+    std::string expected_json("{\"ports\":{\"cnc\":{\"port\":\"/dev/ACM1\",\"type\":\"serial\"},\"brushmotorcontroller\":{\"port\":\"/dev/ACM0\",\"type\":\"serial\"}}}");
 
     // Act
     auto actual = SerialPortConfigurationGenerator.CreateConfiguration(attached_devices);
