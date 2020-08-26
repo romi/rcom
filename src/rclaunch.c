@@ -430,7 +430,7 @@ static int parse_registry(json_object_t config)
         json_object_t r;
         const char *addr;
         const char *path = NULL;
-        int port;
+        int port = 10101;
 
         r = json_object_get(config, "registry");
 
@@ -444,7 +444,10 @@ static int parse_registry(json_object_t config)
                                 r_err("monitor: parse_registry: bad addr: '%s'", addr);
                 }
 
-                port = (int) json_object_getnum(r, "port");
+                if (json_object_has(r, "port"))
+                {
+                    port = (int) json_object_getnum(r, "port");
+                }
                 if (port > 0 && port < 65536) {
                         set_registry_port(port);
                 }
