@@ -344,7 +344,7 @@ static int run_start_locally(run_t *r)
         // message and exit.
         char errmsg[256];
         strerror_r(errno, errmsg, sizeof(errmsg));
-        r_panic("run_start_locally: execvp failed: %s", errmsg);
+        r_panic("run_start_locally: execvp failed: %s %s", errmsg, r->path);
 
         exit(0);
 }
