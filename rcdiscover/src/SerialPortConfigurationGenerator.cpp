@@ -13,14 +13,33 @@ SerialPortConfigurationGenerator::SerialPortConfigurationGenerator()
 
 }
 
-std::string SerialPortConfigurationGenerator::CreateConfiguration(std::vector<std::pair<std::string, std::string>>& devices)
+json_object_t SerialPortConfigurationGenerator::CreateConfigurationBase(const std::string& json_configuration)
+{
+    json_object_t configuration_object;
+    if (json_configuration.empty())
+    {
+        configuration_object = json_object_create();
+    } else
+    {
+        int parse_error = 0;
+        char error_message[256];
+        configuration_object = json_parse_ext(json_configuration.c_str(), &parse_error, error_message, sizeof(error_message));
+        if (json_isnull(configuration_object))
+        {
+            configuration_object = json_object_create();
+        }
+    }
+    return configuration_object;
+}
+
+std::string SerialPortConfigurationGenerator::CreateConfiguration(const std::string& json_configuration, const std::vector<std::pair<std::string, std::string>>& devices)
 {
     const int buff_size = 2048;
     char json_string_buff[buff_size];
     memset(json_string_buff, 0, buff_size);
     std::string json_string;
 
-    json_object_t configuration_object = json_object_create();
+    json_object_t configuration_object = CreateConfigurationBase(json_configuration);
     json_object_t ports_object = json_object_create();
     json_object_set(configuration_object, serial_ports_configuration_key.c_str(), ports_object);
 
@@ -40,6 +59,24 @@ std::string SerialPortConfigurationGenerator::CreateConfiguration(std::vector<st
     json_unref(ports_object);
 
     return json_string;
+}
+
+std::string SerialPortConfigurationGenerator::LoadConfiguration(const std::string& configuration_file) const
+{
+    std::ostringstream contents;
+    try
+    {
+        std::ifstream in;
+        in.exceptions(std::ifstream::badbit | std::ifstream::failbit);
+        in.open(configuration_file);
+        contents << in.rdbuf();
+    }
+    catch (const std::exception& ex)
+    {
+        std::cout << __PRETTY_FUNCTION__  << " failed to load file: '" << configuration_file << "' exception: " << ex.what() << std::endl;
+    }
+
+    return(contents.str());
 }
 
 bool SerialPortConfigurationGenerator::SaveConfiguration(const std::string& configuration_file, const std::string& configuration_json)

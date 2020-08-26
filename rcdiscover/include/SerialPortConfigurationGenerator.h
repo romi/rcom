@@ -4,17 +4,19 @@
 #include <string>
 #include <vector>
 #include "ISerialPortConfigurationGenerator.h"
-
+#include <json.h>
 
 class SerialPortConfigurationGenerator : public ISerialPortConfigurationGenerator
 {
 public:
         SerialPortConfigurationGenerator();
         virtual ~SerialPortConfigurationGenerator() = default;
-        std::string CreateConfiguration(std::vector<std::pair<std::string, std::string>>& devices) override;
+        std::string CreateConfiguration(const std::string& json_configuration, const std::vector<std::pair<std::string, std::string>>& devices) override;
+        std::string LoadConfiguration(const std::string& configuration_file) const override;
         bool SaveConfiguration(const std::string& configuration_file, const std::string& configuration_json) override;
 private:
-        const std::string serial_ports_configuration_key;
+        json_object_t CreateConfigurationBase(const std::string& json_configuration);        const std::string serial_ports_configuration_key;
+private:
         const std::string serial_port_key;
         const std::string serial_device_type;
         const std::string serial_type;
