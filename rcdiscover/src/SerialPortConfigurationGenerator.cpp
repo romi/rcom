@@ -52,7 +52,7 @@ std::string SerialPortConfigurationGenerator::CreateConfiguration(const std::str
         json_unref(device_object);
     }
 
-    json_tostring(configuration_object, json_string_buff, buff_size);
+    json_tostring_pretty(configuration_object, json_string_buff, buff_size);
     json_string = json_string_buff;
 
     json_unref(configuration_object);
