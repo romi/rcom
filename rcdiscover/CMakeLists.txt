@@ -5,12 +5,15 @@ include_directories(include
 
 add_executable(rcdiscover
                 src/main.cpp
+                include/SerialPortConfigurationGenerator.h
+                src/SerialPortConfigurationGenerator.cpp
                 include/SerialPortIdentification.h
                 src/SerialPortIdentification.cpp
                 include/SerialPortDiscover.h
                 src/SerialPortDiscover.cpp
-                include/SerialPortConfigurationGenerator.h
-                src/SerialPortConfigurationGenerator.cpp)
+                include/StringUtils.h
+                src/StringUtils.cpp
+        )
 
 target_link_libraries( rcdiscover
                         stdc++fs

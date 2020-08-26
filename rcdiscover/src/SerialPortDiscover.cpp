@@ -1,5 +1,6 @@
 #include <r.h>
 #include <iostream>
+#include "StringUtils.h"
 #include "SerialPortDiscover.h"
 
 SerialPortDiscover::SerialPortDiscover(const std::map<std::string, std::string>& deviceFilter) : knownDevicesMap(deviceFilter)
@@ -26,9 +27,14 @@ SerialPortDiscover::ConnectedDevice(const std::string& path, const int32_t timeo
             {
                 if (serial_read_timeout(serial_port, buffer, bufflen, timeout_ms) == 0)
                 {
-                    std::cout << path << " " << buffer << std::endl;
-                    device = FilterDevice(buffer);
-                    checked = true;
+                    std::string buffer_string(buffer);
+                    std::string trimmed_device = StringUtils::trim(buffer_string, StringUtils::whitespace_chars);
+                    if (!trimmed_device.empty())
+                    {
+                        std::cout << path << " " << buffer << std::endl;
+                        device = FilterDevice(buffer);
+                        checked = true;
+                    }
                 }
             }
         }

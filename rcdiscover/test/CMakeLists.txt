@@ -9,6 +9,8 @@ set(SRCS
         src/SerialPortIdentification_tests.cpp
         src/SerialPortDiscover_tests.cpp
         src/SerialPortConfigurationGenerator_tests.cpp
+        ../include/StringUtils.h
+        ../src/StringUtils.cpp
         ../include/ISerialPortConfigurationGenerator.h
         ../include/SerialPortConfigurationGenerator.h
         ../src/SerialPortConfigurationGenerator.cpp
