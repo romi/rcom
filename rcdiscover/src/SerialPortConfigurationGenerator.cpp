@@ -34,7 +34,7 @@ json_object_t SerialPortConfigurationGenerator::CreateConfigurationBase(const st
 
 std::string SerialPortConfigurationGenerator::CreateConfiguration(const std::string& json_configuration, const std::vector<std::pair<std::string, std::string>>& devices)
 {
-    const int buff_size = 2048;
+    const int buff_size = 8192;
     char json_string_buff[buff_size];
     memset(json_string_buff, 0, buff_size);
     std::string json_string;
