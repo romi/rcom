@@ -10,8 +10,8 @@ std::string dev = "/dev";
  * key in the config file. */
 const std::map<std::string, std::string> device_to_json_key =
         {
-                { "Grbl", "cnc" },
-                { "Alarm", "cnc" },
+                { "Grbl", "grbl" },
+                { "Alarm", "grbl" },
                 { "BrushMotorController","brush_motors" },
                 { "RomiControlPanel",  "control_panel" }
         };
