@@ -49,7 +49,7 @@ TEST_F(SerialPortConfigurationGenerator_tests, SerialPortConfigurationGenerator_
     std::string json_configuration;
     std::vector<std::pair<std::string, std::string>> attached_devices;
     SerialPortConfigurationGenerator SerialPortConfigurationGenerator;
-    std::string expected_json("{\"ports\":{}}");
+    std::string expected_json("{\n    \"ports\": {\n    }\n}");
 
     // Act
     auto actual = SerialPortConfigurationGenerator.CreateConfiguration(json_configuration, attached_devices);
@@ -67,7 +67,7 @@ TEST_F(SerialPortConfigurationGenerator_tests, SerialPortConfigurationGenerator_
 
     attached_devices.push_back(std::make_pair(std::string("/dev/ACM0"), std::string("brushmotorcontroller")));
     attached_devices.push_back(std::make_pair(std::string("/dev/ACM1"), std::string("cnc")));
-    std::string expected_json("{\"ports\":{\"cnc\":{\"port\":\"/dev/ACM1\",\"type\":\"serial\"},\"brushmotorcontroller\":{\"port\":\"/dev/ACM0\",\"type\":\"serial\"}}}");
+    std::string expected_json("{\n    \"ports\": {\n        \"cnc\": {\n            \"port\": \"/dev/ACM1\", \n            \"type\": \"serial\"\n        }, \n        \"brushmotorcontroller\": {\n            \"port\": \"/dev/ACM0\", \n            \"type\": \"serial\"\n        }\n    }\n}");
 
     // Act
     auto actual = SerialPortConfigurationGenerator.CreateConfiguration(json_configuration, attached_devices);
@@ -85,7 +85,7 @@ TEST_F(SerialPortConfigurationGenerator_tests, SerialPortConfigurationGenerator_
 
     attached_devices.push_back(std::make_pair(std::string("/dev/ACM0"), std::string("brushmotorcontroller")));
     attached_devices.push_back(std::make_pair(std::string("/dev/ACM1"), std::string("cnc")));
-    std::string expected_json("{\"ports\":{\"cnc\":{\"port\":\"/dev/ACM1\",\"type\":\"serial\"},\"brushmotorcontroller\":{\"port\":\"/dev/ACM0\",\"type\":\"serial\"}}}");
+    std::string expected_json("{\n    \"ports\": {\n        \"cnc\": {\n            \"port\": \"/dev/ACM1\", \n            \"type\": \"serial\"\n        }, \n        \"brushmotorcontroller\": {\n            \"port\": \"/dev/ACM0\", \n            \"type\": \"serial\"\n        }\n    }\n}");
 
     // Act
     auto actual = SerialPortConfigurationGenerator.CreateConfiguration(json_configuration, attached_devices);
@@ -103,8 +103,7 @@ TEST_F(SerialPortConfigurationGenerator_tests, SerialPortConfigurationGenerator_
 
     attached_devices.push_back(std::make_pair(std::string("/dev/ACM0"), std::string("brushmotorcontroller")));
     attached_devices.push_back(std::make_pair(std::string("/dev/ACM1"), std::string("cnc")));
-    std::string expected_json("{\"some_json_key\":{\"cnc\":{\"port\":\"/dev/ACM1\",\"type\":\"serial\"}},\"ports\":{\"cnc\":{\"port\":\"/dev/ACM1\",\"type\":\"serial\"},\"brushmotorcontroller\":{\"port\":\"/dev/ACM0\",\"type\":\"serial\"}}}");
-
+    std::string expected_json("{\n    \"some_json_key\": {\n        \"cnc\": {\n            \"port\": \"/dev/ACM1\", \n            \"type\": \"serial\"\n        }\n    }, \n    \"ports\": {\n        \"cnc\": {\n            \"port\": \"/dev/ACM1\", \n            \"type\": \"serial\"\n        }, \n        \"brushmotorcontroller\": {\n            \"port\": \"/dev/ACM0\", \n            \"type\": \"serial\"\n        }\n    }\n}");
     // Act
     auto actual = SerialPortConfigurationGenerator.CreateConfiguration(json_configuration, attached_devices);
 
