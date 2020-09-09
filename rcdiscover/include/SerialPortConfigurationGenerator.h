@@ -11,7 +11,7 @@ class SerialPortConfigurationGenerator : public ISerialPortConfigurationGenerato
 public:
         SerialPortConfigurationGenerator();
         virtual ~SerialPortConfigurationGenerator() = default;
-        std::string CreateConfiguration(const std::string& json_configuration, const std::vector<std::pair<std::string, std::string>>& devices) override;
+        int CreateConfigurationFile(const std::string& json_configuration, const std::vector<std::pair<std::string, std::string>>& devices, const std::string& ouput_file) override;
         std::string LoadConfiguration(const std::string& configuration_file) const override;
         bool SaveConfiguration(const std::string& configuration_file, const std::string& configuration_json) override;
 private:

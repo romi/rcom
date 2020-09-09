@@ -8,7 +8,7 @@ class ISerialPortConfigurationGenerator {
     public:
         ISerialPortConfigurationGenerator() = default;
         virtual ~ISerialPortConfigurationGenerator() = default;
-        virtual std::string CreateConfiguration(const std::string& json_configuration, const std::vector<std::pair<std::string, std::string>>& devices) = 0;
+        virtual int CreateConfigurationFile(const std::string& json_configuration, const std::vector<std::pair<std::string, std::string>>& devices, const std::string& ouput_file) = 0;
         virtual std::string LoadConfiguration(const std::string& configuration_file) const = 0;
         virtual bool SaveConfiguration(const std::string& configuration_file, const std::string& configuration_json) = 0;
 };

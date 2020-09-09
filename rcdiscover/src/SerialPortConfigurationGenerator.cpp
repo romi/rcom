@@ -32,7 +32,7 @@ json_object_t SerialPortConfigurationGenerator::CreateConfigurationBase(const st
     return configuration_object;
 }
 
-std::string SerialPortConfigurationGenerator::CreateConfiguration(const std::string& json_configuration, const std::vector<std::pair<std::string, std::string>>& devices)
+int SerialPortConfigurationGenerator::CreateConfigurationFile(const std::string& json_configuration, const std::vector<std::pair<std::string, std::string>>& devices, const std::string& ouput_file)
 {
     const int buff_size = 8192;
     char json_string_buff[buff_size];
@@ -52,13 +52,13 @@ std::string SerialPortConfigurationGenerator::CreateConfiguration(const std::str
         json_unref(device_object);
     }
 
-    json_tostring_pretty(configuration_object, json_string_buff, buff_size);
-    json_string = json_string_buff;
+    // ToDo: Refactor to use Json_tostring, but refactor json_tostring to take flags then we will retain the exception information on file write failures.
+    int retval = json_tofile(configuration_object, k_json_pretty, ouput_file.c_str());
 
     json_unref(configuration_object);
     json_unref(ports_object);
 
-    return json_string;
+    return retval;
 }
 
 std::string SerialPortConfigurationGenerator::LoadConfiguration(const std::string& configuration_file) const

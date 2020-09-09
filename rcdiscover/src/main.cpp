@@ -44,8 +44,18 @@ int main(int argc, char* argv[])
 
     auto devices = serialPortIdentification.ListFilesOfType(dev, std::string("ACM"));
     auto connectedDevices = serialPortIdentification.ConnectedDevices(devices);
-    std::string configuration = serialPortConfigurationGenerator.CreateConfiguration(json_configuration, connectedDevices);
-    serialPortConfigurationGenerator.SaveConfiguration(port_configuration_file, configuration);
+    auto configuration_result = serialPortConfigurationGenerator.CreateConfigurationFile(json_configuration,
+                                                                                         connectedDevices,
+                                                                                         port_configuration_file);
+
+    if (configuration_result == 0)
+    {
+        std::cout << "wrote config: " << port_configuration_file << std::endl;
+    }
+    else
+    {
+        std::cout << "failed to write config: " << port_configuration_file << std::endl;
+    }
 
     return 0;
 }
