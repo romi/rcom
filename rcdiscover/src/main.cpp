@@ -18,6 +18,8 @@ const std::map<std::string, std::string> device_to_json_key =
 		{ "ToolCarrierJrkG2", "tool_carrier" }
         };
 
+// LCOV_EXCL_START
+
 static void show_usage(std::string name)
 {
     std::cerr << "Usage: " << name << " <optional> config_file.json\n"
@@ -61,3 +63,5 @@ int main(int argc, char* argv[])
 
     return 0;
 }
+
+// LCOV_EXCL_END
