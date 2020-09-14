@@ -55,7 +55,7 @@ unsigned char *SHA1(const unsigned char* s, unsigned char *digest)
         return digest;
 }
 
-char *encode_base64(const unsigned char *s)
+char *encode_base64(const unsigned char *s, int ilen)
 {
         static const char table[] = {
                 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H',
@@ -68,14 +68,9 @@ char *encode_base64(const unsigned char *s)
                 '4', '5', '6', '7', '8', '9', '+', '/'
         };
 
-        int ilen = strlen((char*)s);
         int olen = 4 * ((ilen + 2) / 3);
 
         char *t = r_alloc(olen+1);
-        if (t == NULL) {
-                r_err("encode_base64: out of memory");
-                return NULL;
-        }
         t[olen] = 0;
 
         unsigned char a, b, c;

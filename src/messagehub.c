@@ -186,10 +186,10 @@ static int messagehub_upgrade_connection(messagehub_t *hub __attribute__((unused
         snprintf((char*)buffer, 100, "%s%s", key, "258EAFA5-E914-47DA-95CA-C5AB0DC85B11");
         buffer[99] = 0;
 
+        memset(digest, 0, sizeof(digest));
         SHA1(buffer, digest);
-        digest[20] = 0;
         
-        char *accept = encode_base64(digest);
+        char *accept = encode_base64(digest, 20);
         if (accept == NULL) 
                 return -1;
 

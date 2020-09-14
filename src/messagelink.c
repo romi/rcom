@@ -137,9 +137,9 @@ static void _make_mask(uint8_t *mask)
 static char *_make_key()
 {
         uint8_t bytes[11];
+        memset(bytes, 0, sizeof(bytes));
         r_random(bytes, 10);
-        bytes[10] = 0;
-        return encode_base64(bytes);
+        return encode_base64(bytes, 10);
 }
 
 static char *_make_accept(char *key)
@@ -148,9 +148,9 @@ static char *_make_accept(char *key)
         unsigned char digest[21];
         snprintf((char*)buffer, 100, "%s%s", key, "258EAFA5-E914-47DA-95CA-C5AB0DC85B11");
         buffer[99] = 0;
+        memset(digest, 0, sizeof(digest));
         SHA1(buffer, digest);
-        digest[20] = 0;
-        return encode_base64(digest);
+        return encode_base64(digest, 20);
 }
 
 /******************************************************************************/

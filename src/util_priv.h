@@ -34,7 +34,7 @@ extern "C" {
 
 membuf_t *escape_string(const char* s);
 
-char *encode_base64(const unsigned char *s);
+char *encode_base64(const unsigned char *s, int len);
         
 unsigned char *SHA1(const unsigned char* s, unsigned char *digest);
 
