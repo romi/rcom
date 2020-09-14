@@ -517,6 +517,7 @@ int client_messagelink_disconnect(messagelink_t *link)
 static void messagelink_close_socket(messagelink_t *link)
 {
         if (link->socket != INVALID_TCP_SOCKET) {
+                r_debug("messagelink_close_socket: close_tcp_socket");
                 close_tcp_socket(link->socket);
                 link->socket = INVALID_TCP_SOCKET;
                 link->state = WS_CLOSED;
@@ -1398,7 +1399,7 @@ messagelink_t *server_messagelink_connect(messagehub_t *hub, tcp_socket_t socket
                                               messagehub_topic(hub),
                                               NULL, NULL, NULL);
         if (link == NULL) { 
-                r_err("server_messagelink_connect: out of memory");
+                r_err("server_messagelink_connect: out of memory close_tcp_socket");
                 close_tcp_socket(socket);
                 return NULL;
         }

@@ -274,6 +274,7 @@ int http_post(addr_t *addr,
         
         err = http_send_request(socket, addr, resource, content_type, data, len);
         if (err != 0) {
+                r_err("http_post: send request close_tcp_socket");
                 close_tcp_socket(socket);
                 return -1;
         }
@@ -283,6 +284,7 @@ int http_post(addr_t *addr,
         if (response == NULL) {
                 response = new_response(HTTP_Status_OK);
                 if (response == NULL) {
+                        r_err("http_post: response close_tcp_socket");
                         close_tcp_socket(socket);
                         return -1;
                 }
@@ -295,7 +297,7 @@ int http_post(addr_t *addr,
                 delete_response(response);
                 *response_handle = NULL;
         }
-        
+        r_debug("http_post: close_tcp_socket");
         close_tcp_socket(socket);
         
         return err;

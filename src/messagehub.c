@@ -118,6 +118,7 @@ void delete_messagehub(messagehub_t*hub)
                 delete_membuf(hub->mem);
                 
                 if (hub->socket != INVALID_TCP_SOCKET) {
+                        r_debug("delete_messagehub: close_tcp_socket");
                         close_tcp_socket(hub->socket);
                         hub->socket = INVALID_TCP_SOCKET;
                 }
@@ -219,6 +220,7 @@ static void messagehub_handle_websocket(messagehub_t* hub,
 {
         if (messagehub_upgrade_connection(hub, request, link_socket) != 0) {
                 http_send_error_headers(link_socket, HTTP_Status_Internal_Server_Error);
+                r_debug("messagehub_handle_websocket: close_tcp_socket");
                 close_tcp_socket(link_socket);
                 delete_request(request);
                 return;
@@ -285,6 +287,7 @@ static void messagehub_handle_request(messagehub_t* hub,
         }
         
         delete_request(request);
+        r_debug("messagehub_handle_request: close_tcp_socket");
         close_tcp_socket(link_socket);
 }
 
@@ -293,6 +296,7 @@ static void messagehub_handle(messagehub_t *hub, tcp_socket_t link_socket)
         request_t *request = new_request();
         if (request == NULL) {
                 http_send_error_headers(link_socket, HTTP_Status_Internal_Server_Error);
+                r_err("messagehub_handle: request close_tcp_socket");
                 close_tcp_socket(link_socket);
                 return;
         }
@@ -300,6 +304,7 @@ static void messagehub_handle(messagehub_t *hub, tcp_socket_t link_socket)
         int err = request_parse_html(request, link_socket, REQUEST_PARSE_HEADERS);
         if (err != 0) {
                 http_send_error_headers(link_socket, HTTP_Status_Internal_Server_Error);
+                r_err("messagehub_handle: request parse close_tcp_socket");
                 close_tcp_socket(link_socket);
                 delete_request(request);
                 return;

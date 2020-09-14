@@ -64,6 +64,7 @@ void delete_service_client(service_client_t *client)
 {
         if (client) {
                 if (client->socket != INVALID_TCP_SOCKET) {
+                        r_debug("delete_service_client: close_tcp_socket");
                         close_tcp_socket(client->socket);
                         client->socket = INVALID_TCP_SOCKET;
                 }
@@ -119,7 +120,8 @@ cleanup:
                 r_err("request_handle: failed to handle request");
 
         service_remove_client(client->service, client);
-        
+
+        r_debug("service_client_handle: close_tcp_socket");
         close_tcp_socket(client->socket);
         client->socket = INVALID_TCP_SOCKET;
         
@@ -207,6 +209,7 @@ void delete_service(service_t* service)
                 }
                 
                 if (service->socket != INVALID_TCP_SOCKET) {
+                        r_debug("delete_service: close_tcp_socket");
                         close_tcp_socket(service->socket);
                         service->socket = INVALID_TCP_SOCKET;
                 }
