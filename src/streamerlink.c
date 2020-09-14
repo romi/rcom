@@ -141,6 +141,7 @@ static int streamerlink_close_connection(streamerlink_t *link)
 {
         //r_debug("streamerlink_close_connection");
         if (link->socket != INVALID_TCP_SOCKET) {
+                r_debug("streamerlink_close_connection: close_tcp_socket");
                 close_tcp_socket(link->socket);
                 link->socket = INVALID_TCP_SOCKET;
         }

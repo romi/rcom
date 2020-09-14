@@ -105,8 +105,10 @@ static int streamer_client_read(streamer_client_t *client, char *buffer, size_t 
 static void delete_streamer_client(streamer_client_t *client)
 {
         if (client) {
-                if (client->socket != INVALID_TCP_SOCKET)
-                        close_tcp_socket(client->socket);
+                if (client->socket != INVALID_TCP_SOCKET) {
+                    r_debug("delete_streamer_client: close_tcp_socket");
+                    close_tcp_socket(client->socket);
+                }
                 delete_circular_buffer(client->buffer);
                 delete_request(client->request);
                 delete_thread(client->thread);
@@ -167,6 +169,7 @@ static void streamer_client_run(streamer_client_t *client)
         int err = http_send_streaming_headers(client->socket,
                                               streamer_mimetype(client->streamer));
         if (err != 0) {
+            r_debug("streamer_client_run: close_tcp_socket");
                 close_tcp_socket(client->socket);
                 client->socket = INVALID_TCP_SOCKET;        
                 streamer_remove_client(client->streamer, client);
@@ -182,6 +185,7 @@ static void streamer_client_run(streamer_client_t *client)
                         break;
         }
 
+        r_debug("streamer_client_run 2: close_tcp_socket");
         close_tcp_socket(client->socket);
         client->socket = INVALID_TCP_SOCKET;
         streamer_remove_client(client->streamer, client);
@@ -322,8 +326,10 @@ void delete_streamer(streamer_t *streamer)
                 r_free(streamer->name);
                 r_free(streamer->mimetype);
                 delete_addr(streamer->addr);
-                if (streamer->socket != INVALID_TCP_SOCKET)
-                        close_tcp_socket(streamer->socket);
+                if (streamer->socket != INVALID_TCP_SOCKET) {
+                    r_debug("delete_streamer: close_tcp_socket");
+                    close_tcp_socket(streamer->socket);
+                }
 
                 r_delete(streamer);                
         }
@@ -373,6 +379,7 @@ static void streamer_run_server(streamer_t *streamer)
                 streamer_client_t *client = new_streamer_client(streamer, socket);
 
                 if (streamer_client_parse_request(client) != 0) {
+                        r_debug("streamer_run_server: close_tcp_socket");
                         close_tcp_socket(client->socket);
                         client->socket = INVALID_TCP_SOCKET;
                         continue;
