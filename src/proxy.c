@@ -173,6 +173,8 @@ proxy_t *proxy_get()
         
         _proxy = new_proxy(_registry_addr);
         if (_proxy == NULL) {
+                delete_addr(_registry_addr);
+                _registry_addr = NULL;
                 r_err("proxy_create: failed to create the proxy!");
                 return NULL;
         }
