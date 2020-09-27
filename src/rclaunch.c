@@ -583,7 +583,6 @@ static void child_main(pid_t monitor_gpid)
         r_info("Stopping registry node");
         run_stop(_registry);
         delete_nodes(list);
-        delete_list(list);
         delete_run(_registry);
         r_info("Exiting!");
 
