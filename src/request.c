@@ -383,29 +383,97 @@ int request_parse_html(request_t *request, tcp_socket_t client_socket, int what)
         return 0;
 }
 
+/** This function tests whether the HTTP request contains any of the
+ * required WebSocket headers. If it does, the request is considered
+ * to be the start of the WebSocket handshake. This function allows to
+ * discriminate between WebSocket and regular HTTP requests. It does
+ * not check whether the headers are valid. Use
+ * request_is_valid_websocket() for that purpose. */
 int request_is_websocket(request_t *r)
 {
-        const char *key = request_get_header_value(r, "Sec-WebSocket-Key");
-        if (key == NULL)
-                return 0;
-        
-        const char *version = request_get_header_value(r, "Sec-WebSocket-Version");
-        if (version == NULL)
-                return 0;
-        if (!rstreq(version, "13"))
-                return 0;
-        
-        const char *upgrade = request_get_header_value(r, "Upgrade");
-        if (upgrade == NULL)
-                return 0;
-        if (!rstreq(upgrade, "websocket"))
-                return 0;
+        int result = 0;
+        const char *header_value;
 
-        const char *connection = request_get_header_value(r, "Connection");
-        if (connection == NULL)
-                return 0;
-        if ((strstr(connection, "Upgrade") == NULL) && (strstr(connection, "upgrade") == NULL))
-                return 0;
+        header_value = request_get_header_value(r, "Sec-WebSocket-Key");
+        if (header_value != NULL) {
+                result = 1;
+        } else {
+                header_value = request_get_header_value(r, "Sec-WebSocket-Version");
+                if (header_value != NULL) {
+                        result = 1;
+                } else {
+                        header_value = request_get_header_value(r, "Upgrade");
+                        if (header_value != NULL
+                            && rstreq(header_value, "websocket")) {
+                                result = 1;
+                        } else {
+                                header_value = request_get_header_value(r, "Connection");
+                                if ((header_value != NULL)
+                                    && ((strstr(header_value, "Upgrade") != NULL)
+                                        || (strstr(header_value, "upgrade") != NULL))) {
+                                        result = 1;
+                                }
+                        }
+                }
+        }
         
-        return 1;
+        return result;
+}
+
+static int valid_websocket_key(const char *key)
+{
+        int r = 1;
+        if (strlen(key) != 24) {
+                r_debug("valid_websocket_key: bad key length");
+                r = 0;
+        } else {
+                if (key[22] != '=' || key[23] != '=') {
+                        r_debug("valid_websocket_key: expected closing '=' chars");
+                        r = 0;
+                } else {
+                        for (int i = 0; i < 22; i++) {
+                                if ((key[i] < 'a' || key[i] > 'z')
+                                    && (key[i] < 'A' || key[i] > 'Z') 
+                                    && (key[i] < '0' || key[i] > '9') 
+                                    && (key[i] != '+') 
+                                    && (key[i] != '/')) {
+                                        r_debug("valid_websocket_key: invalid char");
+                                        r = 0;
+                                }
+                        }
+                }
+        }
+        return r;
+}
+
+/** This function tests whether all the required WebSocket headers are
+ * valid. */
+int request_is_valid_websocket(request_t *r)
+{
+        int result = 1;
+        const char *header_value;
+        
+        header_value = request_get_header_value(r, "Sec-WebSocket-Key");
+        if (header_value == NULL || !valid_websocket_key(header_value)) {
+                result = 0;
+        } else {
+                header_value = request_get_header_value(r, "Sec-WebSocket-Version");
+                if ((header_value == NULL) || !rstreq(header_value, "13")) {
+                        result = 0;
+                } else {
+                        header_value = request_get_header_value(r, "Upgrade");
+                        if ((header_value == NULL) || !rstreq(header_value, "websocket")) {
+                                result = 0;
+                        } else {
+                                header_value = request_get_header_value(r, "Connection");
+                                if ((header_value == NULL)
+                                    || ((strstr(header_value, "Upgrade") == NULL)
+                                        && (strstr(header_value, "upgrade") == NULL))) {
+                                        result = 0;
+                                }
+                        }
+                }
+        }
+        
+        return result;
 }

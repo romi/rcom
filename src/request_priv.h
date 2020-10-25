@@ -57,6 +57,7 @@ int request_parse_html(request_t *request, tcp_socket_t client_socket, int what)
 /* int request_on_headers_complete(http_parser *p); */
 
 int request_is_websocket(request_t *r);
+int request_is_valid_websocket(request_t *r);
 
 #ifdef __cplusplus
 }
