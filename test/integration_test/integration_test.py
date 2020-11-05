@@ -31,6 +31,7 @@ def add_tests():
         (registry_tests.registry_send_test, "{'request':'register','entry':{'id':'1b4e28ba-2fa1-11d2-883f-0016d3cca427', 'name':'mocker', 'topic':'registry'}}", False, Invalid_Type),
         (registry_tests.registry_send_test, "{'request':'register','entry':{'id':'1b4e28ba-2fa1-11d2-883f-0016d3cca427', 'name':'mocker', 'topic':'registry', 'type':'messagelink'}}", False, Invalid_Address),
         # Following test will fail.
+        # (registry_tests.registry_send_test, "{'request':'register','entry':{'id':'1b4e28ba-2fa1-11d2-883f-0016d3cca427', 'name':'mocker', 'topic':'registry', 'type':'messagelink', 'address':'0.0.0.0:12345'}}", True, OK),
         # (registry_tests.registry_send_test, "{'request':'xxxx'}", False, "FAILED"),
     ]
 
