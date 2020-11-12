@@ -75,16 +75,13 @@ int addr_set(addr_t *addr, const char *ip, int port)
 
 int addr_set_ip(addr_t *addr, const char *ip)
 {
-        if (ip == NULL) {
-                inet_aton("0.0.0.0", &addr->sin_addr);
-                return 0;
-        }
-        // just a basic check. this doesn't validate the string.
-        if (strlen(ip) < 7 || strlen(ip) > 15) {
-                r_err("addr_set_ip: invalid ip: %s", ip);
-                return -1;
-        }
-        inet_aton(ip, &addr->sin_addr);
+        const char *address;
+        if (ip == NULL)
+                address = "0.0.0.0";
+        else
+                address = ip;
+        if (inet_aton(address, &addr->sin_addr) == 0)
+            return -1;
         return 0;
 }
 
@@ -105,8 +102,7 @@ int addr_port(addr_t *addr)
 
 char *addr_ip(addr_t *addr, char* buf, int len)
 {
-        snprintf(buf, len-1, "%s", inet_ntoa(addr->sin_addr));
-        buf[len-1] = 0;
+        snprintf(buf, len, "%s", inet_ntoa(addr->sin_addr));
         return buf;
 }
 
@@ -114,10 +110,8 @@ char *addr_string(addr_t *addr, char* buf, int len)
 {
         if (addr == NULL) {
                 snprintf(buf, len, "(null)");
-                buf[len-1] = 0;
         } else {
                 snprintf(buf, len, "%s:%d", inet_ntoa(addr->sin_addr), addr_port(addr));
-                buf[len-1] = 0;
         }
         return buf;
 }       
@@ -145,8 +139,6 @@ addr_t *addr_parse(const char* s)
         }
         
         addr_t *addr = new_addr0();
-        if (addr == NULL)
-                return NULL;
         
         char ip[64];
         for (q = ip, r = s; r < p; q++, r++)
@@ -160,7 +152,8 @@ addr_t *addr_parse(const char* s)
         }
 
         int port = strtol(p+1, &q, 10);
-        if (port < 0 || port > 65535 || q == p+1 || *q != '\0') {
+        if (q == p+1 || *q != '\0') {
+                delete_addr(addr);
                 r_err("addr_parse: invalid port: '%s'->%d", p+1, port);
                 return NULL;
         }
@@ -174,4 +167,28 @@ addr_t *addr_parse(const char* s)
         //r_debug("addr_parse: %s -> %s", s, addr_string(addr, ip, 64));
 
         return addr;
-}       
+}
+// An example of the above in C++
+//addr_t *addr_parse_cpp(const char* s)
+//{
+//    std::string address(s);
+//    std::string ip;
+//    std::string port;
+//    addr_t *addr = nullptr;
+//    try {
+//        std::string::iterator split_colon = std::find(address.rbegin(), address.rend(), ':').base();
+//        if (split_colon != address.begin())
+//        {
+//            ip.assign(address.begin(), split_colon-1);
+//            port.assign(split_colon, address.end());
+//            long portl = std::stol(port);
+//            addr = new_addr(ip.c_str(), portl);
+//        }
+//    }
+//    catch (std::exception& e)
+//    {
+//        r_err("addr_parse: invalid  '%s' exception:%s", address.c_str(), e.what());
+//    }
+//
+//    return addr;
+//}
