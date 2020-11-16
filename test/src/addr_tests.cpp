@@ -138,6 +138,56 @@ TEST_F(addr_tests, new_addr_returns_new_addr)
     delete_addr(paddr);
 }
 
+TEST_F(addr_tests, addr_clone_null_returns_null)
+{
+    // Arrange
+    // Act
+    addr_t *paddr = addr_clone(nullptr);
+
+    //Assert
+    ASSERT_EQ(paddr, nullptr);
+    delete_addr(paddr);
+}
+
+TEST_F(addr_tests, addr_clone_returns_clone)
+{
+    // Arrange
+    int port = 65535;
+    const char *address = "127.0.0.1";
+    addr_t *paddr = new_addr(address, port);
+
+    // Act
+    addr_t *paddr_clone = addr_clone(paddr);
+
+    //Assert
+    ASSERT_NE(paddr_clone, nullptr);
+    ASSERT_EQ(paddr->sin_family, paddr_clone->sin_family);
+    ASSERT_EQ(paddr->sin_port, paddr_clone->sin_port);
+    ASSERT_EQ(paddr->sin_addr.s_addr, paddr_clone->sin_addr.s_addr);
+    delete_addr(paddr);
+    delete_addr(paddr_clone);
+}
+
+TEST_F(addr_tests, addr_copy_copies_data)
+{
+    // Arrange
+    int port = 65535;
+    const char *address = "127.0.0.1";
+    addr_t *paddr = new_addr(address, port);
+    addr_t *paddr_copy = new_addr0();
+
+    // Act
+    addr_copy(paddr, paddr_copy);
+
+    //Assert
+    ASSERT_EQ(paddr->sin_family, paddr_copy->sin_family);
+    ASSERT_EQ(paddr->sin_port, paddr_copy->sin_port);
+    ASSERT_EQ(paddr->sin_addr.s_addr, paddr_copy->sin_addr.s_addr);
+    delete_addr(paddr);
+    delete_addr(paddr_copy);
+}
+
+
 TEST_F(addr_tests, addr_port_correct)
 {
     // Arrange
@@ -192,6 +242,39 @@ TEST_F(addr_tests, addr_ip_truncated)
 
     ASSERT_EQ(std::string(actual), expected);
     delete_addr(paddr);
+}
+
+TEST_F(addr_tests, addr_string_null_returns_null_string)
+{
+    // Arrange
+    const int len = 16;
+    char buff[len];
+
+    std::string expected("(null)");
+
+    // Act
+    addr_string(nullptr, buff, len);
+    //Assert
+
+    ASSERT_EQ(std::string(buff), expected);
+}
+
+TEST_F(addr_tests, addr_string_addr_returns_addr_string)
+{
+    // Arrange
+    int port = 100;
+    const char *address = "127.0.0.1";
+    const int len = 32;
+    char actual[len];
+    std::string expected (std::string(address) + ":" + std::to_string(port));
+
+    // Act
+    addr_t *paddr = new_addr(address, port);
+    addr_string(paddr, actual, len);
+
+    //Assert
+
+    ASSERT_EQ(std::string(actual), expected);
 }
 
 TEST_F(addr_tests, addr_eq_ports_differ_fails)
@@ -317,6 +400,20 @@ TEST_F(addr_tests, addr_parse_invalid_port_string_fails)
 {
     // Arrange
     std::string address_string("127.0.0.1:100xx");
+
+    // Act
+    addr_t *p_address = addr_parse(address_string.c_str());
+
+    //Assert
+
+    ASSERT_EQ(p_address, nullptr);
+    delete_addr(p_address);
+}
+
+TEST_F(addr_tests, addr_parse_invalid_port_number_fails)
+{
+    // Arrange
+    std::string address_string("127.0.0.1:70000");
 
     // Act
     addr_t *p_address = addr_parse(address_string.c_str());

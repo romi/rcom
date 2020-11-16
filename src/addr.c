@@ -48,14 +48,16 @@ addr_t *new_addr(const char *ip, int port)
 
 addr_t *addr_clone(addr_t *addr)
 {
+        if (addr == NULL) return NULL;
         addr_t *clone = r_new(addr_t);
-        if (clone == NULL) return NULL;
         memcpy(clone, addr, sizeof(addr_t));
         return clone;
 }
 
 void addr_copy(addr_t *src, addr_t *dest)
 {
+        // TBD: I think we should be defensive here, but then what for the uses? Check with Peter.
+        // if ((src != NULL) && (dest != NULL))
         memcpy(dest, src, sizeof(addr_t));
 }
 
