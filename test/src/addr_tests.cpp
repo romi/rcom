@@ -2,7 +2,7 @@
 #include "gtest/gtest.h"
 
 extern "C" {
-#include "fff.h"
+#include "mem.mock.h"
 }
 
 // Need to include r.h here to make sure when we mock them below they are mocked in the link with the tests.
@@ -21,6 +21,8 @@ protected:
 	void SetUp() override
     {
         RESET_FAKE(r_err);
+        safe_malloc_fake.custom_fake = safe_malloc_custom_fake;
+        safe_free_fake.custom_fake = safe_free_custom_fake;
 	}
 
 	void TearDown() override
@@ -52,7 +54,7 @@ TEST_F(addr_tests, new_addr_null_IP_creates_0_ip)
     int port = 2;
 
     // Act
-    addr_t *paddr = new_addr(NULL, port);
+    addr_t *paddr = new_addr(nullptr, port);
 
     //Assert
     ASSERT_NE(paddr, nullptr);
@@ -338,4 +340,3 @@ TEST_F(addr_tests, addr_parse_valid_string_succeeds)
     ASSERT_NE(p_address, nullptr);
     delete_addr(p_address);
 }
-//}
