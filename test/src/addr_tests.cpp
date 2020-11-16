@@ -275,6 +275,7 @@ TEST_F(addr_tests, addr_string_addr_returns_addr_string)
     //Assert
 
     ASSERT_EQ(std::string(actual), expected);
+    delete_addr(paddr);
 }
 
 TEST_F(addr_tests, addr_eq_ports_differ_fails)
