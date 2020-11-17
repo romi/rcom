@@ -21,27 +21,13 @@
   <http://www.gnu.org/licenses/>.
 
  */
-#include <stdlib.h>
 #include <string.h>
-
 #include <r.h>
 #include <rcom.h>
-
-typedef struct _circular_buffer_t
-{
-        unsigned char* buffer;
-        int length;
-        int readpos;
-        int writepos;
-        mutex_t *mutex;
-} circular_buffer_t;
 
 circular_buffer_t* new_circular_buffer(int size)
 {
         circular_buffer_t* r = r_new(circular_buffer_t);
-        if (r == NULL)
-                return NULL;
-
         r->buffer = r_alloc(size);
         if (r->buffer == NULL) {
                 r_delete(r);
@@ -81,7 +67,7 @@ int circular_buffer_size(circular_buffer_t* r)
         return r->length;
 }
 
-int circular_buffer_available(circular_buffer_t* r)
+int circular_buffer_data_available(circular_buffer_t* r)
 {
         int available;
         
@@ -95,15 +81,16 @@ int circular_buffer_available(circular_buffer_t* r)
         return available;
 }
 
-int circular_buffer_space(circular_buffer_t* r)
+// TBD: Check with Peter, why was it -1? Its not a string so is fine without!
+int circular_buffer_space_available(circular_buffer_t* r)
 {
         int space;
         
         circular_buffer_lock(r);
         if (r->writepos >= r->readpos)
-                space = r->length + r->readpos - r->writepos - 1;
+                space = r->length + r->readpos - r->writepos;
         else
-                space = r->readpos - r->writepos - 1;
+                space = r->readpos - r->writepos;
         circular_buffer_unlock(r);
         
         return space;
@@ -111,15 +98,24 @@ int circular_buffer_space(circular_buffer_t* r)
 
 void circular_buffer_write(circular_buffer_t* r, const char* buffer, int len)
 {
-        int len1, len2;
+        int len1, len2 = 0;
 
-        len1 = len;
-        len2 = 0;
+    // TBD: We shouldn't write greater than length in a single write. That's writing invalid data. Talk to P.
+    // return or not?
+        int requested_length = len;
+        if (requested_length > r->length)
+            return;
+        len1 = requested_length;
 
         circular_buffer_lock(r);
-        if (r->writepos + len > r->length) {
+        if (r->writepos + requested_length > r->length) {
                 len1 = r->length - r->writepos;
-                len2 = len - len1;
+                len2 = requested_length - len1;
+                // If we are going to over write the read pointer with new data, then reset the read pointer
+                // to the beginning of the current write to preserve the latest write. The issue with this is that it
+                // will only work once. Example: Buffer size 8. write 5, write 5. Read will be at 0, next read will read 0->2 bytes.
+//                if (len1 >= r->readpos)
+//                    r->readpos = r->writepos;
         }
         if (len1) {
                 memcpy(r->buffer + r->writepos, buffer, len1);
@@ -134,15 +130,17 @@ void circular_buffer_write(circular_buffer_t* r, const char* buffer, int len)
 
 void circular_buffer_read(circular_buffer_t* r, char* buffer, int len)
 {
-        int len1, len2;
+        int len1, len2 = 0;
 
-        len1 = len;
-        len2 = 0;
-        
+        int requested_length = len;
+        if (requested_length > r->length)
+            requested_length = r->length;
+        len1 = requested_length;
+
         circular_buffer_lock(r);
-        if (r->readpos + len > r->length) {
+        if (r->readpos + requested_length > r->length) {
                 len1 = r->length - r->readpos;
-                len2 = len - len1;
+                len2 = requested_length - len1;
         }
         if (len1) {
                 memcpy(buffer, r->buffer + r->readpos, len1);

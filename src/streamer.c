@@ -87,12 +87,12 @@ static int streamer_client_read(streamer_client_t *client, char *buffer, size_t 
 {
         int available;
 
-        available = circular_buffer_available(client->buffer);
+        available = circular_buffer_data_available(client->buffer);
         while (available == 0) {
                 if (streamer_quit(client->streamer))
                         return 0;
                 clock_sleep(0.010);
-                available = circular_buffer_available(client->buffer);
+                available = circular_buffer_data_available(client->buffer);
         }
 
         if ((unsigned)available > len)
@@ -524,11 +524,11 @@ int streamer_send_multipart(streamer_t* s,
                 if (0) {
                         c = streamer_client_get_buffer(b);
                         r_debug("datalen %d, buffer space %d, buffer size %d",
-                                total_len, circular_buffer_space(c),
+                                total_len, circular_buffer_space_available(c),
                                 circular_buffer_size(c));
                 }
                 if (((c = streamer_client_get_buffer(b)) != NULL) 
-                    && (circular_buffer_space(c) > total_len)) {
+                    && (circular_buffer_space_available(c) > total_len)) {
                         circular_buffer_write(c, header, header_len);
                         circular_buffer_write(c, data, length);
                 }

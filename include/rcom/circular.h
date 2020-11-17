@@ -28,6 +28,15 @@
 extern "C" {
 #endif
 
+typedef struct _circular_buffer_t
+{
+    unsigned char* buffer;
+    int length;
+    int readpos;
+    int writepos;
+    mutex_t *mutex;
+} circular_buffer_t;
+
 typedef struct _circular_buffer_t circular_buffer_t;
 
 circular_buffer_t* new_circular_buffer(int size);
@@ -41,12 +50,12 @@ int circular_buffer_size(circular_buffer_t* r);
 /*
  * The amount of data available for reading.
  */
-int circular_buffer_available(circular_buffer_t* r);
+int circular_buffer_data_available(circular_buffer_t* r);
 
 /*
  * The amount of space available for writing.
  */
-int circular_buffer_space(circular_buffer_t* r);
+int circular_buffer_space_available(circular_buffer_t* r);
 
 void circular_buffer_write(circular_buffer_t* r, const char* buffer, int len);
 void circular_buffer_read(circular_buffer_t* r, char* buffer, int len);
