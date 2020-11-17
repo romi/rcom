@@ -39,7 +39,6 @@ add_test(NAME rcom_integration_tests
 if(BUILD_COVERAGE)
         SETUP_TARGET_FOR_COVERAGE_LCOV(
                             NAME rcom_unit_tests_coverage
-                            EXECUTABLE ctest -V ${n_cores}
-#                EXECUTABLE ctest -V ${n_cores} -R rcom_unit_tests
+                            EXECUTABLE ctest -V ${n_cores} -R "rcom"
                             DEPENDENCIES rcom_unit_tests )
 endif()
