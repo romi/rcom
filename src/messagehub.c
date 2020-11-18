@@ -218,6 +218,15 @@ static void messagehub_handle_websocket(messagehub_t* hub,
                                         request_t *request,
                                         tcp_socket_t link_socket)
 {
+        if (!request_is_valid_websocket(request)) {
+                http_send_error_headers(link_socket, HTTP_Status_Bad_Request);
+                r_debug("messagehub_handle_websocket: close_tcp_socket");
+                r_info("messagehub_handle_websocket: invalid websocket request");
+                close_tcp_socket(link_socket);
+                delete_request(request);
+                return;
+        }
+
         if (messagehub_upgrade_connection(hub, request, link_socket) != 0) {
                 http_send_error_headers(link_socket, HTTP_Status_Internal_Server_Error);
                 r_debug("messagehub_handle_websocket: close_tcp_socket");
