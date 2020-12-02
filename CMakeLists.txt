@@ -189,9 +189,6 @@ add_subdirectory(applications/rcdiscover)
 add_subdirectory(applications/rcregistry)
 
 # Main rcom apps
-#add_executable(rcregistry src/rcregistry_main.c)
-#target_link_libraries(rcregistry rcom)
-
 add_executable(rcgen src/rcgen.c)
 target_link_libraries(rcgen rcom)
 
