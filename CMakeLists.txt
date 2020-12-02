@@ -187,10 +187,9 @@ target_link_libraries(rcom
 
 add_subdirectory(applications/rcdiscover)
 add_subdirectory(applications/rcregistry)
+add_subdirectory(applications/rcgen)
 
 # Main rcom apps
-add_executable(rcgen src/rcgen.c)
-target_link_libraries(rcgen rcom)
 
 add_executable(rcom-bin src/rcom.c)
 target_link_libraries(rcom-bin rcom)
@@ -216,7 +215,7 @@ endif()
 INSTALL(TARGETS rcom DESTINATION "lib")
 INSTALL(TARGETS rcom-bin DESTINATION "bin")
 #INSTALL(TARGETS rcregistry DESTINATION "bin")
-INSTALL(TARGETS rcgen DESTINATION "bin")
+#INSTALL(TARGETS rcgen DESTINATION "bin")
 INSTALL(TARGETS rclaunch DESTINATION "bin")
 #INSTALL(TARGETS rcreplay DESTINATION "bin")
 #INSTALL(TARGETS rcconvert DESTINATION "bin")
