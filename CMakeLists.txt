@@ -171,6 +171,8 @@ set(SOURCES
   src/dump.c 
   )
 
+include_directories( "${CMAKE_CURRENT_SOURCE_DIR}/include" )
+
 add_library(rcom SHARED ${SOURCES})
 
 target_include_directories(rcom
@@ -184,10 +186,11 @@ target_link_libraries(rcom
                       r )
 
 add_subdirectory(applications/rcdiscover)
+add_subdirectory(applications/rcregistry)
 
 # Main rcom apps
-add_executable(rcregistry src/rcregistry_main.c)
-target_link_libraries(rcregistry rcom)
+#add_executable(rcregistry src/rcregistry_main.c)
+#target_link_libraries(rcregistry rcom)
 
 add_executable(rcgen src/rcgen.c)
 target_link_libraries(rcgen rcom)
@@ -215,7 +218,7 @@ endif()
 ## Installed files
 INSTALL(TARGETS rcom DESTINATION "lib")
 INSTALL(TARGETS rcom-bin DESTINATION "bin")
-INSTALL(TARGETS rcregistry DESTINATION "bin")
+#INSTALL(TARGETS rcregistry DESTINATION "bin")
 INSTALL(TARGETS rcgen DESTINATION "bin")
 INSTALL(TARGETS rclaunch DESTINATION "bin")
 #INSTALL(TARGETS rcreplay DESTINATION "bin")
