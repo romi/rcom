@@ -1316,7 +1316,7 @@ int messagelink_send_str(messagelink_t *link, const char* value)
         return err;
 }
 
-static int32 messagelink_serialise(messagelink_t *link, const char* s, int32 len)
+static int32_t messagelink_serialise(messagelink_t *link, const char* s, int32_t len)
 {
         membuf_append(link->out, s, len);
         return 0;

@@ -56,6 +56,10 @@ struct _packet_t {
 
 
 typedef struct _data_t data_t;
+struct _data_t {
+    int len;
+    packet_t p;
+};
 
 data_t *new_data();
 void delete_data(data_t *m);
@@ -65,7 +69,9 @@ const char *data_data(data_t *m);
 uint32_t data_seqnum(data_t *m);
 
 // Timestamp in seconds since Unix epoch
-double data_timestamp(data_t *m);
+// TBD: This is unused at present, changed to be symmetric with the set.
+//double data_timestamp(data_t *m);
+uint64_t data_timestamp(data_t *m);
 
 void data_set_data(data_t *m, const char *s, int len);
 void data_set_len(data_t *m, int len);

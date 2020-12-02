@@ -4,7 +4,8 @@ cmake_minimum_required(VERSION 3.10)
 set(SRCS
         src/tests_main.cpp
         src/addr_tests.cpp
-        src/circular_tests.cpp)
+        src/circular_tests.cpp
+        src/data_tests.cpp)
 
 add_executable(rcom_unit_tests ${SRCS})
 

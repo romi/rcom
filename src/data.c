@@ -22,24 +22,15 @@
 
  */
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
 #include <r.h>
 
-#include "rcom/data.h"
-#include "rcom/util.h"
-
-struct _data_t {
-        int len;
-        packet_t p;
-};
+#include "data.h"
 
 data_t* new_data()
 {
         data_t* m = r_new(data_t);
-        if (m == NULL)
-                return NULL;
         m->len = 0;
         m->p.data[0] = 0;
         return m;
@@ -52,26 +43,37 @@ void delete_data(data_t* m)
 
 int data_len(data_t* m)
 {
+        if (m == NULL)
+            return 0;
         return m->len;
 }
 
 const char* data_data(data_t* m)
-{
+{       if (m == NULL)
+            return NULL;
         return m->p.data;
 }
 
 void data_set_data(data_t* m, const char* s, int len)
 {
-        if (len > DATA_MAXLEN) {
+        if (m != NULL && s != NULL)
+        {
+            if (len > DATA_MAXLEN) {
                 r_warn("Data: data truncated: max length=%d!", DATA_MAXLEN);
                 len = DATA_MAXLEN;
+            }
+            memcpy(m->p.data, s, len);
+            m->len = len;
         }
-        memcpy(m->p.data, s, len);
-        m->len = len;
+        else
+            r_err("set_data: NULL pointer parameter.");
+
 }
 
 void data_set_len(data_t* m, int len)
 {
+        if (len < 0)
+            len = 0;
         if (len > DATA_MAXLEN)
                 len = DATA_MAXLEN;
         m->len = len;
@@ -102,8 +104,6 @@ int data_vprintf(data_t* m, const char* format, va_list ap)
         int len;
         
         len = vsnprintf(m->p.data, DATA_MAXLEN, format, ap);
-        m->p.data[DATA_MAXLEN-1] = 0;
-
         if (len >= DATA_MAXLEN) {
                 r_warn("data_printf: data has been truncated");
                 m->len = DATA_MAXLEN-1;
@@ -111,6 +111,7 @@ int data_vprintf(data_t* m, const char* format, va_list ap)
         }
         m->len = len;
         return 0;
+
 }
 
 int data_serialise(data_t* m, json_object_t obj)
@@ -155,14 +156,24 @@ void data_clear_timestamp(data_t* m)
         memset(&m->p.timestamp, 0, 8);;
 }
 
-double data_timestamp(data_t* m)
+//double data_timestamp(data_t* m)
+//{
+//    unsigned char *p = m->p.timestamp;
+//    uint64_t t = (((uint64_t)p[0] << 56) | ((uint64_t)p[1] << 48)
+//                  | ((uint64_t)p[2] << 40) | ((uint64_t)p[3] << 32)
+//                  | ((uint64_t)p[4] << 24) | ((uint64_t)p[5] << 16)
+//                  | ((uint64_t)p[6] << 8) | (uint64_t)p[7]);
+//    return (double) t / 1000000.0;
+//}
+
+uint64_t data_timestamp(data_t* m)
 {
         unsigned char *p = m->p.timestamp;
         uint64_t t = (((uint64_t)p[0] << 56) | ((uint64_t)p[1] << 48)
                       | ((uint64_t)p[2] << 40) | ((uint64_t)p[3] << 32)
                       | ((uint64_t)p[4] << 24) | ((uint64_t)p[5] << 16)
                       | ((uint64_t)p[6] << 8) | (uint64_t)p[7]);
-        return (double) t / 1000000.0;
+        return t;
 }
 
 void data_set_timestamp(data_t* m)
@@ -181,7 +192,7 @@ void data_set_timestamp(data_t* m)
 
 uint32_t data_seqnum(data_t* m)
 {
-        unsigned char *p = m->p.timestamp;
+        unsigned char *p = m->p.seqnum;
         uint32_t n = (((uint32_t)p[0] << 24) | ((uint32_t)p[1] << 16)
                       | ((uint32_t)p[2] << 8) | (uint32_t)p[3]);
         return n;
