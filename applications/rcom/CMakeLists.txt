@@ -2,14 +2,14 @@ cmake_minimum_required(VERSION 3.10)
 
 include_directories(include)
 
-add_executable(rcgen
-                src/rcgen.c)
+add_executable(rcom
+                src/rcom.c)
 
-target_link_libraries(rcgen
+target_link_libraries(rcom
                         rcomlib)
 
 INSTALL(TARGETS
-            rcgen
+            rcom
         DESTINATION
             "bin")
 

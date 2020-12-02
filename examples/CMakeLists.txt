@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 2.6)
 
 project(rcom_examples CXX C)
 
-add_dependencies(rcgen rcom)
+add_dependencies(rcgen rcomlib)
 
 ## Example apps
 #
@@ -16,7 +16,7 @@ ADD_CUSTOM_COMMAND(
   )
 
 add_executable(binread ${CMAKE_CURRENT_SOURCE_DIR}/binread/binread.c ${CMAKE_CURRENT_SOURCE_DIR}/binread/binread_main.c)
-target_link_libraries(binread rcom)
+target_link_libraries(binread rcomlib)
 
 # binwrite
 ADD_CUSTOM_COMMAND(
@@ -25,7 +25,7 @@ ADD_CUSTOM_COMMAND(
   DEPENDS ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/rcgen ${CMAKE_CURRENT_SOURCE_DIR}/binwrite/binwrite.json
   )
 add_executable(binwrite ${CMAKE_CURRENT_SOURCE_DIR}/binwrite/binwrite.c ${CMAKE_CURRENT_SOURCE_DIR}/binwrite/binwrite_main.c)
-target_link_libraries(binwrite rcom )
+target_link_libraries(binwrite rcomlib )
 
 ## camera
 ADD_CUSTOM_COMMAND(
@@ -47,7 +47,7 @@ ADD_CUSTOM_COMMAND(
   )
 
 add_executable(camera_listener ${CMAKE_CURRENT_SOURCE_DIR}/camera_listener/camera_listener.c ${CMAKE_CURRENT_SOURCE_DIR}/camera_listener/camera_listener_main.c)
-target_link_libraries(camera_listener rcom)
+target_link_libraries(camera_listener rcomlib)
 
 # motorcontroller
 ADD_CUSTOM_COMMAND(
@@ -57,7 +57,7 @@ ADD_CUSTOM_COMMAND(
   )
 
 add_executable(motorcontroller ${CMAKE_CURRENT_SOURCE_DIR}/motorcontroller/motorcontroller.c ${CMAKE_CURRENT_SOURCE_DIR}/motorcontroller/motorcontroller_main.c)
-target_link_libraries(motorcontroller rcom)
+target_link_libraries(motorcontroller rcomlib)
 
 # wheel_odometry
 ADD_CUSTOM_COMMAND(
@@ -67,5 +67,5 @@ ADD_CUSTOM_COMMAND(
   )
 
 add_executable(wheel_odometry ${CMAKE_CURRENT_SOURCE_DIR}/wheel_odometry/wheel_odometry.c ${CMAKE_CURRENT_SOURCE_DIR}/wheel_odometry/wheel_odometry_main.c)
-target_link_libraries(wheel_odometry rcom)
+target_link_libraries(wheel_odometry rcomlib)
 

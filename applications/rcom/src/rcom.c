@@ -29,9 +29,9 @@
 #include <r.h>
 #include <rcom.h>
 
-#include "proxy.h"
-#include "messagelink_priv.h"
-#include "registry_priv.h"
+#include "../../../src/proxy.h"
+#include "../../../src/messagelink_priv.h"
+#include "../../../src/registry_priv.h"
 
 static int restart_node(const char *name)
 {

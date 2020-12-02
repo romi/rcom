@@ -173,30 +173,31 @@ set(SOURCES
 
 include_directories( "${CMAKE_CURRENT_SOURCE_DIR}/include" )
 
-add_library(rcom SHARED ${SOURCES})
+add_library(rcomlib SHARED ${SOURCES})
 
-target_include_directories(rcom
+target_include_directories(rcomlib
         PUBLIC
               "${CMAKE_CURRENT_SOURCE_DIR}/include"
               "${CMAKE_CURRENT_SOURCE_DIR}/include/rcom"
         )
 
-target_link_libraries(rcom
+target_link_libraries(rcomlib
                       m
                       r )
 
 add_subdirectory(applications/rcdiscover)
 add_subdirectory(applications/rcregistry)
 add_subdirectory(applications/rcgen)
+add_subdirectory(applications/rcom)
 
 # Main rcom apps
 
-add_executable(rcom-bin src/rcom.c)
-target_link_libraries(rcom-bin rcom)
-set_target_properties(rcom-bin PROPERTIES OUTPUT_NAME rcom)
+#add_executable(rcom-bin src/rcom.c)
+#target_link_libraries(rcom-bin rcomlib)
+#set_target_properties(rcom-bin PROPERTIES OUTPUT_NAME rcom)
 
 add_executable(rclaunch src/rclaunch.c src/run.c)
-target_link_libraries(rclaunch rcom)
+target_link_libraries(rclaunch rcomlib)
 
 #add_executable(rcreplay src/rcreplay.c)
 #target_link_libraries(rcreplay rcom)
@@ -212,8 +213,8 @@ if(BUILD_TESTS)
 endif()
 
 ## Installed files
-INSTALL(TARGETS rcom DESTINATION "lib")
-INSTALL(TARGETS rcom-bin DESTINATION "bin")
+INSTALL(TARGETS rcomlib DESTINATION "lib")
+#INSTALL(TARGETS rcom-bin DESTINATION "bin")
 #INSTALL(TARGETS rcregistry DESTINATION "bin")
 #INSTALL(TARGETS rcgen DESTINATION "bin")
 INSTALL(TARGETS rclaunch DESTINATION "bin")
