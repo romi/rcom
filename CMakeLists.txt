@@ -183,7 +183,7 @@ target_link_libraries(rcom
                       m
                       r )
 
-add_subdirectory(rcdiscover)
+add_subdirectory(applications/rcdiscover)
 
 # Main rcom apps
 add_executable(rcregistry src/rcregistry_main.c)

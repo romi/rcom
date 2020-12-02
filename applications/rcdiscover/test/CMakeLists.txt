@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.10)
 
 include_directories(mocks
-                    support)
+        support)
 
 set(SRCS
         support/TestUtil.hpp
