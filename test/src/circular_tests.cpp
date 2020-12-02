@@ -41,7 +41,7 @@ TEST_F(circular_tests, new_circular_buffer_creates_buffer)
     // Assert
     ASSERT_NE(cbuffer, nullptr);
     ASSERT_EQ(circular_buffer_size(cbuffer), size);
- //   delete_circular_buffer(cbuffer);
+    delete_circular_buffer(cbuffer);
 }
 
 TEST_F(circular_tests, new_circular_buffer_ralloc_fails_returns_null)
@@ -59,8 +59,8 @@ TEST_F(circular_tests, new_circular_buffer_ralloc_fails_returns_null)
 
     // Assert
     ASSERT_EQ(cbuffer, nullptr);
-//    delete_circular_buffer(cbuffer);
-  //  free(r_1);
+    delete_circular_buffer(cbuffer);
+    free(r_1);
 }
 
 TEST_F(circular_tests, delete_circular_buffer_deletes_data)
