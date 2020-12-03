@@ -141,51 +141,52 @@ endif()
 
 ###########################################################3
 
-set(SOURCES
-  src/addr.c 
-  src/net.c 
-  src/util.c 
-  src/response.c
-  src/http.c 
-  src/http_parser.c 
-  src/sha1.c
-  src/http.c
-  src/app.c 
-  src/circular.c 
-  src/data.c 
-  src/datalink.c 
-  src/datahub.c 
-  src/messagehub.c 
-  src/messagelink.c
-  src/rcregistry.c
-  src/registry.c 
-  src/proxy.c
-  src/dump.c
-  src/export.c 
-  src/request.c 
-  src/service.c 
-  src/client.c 
-  src/streamer.c 
-  src/streamerlink.c 
-  src/multipart_parser.c 
-  src/dump.c 
-  )
+#set(SOURCES
+#        librcom/src/addr.c
+#        librcom/src/net.c
+#        librcom/src/util.c
+#        librcom/src/response.c
+#        librcom/src/http.c
+#        librcom/src/http_parser.c
+#        librcom/src/sha1.c
+#        librcom/src/http.c
+#        librcom/src/app.c
+#        librcom/src/circular.c
+#        librcom/src/data.c
+#        librcom/src/datalink.c
+#        librcom/src/datahub.c
+#        librcom/src/messagehub.c
+#        librcom/src/messagelink.c
+#        librcom/src/rcregistry.c
+#        librcom/src/registry.c
+#        librcom/src/proxy.c
+#        librcom/src/dump.c
+#        librcom/src/export.c
+#        librcom/src/request.c
+#        librcom/src/service.c
+#        librcom/src/client.c
+#        librcom/src/streamer.c
+#        librcom/src/streamerlink.c
+#        librcom/src/multipart_parser.c
+#        librcom/src/dump.c
+#  )
+#
+#add_library(librcom SHARED ${SOURCES})
+#
+## Note we keep the private folder out of the public export.
+#target_include_directories(librcom
+#        PUBLIC
+##              ${CMAKE_CURRENT_SOURCE_DIR}/include
+#        librcom/include/rcom
+#        PRIVATE
+#        librcom/include/private
+#        )
+#
+#target_link_libraries(librcom
+#                      m
+#                      r )
 
-add_library(librcom SHARED ${SOURCES})
-
-# Note we keep the private folder out of the public export.
-target_include_directories(librcom
-        PUBLIC
-#              ${CMAKE_CURRENT_SOURCE_DIR}/include
-              ${CMAKE_CURRENT_SOURCE_DIR}/include/rcom
-        PRIVATE
-            ${CMAKE_CURRENT_SOURCE_DIR}/include/private
-        )
-
-target_link_libraries(librcom
-                      m
-                      r )
-
+add_subdirectory(librcom)
 add_subdirectory(applications/rcdiscover)
 add_subdirectory(applications/rcregistry)
 add_subdirectory(applications/rcgen)
@@ -202,15 +203,15 @@ add_subdirectory(applications/rclaunch)
 #add_executable(rcdev src/rcdev.c)
 #target_link_libraries(rcdev rcom usb-1.0)
 
-if(BUILD_TESTS)
-    add_subdirectory(test)
-endif()
+#if(BUILD_TESTS)
+#    add_subdirectory(librcom/test)
+#endif()
 
 ## Installed files
 #INSTALL(TARGETS rcreplay DESTINATION "bin")
 #INSTALL(TARGETS rcconvert DESTINATION "bin")
 #
 INSTALL (
-    DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/
-    DESTINATION include
+    DIRECTORY librcom/include/
+    DESTINATION librcom/include
     FILES_MATCHING PATTERN "*.h")
