@@ -84,7 +84,7 @@ if (BUILD_COVERAGE AND BUILD_TESTS)
         # lcov doesn't build with CMake so we download, set lcov as an external target, then call make.
         # we then manually add the bin path so that we can call it later.
         download_project(   PROJ              lcov
-                URL               https://github.com/linux-test-project/lcov/releases/download/v1.14/lcov-1.14.tar.gz
+                URL               https://github.com/linux-test-project/lcov/releases/download/v1.15/lcov-1.15.tar.gz
                 PREFIX            ${CMAKE_THIRDPARTY_DIRECTORY}/lcov
                 TIMEOUT           180
                 ${UPDATE_DISCONNECTED_IF_AVAILABLE}
@@ -141,64 +141,59 @@ endif()
 
 ###########################################################3
 
-set(SOURCES
-  src/addr.c 
-  src/net.c 
-  src/util.c 
-  src/response.c
-  src/http.c 
-  src/http_parser.c 
-  src/sha1.c
-  src/http.c
-  src/app.c 
-  src/circular.c 
-  src/data.c 
-  src/datalink.c 
-  src/datahub.c 
-  src/messagehub.c 
-  src/messagelink.c 
-  src/registry.c 
-  src/proxy.c 
-  src/rcregistry.c 
-  src/dump.c
-  src/export.c 
-  src/request.c 
-  src/service.c 
-  src/client.c 
-  src/streamer.c 
-  src/streamerlink.c 
-  src/multipart_parser.c 
-  src/dump.c 
-  )
+#set(SOURCES
+#        librcom/src/addr.c
+#        librcom/src/net.c
+#        librcom/src/util.c
+#        librcom/src/response.c
+#        librcom/src/http.c
+#        librcom/src/http_parser.c
+#        librcom/src/sha1.c
+#        librcom/src/http.c
+#        librcom/src/app.c
+#        librcom/src/circular.c
+#        librcom/src/data.c
+#        librcom/src/datalink.c
+#        librcom/src/datahub.c
+#        librcom/src/messagehub.c
+#        librcom/src/messagelink.c
+#        librcom/src/rcregistry.c
+#        librcom/src/registry.c
+#        librcom/src/proxy.c
+#        librcom/src/dump.c
+#        librcom/src/export.c
+#        librcom/src/request.c
+#        librcom/src/service.c
+#        librcom/src/client.c
+#        librcom/src/streamer.c
+#        librcom/src/streamerlink.c
+#        librcom/src/multipart_parser.c
+#        librcom/src/dump.c
+#  )
+#
+#add_library(librcom SHARED ${SOURCES})
+#
+## Note we keep the private folder out of the public export.
+#target_include_directories(librcom
+#        PUBLIC
+##              ${CMAKE_CURRENT_SOURCE_DIR}/include
+#        librcom/include/rcom
+#        PRIVATE
+#        librcom/include/private
+#        )
+#
+#target_link_libraries(librcom
+#                      m
+#                      r )
 
-add_library(rcom SHARED ${SOURCES})
-
-target_include_directories(rcom
-        PUBLIC
-              "${CMAKE_CURRENT_SOURCE_DIR}/include"
-              "${CMAKE_CURRENT_SOURCE_DIR}/include/rcom"
-        )
-
-target_link_libraries(rcom
-                      m
-                      r )
-
-add_subdirectory(rcdiscover)
+add_subdirectory(librcom)
+add_subdirectory(applications/rcdiscover)
+add_subdirectory(applications/rcregistry)
+add_subdirectory(applications/rcgen)
+add_subdirectory(applications/rcom)
+add_subdirectory(applications/rclaunch)
 
 # Main rcom apps
-add_executable(rcregistry src/rcregistry_main.c)
-target_link_libraries(rcregistry rcom)
-
-add_executable(rcgen src/rcgen.c)
-target_link_libraries(rcgen rcom)
-
-add_executable(rcom-bin src/rcom.c)
-target_link_libraries(rcom-bin rcom)
-set_target_properties(rcom-bin PROPERTIES OUTPUT_NAME rcom)
-
-add_executable(rclaunch src/rclaunch.c src/run.c)
-target_link_libraries(rclaunch rcom)
-
 #add_executable(rcreplay src/rcreplay.c)
 #target_link_libraries(rcreplay rcom)
 
@@ -208,20 +203,15 @@ target_link_libraries(rclaunch rcom)
 #add_executable(rcdev src/rcdev.c)
 #target_link_libraries(rcdev rcom usb-1.0)
 
-if(BUILD_TESTS)
-    add_subdirectory(test)
-endif()
+#if(BUILD_TESTS)
+#    add_subdirectory(librcom/test)
+#endif()
 
 ## Installed files
-INSTALL(TARGETS rcom DESTINATION "lib")
-INSTALL(TARGETS rcom-bin DESTINATION "bin")
-INSTALL(TARGETS rcregistry DESTINATION "bin")
-INSTALL(TARGETS rcgen DESTINATION "bin")
-INSTALL(TARGETS rclaunch DESTINATION "bin")
 #INSTALL(TARGETS rcreplay DESTINATION "bin")
 #INSTALL(TARGETS rcconvert DESTINATION "bin")
 #
 INSTALL (
-    DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/
-    DESTINATION include
+    DIRECTORY librcom/include/
+    DESTINATION librcom/include
     FILES_MATCHING PATTERN "*.h")
