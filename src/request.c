@@ -24,8 +24,8 @@
 #include <string.h>
 #include <r.h>
 
-#include "rcom/util.h"
-#include "rcom/app.h"
+#include "util.h"
+#include "app.h"
 
 #include "sha1.h"
 #include "http.h"

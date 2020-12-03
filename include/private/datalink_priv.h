@@ -21,25 +21,28 @@
   <http://www.gnu.org/licenses/>.
 
  */
-#ifndef _RCOM_SERVICE_PRIV_H_
-#define _RCOM_SERVICE_PRIV_H_
+#ifndef _RCOM_DATALINK_PRIV_H_
+#define _RCOM_DATALINK_PRIV_H_
 
-#include "rcom/service.h"
-#include "export.h"
+#include "datalink.h"
+#include "addr.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-// Set the port equal to 0 to let the OS pick one for you.
-service_t *new_service(const char *name, int port);
+datalink_t *new_datalink(datalink_ondata_t callback, void* userdata);
+void delete_datalink(datalink_t *datalink);
+addr_t *datalink_addr(datalink_t *datalink);
+addr_t *datalink_remote_addr(datalink_t *datalink);
+void datalink_set_remote_addr(datalink_t *datalink, addr_t *addr);
 
-void delete_service(service_t *service);
+int datalink_sendto(datalink_t *datalink, addr_t *addr, data_t *data);
 
-export_t *service_get_export(service_t *service, const char *name);
-                
+
 #ifdef __cplusplus
 }
 #endif
 
-#endif // _RCOM_SERVICE_PRIV_H_
+#endif // _RCOM_DATALINK_PRIV_H_
+

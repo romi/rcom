@@ -30,7 +30,7 @@
 
 #include "r/log.h"
 
-#include "rcom/app.h"
+#include "app.h"
 #include "net.h"
 
 static int posix_wait_data(int socket, int timeout);

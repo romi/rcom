@@ -24,12 +24,10 @@
 
 #include <r.h>
 
-#include "rcom/app.h"
-#include "rcom/registry.h"
-#include "rcom/util.h"
+#include "registry.h"
+#include "util.h"
 
 #include "http.h"
-#include "http_parser.h"
 #include "streamerlink_priv.h"
 
 typedef struct _streamerlink_t {

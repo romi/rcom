@@ -24,13 +24,13 @@
 #ifndef _RCOM_REGISTRY_H_
 #define _RCOM_REGISTRY_H_
 
-#include "rcom/datalink.h"
-#include "rcom/datahub.h"
-#include "rcom/messagehub.h"
-#include "rcom/messagelink.h"
-#include "rcom/service.h"
-#include "rcom/streamer.h"
-#include "rcom/streamerlink.h"
+#include "datalink.h"
+#include "datahub.h"
+#include "messagehub.h"
+#include "messagelink.h"
+#include "service.h"
+#include "streamer.h"
+#include "streamerlink.h"
 
 #ifdef __cplusplus
 extern "C" {

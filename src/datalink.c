@@ -24,9 +24,9 @@
 
 #include <r.h>
 
-#include "rcom/app.h"
-#include "rcom/addr.h"
-#include "rcom/util.h"
+#include "app.h"
+#include "addr.h"
+#include "util.h"
 
 #include "net.h"
 #include "datalink_priv.h"

@@ -21,28 +21,22 @@
   <http://www.gnu.org/licenses/>.
 
  */
-#ifndef _RCOM_DATALINK_PRIV_H_
-#define _RCOM_DATALINK_PRIV_H_
+#ifndef _RCOM_RCREGISTRY_H_
+#define _RCOM_RCREGISTRY_H_
 
-#include "rcom/datalink.h"
-#include "rcom/addr.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-datalink_t *new_datalink(datalink_ondata_t callback, void* userdata);
-void delete_datalink(datalink_t *datalink);
-addr_t *datalink_addr(datalink_t *datalink);
-addr_t *datalink_remote_addr(datalink_t *datalink);
-void datalink_set_remote_addr(datalink_t *datalink, addr_t *addr);
+typedef struct _rcregistry_t rcregistry_t;
 
-int datalink_sendto(datalink_t *datalink, addr_t *addr, data_t *data);
-
-
+rcregistry_t *new_rcregistry();
+void delete_rcregistry(rcregistry_t *);
+addr_t *rcregistry_addr(rcregistry_t *);
+        
 #ifdef __cplusplus
 }
 #endif
 
-#endif // _RCOM_DATALINK_PRIV_H_
-
+#endif // _RCOM_RCREGISTRY_H_

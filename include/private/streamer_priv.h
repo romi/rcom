@@ -21,23 +21,20 @@
   <http://www.gnu.org/licenses/>.
 
  */
-#ifndef _RCOM_RCREGISTRY_H_
-#define _RCOM_RCREGISTRY_H_
+#ifndef _RCOM_STREAMER_PRIV_H_
+#define _RCOM_STREAMER_PRIV_H_
 
-#include "rcom/messagelink.h"
+#include "streamer.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+// Pass a port equal to 0 to open the streamer on any available port.
+streamer_t *new_streamer(const char *name,
+                         const char *topic,
+                         int port,
+                         const char *mimetype,
+                         streamer_onclient_t onclient,
+                         streamer_onbroadcast_t onbroadcast,
+                         void *userdata);
 
-typedef struct _rcregistry_t rcregistry_t;
+void delete_streamer(streamer_t *streamer);
 
-rcregistry_t *new_rcregistry();
-void delete_rcregistry(rcregistry_t *);
-addr_t *rcregistry_addr(rcregistry_t *);
-        
-#ifdef __cplusplus
-}
-#endif
-
-#endif // _RCOM_RCREGISTRY_H_
+#endif // _RCOM_STREAMER_PRIV_H_

@@ -21,25 +21,25 @@
   <http://www.gnu.org/licenses/>.
 
  */
-#ifndef _RCOM_STREAMERLINK_PRIV_H_
-#define _RCOM_STREAMERLINK_PRIV_H_
+#ifndef _RCOM_SERVICE_PRIV_H_
+#define _RCOM_SERVICE_PRIV_H_
 
-#include "rcom/streamerlink.h"
+#include "service.h"
+#include "export.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-streamerlink_t *new_streamerlink(streamerlink_ondata_t ondata,
-                                 streamerlink_onresponse_t onresponse,
-                                 void* data, int autoconnect);
-        
-void delete_streamerlink(streamerlink_t *link);
+// Set the port equal to 0 to let the OS pick one for you.
+service_t *new_service(const char *name, int port);
 
-int streamerlink_set_remote(streamerlink_t *link, addr_t *addr);
+void delete_service(service_t *service);
 
+export_t *service_get_export(service_t *service, const char *name);
+                
 #ifdef __cplusplus
 }
 #endif
 
-#endif // _RCOM_STREAMERLINK_PRIV_H_
+#endif // _RCOM_SERVICE_PRIV_H_

@@ -21,18 +21,13 @@
   <http://www.gnu.org/licenses/>.
 
  */
-#include <stdio.h>
-#include <stdlib.h>
 #include <r.h>
 
-#include "rcom/app.h"
-#include "rcom/util.h"
+#include "util.h"
 
 #include "messagehub_priv.h"
-#include "messagelink_priv.h"
 #include "registry_priv.h"
-#include "rcregistry_priv.h"
-#include "proxy.h"
+#include "../applications/rcregistry/include/rcregistry_priv.h"
 
 typedef struct _rcregistry_t {
         registry_t *registry;

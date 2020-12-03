@@ -23,8 +23,8 @@
  */
 
 #include <r.h>
-#include "rcom/app.h"
-#include "rcom/util.h"
+#include "app.h"
+#include "util.h"
 
 #include "datalink_priv.h"
 #include "datahub_priv.h"

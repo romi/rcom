@@ -23,7 +23,7 @@
  */
 
 #include <r.h>
-#include "rcom/app.h"
+#include "app.h"
 
 #include "util_priv.h"
 #include "datalink_priv.h"

@@ -24,14 +24,7 @@
 
 #include <r.h>
 
-#include "rcom/app.h"
-#include "rcom/addr.h"
-
-#include "util_priv.h"
-#include "datalink_priv.h"
-#include "datahub_priv.h"
-#include "messagehub_priv.h"
-#include "messagelink_priv.h"
+#include "addr.h"
 #include "registry_priv.h"
 
 int registry_str_to_type(const char* str)

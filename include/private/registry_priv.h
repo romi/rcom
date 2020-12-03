@@ -25,8 +25,8 @@
 #define _RCOM_REGISTRY_PRIV_H_
 
 #include <r.h>
-#include "rcom/registry.h"
-#include "rcom/addr.h"
+#include "registry.h"
+#include "addr.h"
 
 #ifdef __cplusplus
 extern "C" {

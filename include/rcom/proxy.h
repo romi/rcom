@@ -24,8 +24,6 @@
 #ifndef _RCOM_PROXY_H_
 #define _RCOM_PROXY_H_
 
-#include "rcom/messagelink.h"
-
 #ifdef __cplusplus
 extern "C" {
 #endif

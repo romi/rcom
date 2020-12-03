@@ -24,9 +24,9 @@
 #ifndef _RCOM_NET_H_
 #define _RCOM_NET_H_
 
-#include "rcom/data.h"
-#include "rcom/addr.h"
-#include "rcom/defines.h"
+#include "data.h"
+#include "addr.h"
+#include "defines.h"
 
 #ifdef __cplusplus
 extern "C" {

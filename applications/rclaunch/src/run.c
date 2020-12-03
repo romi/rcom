@@ -295,12 +295,12 @@ static int run_start_locally(run_t *r)
 
         argc = 0;
         argv[argc++] = r->path;
-
-        argv[argc++] = "-N";
-        argv[argc++] = (char*) get_registry_name();
-
-        argv[argc++] = "-A";
-        argv[argc++] = (char*) get_registry_ip();
+        // ToDo: Replace when needed.
+//        argv[argc++] = "-N";
+//        argv[argc++] = (char*) get_registry_name();
+//
+//        argv[argc++] = "-A";
+//        argv[argc++] = (char*) get_registry_ip();
 
         argv[argc++] = "-C";
         argv[argc++] = (char*) app_get_config();

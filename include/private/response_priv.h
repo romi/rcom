@@ -21,30 +21,27 @@
   <http://www.gnu.org/licenses/>.
 
  */
-#ifndef _RCOM_DATAHUB_PRIV_H_
-#define _RCOM_DATAHUB_PRIV_H_
+#ifndef _RCOM_RESPONSE_PRIV_H_
+#define _RCOM_RESPONSE_PRIV_H_
 
-#include "rcom/addr.h"
-#include "rcom/datahub.h"
+#include "response.h"
+#include "http.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+enum {
+        RESPONSE_PARSE_HEADERS,
+        RESPONSE_PARSE_ALL
+};
 
-datahub_t* new_datahub(datahub_onbroadcast_t onbroadcast,
-                       datahub_ondata_t ondata,
-                       void *userdata);
-        
-void delete_datahub(datahub_t* hub);
 
-int datahub_add_link(datahub_t* hub, addr_t *addr);
-int datahub_remove_link(datahub_t* hub, addr_t *addr);
+typedef int (*response_onheaders_t)(void *userdata, response_t *response);
+typedef int (*response_ondata_t)(void *userdata, response_t *response,
+                                 const char *data, int len);
 
-addr_t *datahub_addr(datahub_t* hub);
+int response_set_onheaders(response_t *r, response_onheaders_t onheaders, void *userdata);
+int response_set_ondata(response_t *r, response_ondata_t ondata, void *userdata);
 
-#ifdef __cplusplus
-}
-#endif
+int response_parse_html(response_t *r, tcp_socket_t socket, int what);
+list_t *response_headers(response_t *r);
+int response_send(response_t *r, tcp_socket_t client_socket);
 
-#endif // _RCOM_DATAHUB_PRIV_H__
-
+#endif // _RCOM_RESPONSE_PRIV_H_

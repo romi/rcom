@@ -21,20 +21,31 @@
   <http://www.gnu.org/licenses/>.
 
  */
-#ifndef _RCOM_STREAMER_PRIV_H_
-#define _RCOM_STREAMER_PRIV_H_
+#ifndef _RCOM_MESSAGEHUB_PRIV_H_
+#define _RCOM_MESSAGEHUB_PRIV_H_
 
-#include "rcom/streamer.h"
+#include "messagehub.h"
+#include "addr.h"
 
-// Pass a port equal to 0 to open the streamer on any available port.
-streamer_t *new_streamer(const char *name,
-                         const char *topic,
-                         int port,
-                         const char *mimetype,
-                         streamer_onclient_t onclient,
-                         streamer_onbroadcast_t onbroadcast,
-                         void *userdata);
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-void delete_streamer(streamer_t *streamer);
+// Set the port equal to 0 to let the OS pick one for you.
+messagehub_t *new_messagehub(const char *name,
+                             const char *topic,
+                             int port,
+                             messagehub_onconnect_t onconnect,
+                             void *userdata);
+void delete_messagehub(messagehub_t *hub);
+addr_t *messagehub_addr(messagehub_t *hub);
+const char *messagehub_name(messagehub_t *hub);
+const char *messagehub_topic(messagehub_t *hub);
 
-#endif // _RCOM_STREAMER_PRIV_H_
+void messagehub_remove_link(messagehub_t *hub, messagelink_t *link);
+                
+#ifdef __cplusplus
+}
+#endif
+
+#endif // _RCOM_ENDPOINT_PRIV_H_

@@ -25,7 +25,7 @@
 #define _RCOM_REQUEST_H_
 
 #include <r.h>
-#include "rcom/addr.h"
+#include "addr.h"
 
 #ifdef __cplusplus
 extern "C" {

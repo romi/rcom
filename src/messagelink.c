@@ -23,13 +23,11 @@
  */
 #include <stdio.h>
 #include <string.h>
-#include <stdlib.h>
 
 #include <r.h>
 
-#include "rcom/app.h"
-#include "rcom/messagehub.h"
-#include "rcom/addr.h"
+#include "app.h"
+#include "addr.h"
 
 #include "util_priv.h"
 #include "http.h"

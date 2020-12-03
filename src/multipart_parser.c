@@ -24,10 +24,10 @@
 #include <stdlib.h>
 #include <r.h>
 
-#include "rcom/registry.h"
-#include "rcom/dump.h"
-#include "rcom/multipart_parser.h"
-#include "rcom/util.h"
+#include "registry.h"
+#include "dump.h"
+#include "multipart_parser.h"
+#include "util.h"
 
 enum {
         k_read_header,

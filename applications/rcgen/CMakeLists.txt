@@ -6,7 +6,7 @@ add_executable(rcgen
                 src/rcgen.c)
 
 target_link_libraries(rcgen
-                        rcomlib)
+                        librcom)
 
 INSTALL(TARGETS
             rcgen

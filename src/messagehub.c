@@ -23,8 +23,8 @@
  */
 
 #include <r.h>
-#include "rcom/app.h"
-#include "rcom/messagelink.h"
+#include "app.h"
+#include "messagelink.h"
 
 #include "util_priv.h"
 #include "net.h"

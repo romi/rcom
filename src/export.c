@@ -23,7 +23,7 @@
  */
 
 #include <r.h>
-#include "rcom/util.h"
+#include "util.h"
 #include "export.h"
 
 typedef struct _export_t

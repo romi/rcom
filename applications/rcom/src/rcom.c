@@ -22,16 +22,15 @@
 
  */
 #include <unistd.h>
-#include <sys/types.h>
 #include <stdlib.h>
 #include <signal.h>
 
 #include <r.h>
 #include <rcom.h>
 
-#include "../../../src/proxy.h"
-#include "../../../src/messagelink_priv.h"
-#include "../../../src/registry_priv.h"
+#include "proxy.h"
+//#include "messagelink_priv.h"
+//#include "registry_priv.h"
 
 static int restart_node(const char *name)
 {
@@ -107,45 +106,47 @@ static int stream_topic(const char *topic)
         return 0;
 }
 
-static int list_nodes()
-{
-        proxy_t *proxy = proxy_get();
 
-        if (proxy == NULL) {
-                fprintf(stderr, "Failed to initialize the proxy\n");
-                return 1;
-        }
-                
-        int n = proxy_count_nodes(proxy);
-        
-        if (n > 0) {
-                membuf_t *name = new_membuf();
-                membuf_t *topic = new_membuf();
-                addr_t *addr = new_addr0();
-                int type;
-                char b[52];
-                for (int i = 0; i < n; i++) {
-                        proxy_get_node(proxy, i, name, topic, &type, addr);
-                        printf("--------------------------------\n");
-                        printf("Topic:    %s\n", membuf_data(topic));
-                        printf("Type:     %s\n", registry_type_to_str(type));
-                        printf("Name:     %s\n", membuf_data(name));
-                        if (type == TYPE_DATALINK || type == TYPE_DATAHUB)
-                                printf("Address:  udp://%s\n", addr_string(addr, b, 52));
-                        else
-                                printf("Address:  http://%s\n", addr_string(addr, b, 52));
-                }
-                printf("--------------------------------\n");
-                delete_membuf(name);
-                delete_membuf(topic);
-                delete_addr(addr);
-        } else {
-                printf("--------------------------------\n");
-                printf("No nodes active\n");
-                printf("--------------------------------\n");
-        }
-        return 0;
-}
+// ToDo: Reinstate this using only local registry.
+//static int list_nodes()
+//{
+//        proxy_t *proxy = proxy_get();
+//
+//        if (proxy == NULL) {
+//                fprintf(stderr, "Failed to initialize the proxy\n");
+//                return 1;
+//        }
+//
+//        int n = proxy_count_nodes(proxy);
+//
+//        if (n > 0) {
+//                membuf_t *name = new_membuf();
+//                membuf_t *topic = new_membuf();
+//                addr_t *addr = new_addr0();
+//                int type;
+//                char b[52];
+//                for (int i = 0; i < n; i++) {
+//                        proxy_get_node(proxy, i, name, topic, &type, addr);
+//                        printf("--------------------------------\n");
+//                        printf("Topic:    %s\n", membuf_data(topic));
+//                        printf("Type:     %s\n", registry_type_to_str(type));
+//                        printf("Name:     %s\n", membuf_data(name));
+//                        if (type == TYPE_DATALINK || type == TYPE_DATAHUB)
+//                                printf("Address:  udp://%s\n", addr_string(addr, b, 52));
+//                        else
+//                                printf("Address:  http://%s\n", addr_string(addr, b, 52));
+//                }
+//                printf("--------------------------------\n");
+//                delete_membuf(name);
+//                delete_membuf(topic);
+//                delete_addr(addr);
+//        } else {
+//                printf("--------------------------------\n");
+//                printf("No nodes active\n");
+//                printf("--------------------------------\n");
+//        }
+//        return 0;
+//}
 
 static void print_data(void *userdata __attribute__((unused)),
                        datalink_t *link __attribute__((unused)),
@@ -337,10 +338,12 @@ int main(int argc, char **argv)
 
         int exit_code = 0;
         
-        if (rstreq(command, "list")) {
+ /* ToDo: reinstate this when we fix list_nodes.
+  * if (rstreq(command, "list")) {
                 exit_code = list_nodes();
                 
-        } else if (rstreq(command, "listen")) {
+        } else */
+            if (rstreq(command, "listen")) {
                 if ((argc >= 3 && rstreq(argv[2], "help"))  || argc < 4) {
                         print_usage_listen();
                 } else {

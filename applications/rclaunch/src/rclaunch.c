@@ -55,13 +55,10 @@
 #include <signal.h>
 #include <sys/types.h>
 #include <sys/wait.h>
-#include <sys/stat.h>
-#include <errno.h>
 #include <dirent.h>
 #include <r.h>
 
 #include "run.h"
-#include "util_priv.h"
 #include "proxy.h"
 
 static run_t *_registry = NULL;

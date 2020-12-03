@@ -21,31 +21,30 @@
   <http://www.gnu.org/licenses/>.
 
  */
-#ifndef _RCOM_MESSAGEHUB_PRIV_H_
-#define _RCOM_MESSAGEHUB_PRIV_H_
+#ifndef _RCOM_DATAHUB_PRIV_H_
+#define _RCOM_DATAHUB_PRIV_H_
 
-#include "rcom/messagehub.h"
-#include "rcom/addr.h"
+#include "addr.h"
+#include "datahub.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-// Set the port equal to 0 to let the OS pick one for you.
-messagehub_t *new_messagehub(const char *name,
-                             const char *topic,
-                             int port,
-                             messagehub_onconnect_t onconnect,
-                             void *userdata);
-void delete_messagehub(messagehub_t *hub);
-addr_t *messagehub_addr(messagehub_t *hub);
-const char *messagehub_name(messagehub_t *hub);
-const char *messagehub_topic(messagehub_t *hub);
+datahub_t* new_datahub(datahub_onbroadcast_t onbroadcast,
+                       datahub_ondata_t ondata,
+                       void *userdata);
+        
+void delete_datahub(datahub_t* hub);
 
-void messagehub_remove_link(messagehub_t *hub, messagelink_t *link);
-                
+int datahub_add_link(datahub_t* hub, addr_t *addr);
+int datahub_remove_link(datahub_t* hub, addr_t *addr);
+
+addr_t *datahub_addr(datahub_t* hub);
+
 #ifdef __cplusplus
 }
 #endif
 
-#endif // _RCOM_ENDPOINT_PRIV_H_
+#endif // _RCOM_DATAHUB_PRIV_H__
+

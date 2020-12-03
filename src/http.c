@@ -24,12 +24,10 @@
 #include <string.h>
 
 #include <r.h>
-#include "rcom/util.h"
-#include "rcom/app.h"
+#include "util.h"
 
 #include "http.h"
 #include "net.h"
-#include "http_parser.h"
 
 static int http_send_request(tcp_socket_t socket, addr_t *addr, const char *resource,
                              const char *content_type, const char *data, int len);

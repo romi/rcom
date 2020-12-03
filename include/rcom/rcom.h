@@ -21,28 +21,26 @@
   <http://www.gnu.org/licenses/>.
 
  */
-#ifndef _RCOM_UTIL_H_
-#define _RCOM_UTIL_H_
+#ifndef _RCOM_H_
+#define _RCOM_H_
 
-#include <stdint.h>
-#include <r.h>
-#include "rcom/util.h"
+#include <app.h>
+#include <addr.h>
+#include <data.h>
+#include <circular.h>
+#include <request.h>
+#include <response.h>
+#include <registry.h>
+#include <datalink.h>
+#include <datahub.h>
+#include <messagelink.h>
+#include <messagehub.h>
+#include <service.h>
+#include <client.h>
+#include <streamer.h>
+#include <streamerlink.h>
+#include <multipart_parser.h>
+#include <dump.h>
+#include <util.h>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-membuf_t *escape_string(const char* s);
-
-char *encode_base64(const unsigned char *s, int len);
-        
-unsigned char *SHA1(const unsigned char* s, unsigned char *digest);
-
-int urlencode(const unsigned char* s, membuf_t *buf);
-int urldecode(const char* s, int len, membuf_t *buf);
-
-#ifdef __cplusplus
-}
-#endif
-
-#endif // _RCOM_UTIL_H_
+#endif // _RCOM_H_

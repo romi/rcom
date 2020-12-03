@@ -24,8 +24,8 @@
 #ifndef _RCOM_REQUEST_PRIV_H_
 #define _RCOM_REQUEST_PRIV_H_
 
-#include "rcom/addr.h"
-#include "rcom/request.h"
+#include "addr.h"
+#include "request.h"
 
 #include "http_parser.h"
 

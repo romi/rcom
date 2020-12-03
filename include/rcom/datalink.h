@@ -26,7 +26,7 @@
 
 #include <stdio.h>
 #include <r.h>
-#include "rcom/data.h"
+#include "data.h"
 
 #ifdef __cplusplus
 extern "C" {

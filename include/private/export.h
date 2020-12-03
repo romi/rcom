@@ -24,8 +24,8 @@
 #ifndef _RCOM_EXPORT_H_
 #define _RCOM_EXPORT_H_
 
-#include "rcom/service.h"
-#include "rcom/response.h"
+#include "service.h"
+#include "response.h"
 
 #ifdef __cplusplus
 extern "C" {

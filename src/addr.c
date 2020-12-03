@@ -27,7 +27,7 @@
 #include <arpa/inet.h>
 #include <r.h>
 
-#include "rcom/addr.h"
+#include "addr.h"
 
 addr_t *new_addr0()
 {

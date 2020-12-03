@@ -156,10 +156,10 @@ set(SOURCES
   src/datalink.c 
   src/datahub.c 
   src/messagehub.c 
-  src/messagelink.c 
+  src/messagelink.c
+  src/rcregistry.c
   src/registry.c 
-  src/proxy.c 
-  src/rcregistry.c 
+  src/proxy.c
   src/dump.c
   src/export.c 
   src/request.c 
@@ -171,17 +171,18 @@ set(SOURCES
   src/dump.c 
   )
 
-include_directories( "${CMAKE_CURRENT_SOURCE_DIR}/include" )
+add_library(librcom SHARED ${SOURCES})
 
-add_library(rcomlib SHARED ${SOURCES})
-
-target_include_directories(rcomlib
+# Note we keep the private folder out of the public export.
+target_include_directories(librcom
         PUBLIC
-              "${CMAKE_CURRENT_SOURCE_DIR}/include"
-              "${CMAKE_CURRENT_SOURCE_DIR}/include/rcom"
+#              ${CMAKE_CURRENT_SOURCE_DIR}/include
+              ${CMAKE_CURRENT_SOURCE_DIR}/include/rcom
+        PRIVATE
+            ${CMAKE_CURRENT_SOURCE_DIR}/include/private
         )
 
-target_link_libraries(rcomlib
+target_link_libraries(librcom
                       m
                       r )
 
@@ -189,16 +190,9 @@ add_subdirectory(applications/rcdiscover)
 add_subdirectory(applications/rcregistry)
 add_subdirectory(applications/rcgen)
 add_subdirectory(applications/rcom)
+add_subdirectory(applications/rclaunch)
 
 # Main rcom apps
-
-#add_executable(rcom-bin src/rcom.c)
-#target_link_libraries(rcom-bin rcomlib)
-#set_target_properties(rcom-bin PROPERTIES OUTPUT_NAME rcom)
-
-add_executable(rclaunch src/rclaunch.c src/run.c)
-target_link_libraries(rclaunch rcomlib)
-
 #add_executable(rcreplay src/rcreplay.c)
 #target_link_libraries(rcreplay rcom)
 
@@ -213,11 +207,6 @@ if(BUILD_TESTS)
 endif()
 
 ## Installed files
-INSTALL(TARGETS rcomlib DESTINATION "lib")
-#INSTALL(TARGETS rcom-bin DESTINATION "bin")
-#INSTALL(TARGETS rcregistry DESTINATION "bin")
-#INSTALL(TARGETS rcgen DESTINATION "bin")
-INSTALL(TARGETS rclaunch DESTINATION "bin")
 #INSTALL(TARGETS rcreplay DESTINATION "bin")
 #INSTALL(TARGETS rcconvert DESTINATION "bin")
 #

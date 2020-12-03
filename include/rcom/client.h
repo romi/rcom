@@ -25,7 +25,7 @@
 #define _RCOM_CLIENT_H_
 
 #include <r.h>
-#include "rcom/response.h"
+#include "response.h"
 
 #ifdef __cplusplus
 extern "C" {

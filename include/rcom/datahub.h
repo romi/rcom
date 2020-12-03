@@ -25,8 +25,8 @@
 #define _RCOM_DATAHUB_H_
 
 #include <stdarg.h>
-#include "rcom/addr.h"
-#include "rcom/data.h"
+#include "addr.h"
+#include "data.h"
 
 #ifdef __cplusplus
 extern "C" {

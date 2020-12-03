@@ -35,9 +35,9 @@
 #include <unistd.h>
 #include <r.h>
 
-#include "rcom/app.h"
-#include "rcom/dump.h"
-#include "rcom/util.h"
+#include "app.h"
+#include "dump.h"
+#include "util.h"
 
 #include "registry_priv.h"
 #include "proxy.h"

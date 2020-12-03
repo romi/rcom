@@ -23,8 +23,8 @@
  */
 #include <r.h>
 
-#include "rcom/registry.h"
-#include "rcom/client.h"
+#include "registry.h"
+#include "client.h"
 #include "http.h"
 
 json_object_t client_get(const char *topic, const char *resource)

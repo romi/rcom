@@ -5,7 +5,7 @@
 
 extern "C" {
 #include "log.mock.h"
-#include "../../../rcom/test/mocks/socket.mock.h"
+#include "socket.mock.h"
 }
 
 class net_tests : public ::testing::Test

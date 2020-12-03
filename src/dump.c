@@ -26,8 +26,7 @@
 
 #include <r.h>
 
-#include "rcom/dump.h"
-#include "rcom/util.h"
+#include "dump.h"
 
 #include "registry_priv.h"
 

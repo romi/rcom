@@ -24,7 +24,7 @@
 #ifndef _RCOM_MESSAGELINK_PRIV_H_
 #define _RCOM_MESSAGELINK_PRIV_H_
 
-#include "rcom/messagelink.h"
+#include "messagelink.h"
 #include "net.h"
 
 #ifdef __cplusplus
