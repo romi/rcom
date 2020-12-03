@@ -15,8 +15,8 @@ ADD_CUSTOM_COMMAND(
   DEPENDS ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/rcgen ${CMAKE_CURRENT_SOURCE_DIR}/binread/binread.json
   )
 
-add_executable(binread ${CMAKE_CURRENT_SOURCE_DIR}/binread/binread.c ${CMAKE_CURRENT_SOURCE_DIR}/binread/binread_main.c)
-target_link_libraries(binread librcom)
+add_executable(binread_example ${CMAKE_CURRENT_SOURCE_DIR}/binread/binread.c ${CMAKE_CURRENT_SOURCE_DIR}/binread/binread_main.c)
+target_link_libraries(binread_example librcom)
 
 # binwrite
 ADD_CUSTOM_COMMAND(
@@ -24,8 +24,8 @@ ADD_CUSTOM_COMMAND(
   COMMAND ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/rcgen code ${CMAKE_CURRENT_SOURCE_DIR}/binwrite/binwrite_main.c ${CMAKE_CURRENT_SOURCE_DIR}/binwrite/binwrite.json
   DEPENDS ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/rcgen ${CMAKE_CURRENT_SOURCE_DIR}/binwrite/binwrite.json
   )
-add_executable(binwrite ${CMAKE_CURRENT_SOURCE_DIR}/binwrite/binwrite.c ${CMAKE_CURRENT_SOURCE_DIR}/binwrite/binwrite_main.c)
-target_link_libraries(binwrite librcom )
+add_executable(binwrite_example ${CMAKE_CURRENT_SOURCE_DIR}/binwrite/binwrite.c ${CMAKE_CURRENT_SOURCE_DIR}/binwrite/binwrite_main.c)
+target_link_libraries(binwrite_example librcom )
 
 ## camera
 ADD_CUSTOM_COMMAND(
@@ -34,9 +34,9 @@ ADD_CUSTOM_COMMAND(
         DEPENDS ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/rcgen ${CMAKE_CURRENT_SOURCE_DIR}/camera/camera.json
 )
 
-add_executable(video4linux ${CMAKE_CURRENT_SOURCE_DIR}/camera/video4linux.c ${CMAKE_CURRENT_SOURCE_DIR}/camera/camera_impl.c ${CMAKE_CURRENT_SOURCE_DIR}/camera/camera_main.c)
-target_link_libraries(video4linux
-                        rcom
+add_executable(camera_example ${CMAKE_CURRENT_SOURCE_DIR}/camera/video4linux.c ${CMAKE_CURRENT_SOURCE_DIR}/camera/camera_impl.c ${CMAKE_CURRENT_SOURCE_DIR}/camera/camera_main.c)
+target_link_libraries(camera_example
+                        librcom
                         jpeg)
 
 # camera_listener
@@ -46,8 +46,8 @@ ADD_CUSTOM_COMMAND(
   DEPENDS ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/rcgen ${CMAKE_CURRENT_SOURCE_DIR}/camera_listener/camera_listener.json
   )
 
-add_executable(camera_listener ${CMAKE_CURRENT_SOURCE_DIR}/camera_listener/camera_listener.c ${CMAKE_CURRENT_SOURCE_DIR}/camera_listener/camera_listener_main.c)
-target_link_libraries(camera_listener librcom)
+add_executable(camera_listener_example ${CMAKE_CURRENT_SOURCE_DIR}/camera_listener/camera_listener.c ${CMAKE_CURRENT_SOURCE_DIR}/camera_listener/camera_listener_main.c)
+target_link_libraries(camera_listener_example librcom)
 
 # motorcontroller
 ADD_CUSTOM_COMMAND(
@@ -56,8 +56,8 @@ ADD_CUSTOM_COMMAND(
   DEPENDS ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/rcgen ${CMAKE_CURRENT_SOURCE_DIR}/motorcontroller/motorcontroller.json
   )
 
-add_executable(motorcontroller ${CMAKE_CURRENT_SOURCE_DIR}/motorcontroller/motorcontroller.c ${CMAKE_CURRENT_SOURCE_DIR}/motorcontroller/motorcontroller_main.c)
-target_link_libraries(motorcontroller librcom)
+add_executable(motorcontroller_example ${CMAKE_CURRENT_SOURCE_DIR}/motorcontroller/motorcontroller.c ${CMAKE_CURRENT_SOURCE_DIR}/motorcontroller/motorcontroller_main.c)
+target_link_libraries(motorcontroller_example librcom)
 
 # wheel_odometry
 ADD_CUSTOM_COMMAND(
@@ -66,6 +66,6 @@ ADD_CUSTOM_COMMAND(
   DEPENDS ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/rcgen ${CMAKE_CURRENT_SOURCE_DIR}/wheel_odometry/wheel_odometry.json
   )
 
-add_executable(wheel_odometry ${CMAKE_CURRENT_SOURCE_DIR}/wheel_odometry/wheel_odometry.c ${CMAKE_CURRENT_SOURCE_DIR}/wheel_odometry/wheel_odometry_main.c)
-target_link_libraries(wheel_odometry librcom)
+add_executable(wheel_odometry_example ${CMAKE_CURRENT_SOURCE_DIR}/wheel_odometry/wheel_odometry.c ${CMAKE_CURRENT_SOURCE_DIR}/wheel_odometry/wheel_odometry_main.c)
+target_link_libraries(wheel_odometry_example librcom)
 
