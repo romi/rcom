@@ -1,4 +1,6 @@
 codecov:
+  fixes:
+  - "/home/runner/work/libr/libr/::"
 # Since we only upload on success we don't need this flag
   require_ci_to_pass: no
 
