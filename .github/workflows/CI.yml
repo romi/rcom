@@ -12,17 +12,20 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
-      - name: Set up Python  
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+            python-version: '3.8'     
+      - name: Install python dependencies
         run: |
-          sudo apt-get update
-          sudo apt-get install python3
-          sudo apt-get install python3-pip
+          python -m pip install --upgrade pip
+          pip3 install websocket-client
           
       - name: Install test dependencies
         run: sudo apt install socat
 
       - name: Create Build Environment & configure CMake
-        working-directory: ${{runner.workspace}}/libr
+        working-directory: ${{runner.workspace}}/rcom
         # Some projects don't allow in-source building, so create a separate build directory
         # We'll use this as our working directory for all subsequent commands
         run: |
@@ -31,19 +34,19 @@ jobs:
           cmake ..
           
       - name: Build
-        working-directory: ${{runner.workspace}}/libr
+        working-directory: ${{runner.workspace}}/rcom
         run: |
           cd build_tests
           make -j4
           
       - name: Test
-        working-directory: ${{runner.workspace}}/libr
+        working-directory: ${{runner.workspace}}/rcom
         run: |
           cd build_tests
           ctest -V -R rcom
       
       - name: debug_path_build
-        working-directory: ${{runner.workspace}}/libr
+        working-directory: ${{runner.workspace}}/rcom
         run: |
           cd build_tests
           echo "pwd build tests"
@@ -52,6 +55,6 @@ jobs:
           ls -lart
       
       - name: Upload coverage to Codecov
-        working-directory: ${{runner.workspace}}/libr
+        working-directory: ${{runner.workspace}}/rcom
         run: bash <(curl -s https://codecov.io/bash)
       
