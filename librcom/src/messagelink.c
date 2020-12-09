@@ -134,10 +134,17 @@ static void _make_mask(uint8_t *mask)
 
 static char *_make_key()
 {
-        uint8_t bytes[11];
+        /* RFC 6455, 4.1.  Client Requirements
+           The request MUST include a header field with the name
+           |Sec-WebSocket-Key|.  The value of this header field MUST be a
+           nonce consisting of a randomly selected 16-byte value that has
+           been base64-encoded (see Section 4 of [RFC4648]).  The nonce
+           MUST be selected randomly for each connection.
+        */                            
+        uint8_t bytes[17];
         memset(bytes, 0, sizeof(bytes));
-        r_random(bytes, 10);
-        return encode_base64(bytes, 10);
+        r_random(bytes, 16);
+        return encode_base64(bytes, 16);
 }
 
 static char *_make_accept(char *key)
@@ -1444,6 +1451,9 @@ static int client_messagelink_open_socket(messagelink_t *link, addr_t *addr)
 static int client_messagelink_open_websocket(messagelink_t *link, const char *host)
 {
         char *key = _make_key();
+
+        r_debug("client_messagelink_open_websocket: key '%s'", key);
+        
         char *accept = _make_accept(key);
         if (key == NULL || accept == NULL)
                 goto cleanup;
