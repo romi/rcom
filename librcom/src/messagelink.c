@@ -1451,9 +1451,6 @@ static int client_messagelink_open_socket(messagelink_t *link, addr_t *addr)
 static int client_messagelink_open_websocket(messagelink_t *link, const char *host)
 {
         char *key = _make_key();
-
-        r_debug("client_messagelink_open_websocket: key '%s'", key);
-        
         char *accept = _make_accept(key);
         if (key == NULL || accept == NULL)
                 goto cleanup;
