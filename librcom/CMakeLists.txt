@@ -33,11 +33,11 @@ set(SOURCES
         src/dump.c
   )
 
-add_library( librcom SHARED ${SOURCES})
+add_library( rcom SHARED ${SOURCES})
 
 # Note we keep the private folder out of the public export.
 target_include_directories(
-        librcom
+        rcom
         PUBLIC
 #              ${CMAKE_CURRENT_SOURCE_DIR}/include
             include/rcom
@@ -45,7 +45,7 @@ target_include_directories(
             include/private
         )
 
-target_link_libraries( librcom
+target_link_libraries( rcom
                       m
                       r )
 

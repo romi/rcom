@@ -1,12 +1,12 @@
 /*
-  rcom
+  rcutil
 
   Copyright (C) 2019 Sony Computer Science Laboratories
   Author(s) Peter Hanappe
 
-  rcom is light-weight libary for inter-node communication.
+  rcutil is light-weight libary for inter-node communication.
 
-  rcom is free software: you can redistribute it and/or modify it
+  rcutil is free software: you can redistribute it and/or modify it
   under the terms of the GNU Lesser General Public License as
   published by the Free Software Foundation, either version 3 of the
   License, or (at your option) any later version.
@@ -29,8 +29,6 @@
 #include <rcom.h>
 
 #include "proxy.h"
-//#include "messagelink_priv.h"
-//#include "registry_priv.h"
 
 static int restart_node(const char *name)
 {
@@ -278,25 +276,25 @@ static int send_data(const char *topic, const char *text)
 static void print_usage_listen()
 {
         printf("Prints the data sent by a datahub or messagehub\n");
-        printf("Usage: rcom listen [datahub|messagehub] <topic-name>\n");
+        printf("Usage: rcutil listen [datahub|messagehub] <topic-name>\n");
 }
 
 static void print_usage_show()
 {
         printf("Opens a browser tab for the service with the given topic name\n");
-        printf("Usage: rcom show <topic-name>\n");
+        printf("Usage: rcutil show <topic-name>\n");
 }
 
 static void print_usage_stream()
 {
         printf("Opens a browser tab for the streamer with the given topic name\n");
-        printf("Usage: rcom stream <topic-name>\n");
+        printf("Usage: rcutil stream <topic-name>\n");
 }
 
 static void print_usage_request()
 {
         printf("Sends a request to a controller and prints the status.\n");
-        printf("Usage: rcom request <topic-name> <json-message>\n");
+        printf("Usage: rcutil request <topic-name> <json-message>\n");
         printf("The message most likely has the following format: \n");
         printf("    \"{'command': '<command>', ...}\"\n");
 }
@@ -304,18 +302,18 @@ static void print_usage_request()
 static void print_usage_send()
 {
         printf("Sends a (json) string to a messagehub and prints the response.\n");
-        printf("Usage: rcom send <topic-name> <data>\n");
+        printf("Usage: rcutil send <topic-name> <data>\n");
 }
 
 static void print_usage_restart()
 {
         printf("Restarts the node with the given name\n");
-        printf("Usage: rcom restart <node-name>\n");
+        printf("Usage: rcutil restart <node-name>\n");
 }
 
 static void print_usage()
 {
-        printf("Usage: rcom command [options]\n");
+        printf("Usage: rcutil command [options]\n");
         printf("  Available commands: list, listen, send, request, show, stream, help, restart\n");
 }
 
