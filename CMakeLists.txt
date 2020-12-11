@@ -141,59 +141,14 @@ endif()
 
 ###########################################################3
 
-#set(SOURCES
-#        librcom/src/addr.c
-#        librcom/src/net.c
-#        librcom/src/util.c
-#        librcom/src/response.c
-#        librcom/src/http.c
-#        librcom/src/http_parser.c
-#        librcom/src/sha1.c
-#        librcom/src/http.c
-#        librcom/src/app.c
-#        librcom/src/circular.c
-#        librcom/src/data.c
-#        librcom/src/datalink.c
-#        librcom/src/datahub.c
-#        librcom/src/messagehub.c
-#        librcom/src/messagelink.c
-#        librcom/src/rcregistry.c
-#        librcom/src/registry.c
-#        librcom/src/proxy.c
-#        librcom/src/dump.c
-#        librcom/src/export.c
-#        librcom/src/request.c
-#        librcom/src/service.c
-#        librcom/src/client.c
-#        librcom/src/streamer.c
-#        librcom/src/streamerlink.c
-#        librcom/src/multipart_parser.c
-#        librcom/src/dump.c
-#  )
-#
-#add_library(librcom SHARED ${SOURCES})
-#
-## Note we keep the private folder out of the public export.
-#target_include_directories(librcom
-#        PUBLIC
-##              ${CMAKE_CURRENT_SOURCE_DIR}/include
-#        librcom/include/rcom
-#        PRIVATE
-#        librcom/include/private
-#        )
-#
-#target_link_libraries(librcom
-#                      m
-#                      r )
-
 add_subdirectory(librcom)
 add_subdirectory(applications/rcdiscover)
 add_subdirectory(applications/rcregistry)
 add_subdirectory(applications/rcgen)
-add_subdirectory(applications/rcom)
+add_subdirectory(applications/rcutil)
 add_subdirectory(applications/rclaunch)
 
-# Main rcom apps
+# Main rcutil apps
 #add_executable(rcreplay src/rcreplay.c)
 #target_link_libraries(rcreplay rcom)
 

@@ -13,7 +13,7 @@ target_link_libraries(  rcom_unit_tests
                         gtest
                         gmock
                         rmocks
-                        librcom)
+                        rcom)
 
 add_test(
         NAME rcom_unit_tests
