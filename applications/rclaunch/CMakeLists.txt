@@ -7,7 +7,7 @@ add_executable(rclaunch
                 src/run.c)
 
 target_link_libraries(rclaunch
-                        librcom)
+                        rcom)
 
 INSTALL(TARGETS
             rclaunch

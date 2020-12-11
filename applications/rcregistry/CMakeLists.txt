@@ -6,7 +6,7 @@ add_executable(rcregistry
                 src/rcregistry_main.c)
 
 target_link_libraries(rcregistry
-                        librcom)
+                        rcom)
 
 INSTALL(TARGETS
             rcregistry
