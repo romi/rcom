@@ -1,12 +1,12 @@
 /*
-  rcom
+  rcutil
 
   Copyright (C) 2019 Sony Computer Science Laboratories
   Author(s) Peter Hanappe
 
-  rcom is light-weight libary for inter-node communication.
+  rcutil is light-weight libary for inter-node communication.
 
-  rcom is free software: you can redistribute it and/or modify it
+  rcutil is free software: you can redistribute it and/or modify it
   under the terms of the GNU Lesser General Public License as
   published by the Free Software Foundation, either version 3 of the
   License, or (at your option) any later version.
@@ -1001,7 +1001,7 @@ int write_cmakelists(const char *exec, const char *codefile,
         membuf_printf(buf, " %s)\n", codefile);
         
         membuf_printf(buf, "add_executable(%s SOURCES)\n", exec);
-        membuf_printf(buf, "target_link_libraries(%s rcom)\n", exec);
+        membuf_printf(buf, "target_link_libraries(%s rcutil)\n", exec);
         membuf_append_zero(buf);
         
         FILE *fp = fopen(outputfile, "w");

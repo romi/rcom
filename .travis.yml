@@ -26,7 +26,7 @@ before_script:
 
 script:
   - make -j4
-  - ctest -V -R rcom
+  - ctest -V -R rcutil
 
 after_success:
   - bash <(curl -s https://codecov.io/bash)

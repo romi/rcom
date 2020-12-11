@@ -177,7 +177,7 @@ endif()
 #target_include_directories(librcom
 #        PUBLIC
 ##              ${CMAKE_CURRENT_SOURCE_DIR}/include
-#        librcom/include/rcom
+#        librcom/include/rcutil
 #        PRIVATE
 #        librcom/include/private
 #        )
@@ -190,10 +190,10 @@ add_subdirectory(librcom)
 add_subdirectory(applications/rcdiscover)
 add_subdirectory(applications/rcregistry)
 add_subdirectory(applications/rcgen)
-add_subdirectory(applications/rcom)
+add_subdirectory(applications/rcutil)
 add_subdirectory(applications/rclaunch)
 
-# Main rcom apps
+# Main rcutil apps
 #add_executable(rcreplay src/rcreplay.c)
 #target_link_libraries(rcreplay rcom)
 

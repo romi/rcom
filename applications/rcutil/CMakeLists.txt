@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.10)
 include_directories(include)
 
 add_executable(rcom
-                src/rcom.c)
+        src/rcutil.c)
 
 target_link_libraries(rcom
                         librcom)
