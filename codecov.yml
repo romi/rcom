@@ -1,5 +1,7 @@
 codecov:
-# Since we only upload on success we don't need this flag
+  fixes:
+  - "/home/runner/work/rcom/rcom/::"
+  
   require_ci_to_pass: no
 
 coverage:
@@ -22,3 +24,7 @@ comment:
 
 ignore:
   - "test/src"
+  - "test/mocks"
+  - "test/support"
+  - "test/json_data"
+  

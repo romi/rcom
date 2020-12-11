@@ -1,8 +1,8 @@
 master  
-[![Build Status](https://travis-ci.org/romi/rcom.svg?branch=master)](https://travis-ci.org/romi/rcom)
+![Build Status](https://github.com/romi/rcom/workflows/CI/badge.svg?branch=master)
 [![codecov](https://codecov.io/gh/romi/rcom/branch/master/graph/badge.svg)](https://codecov.io/gh/romi/rcom)    
 ci_dev  
-[![Build Status](https://travis-ci.org/romi/rcom.svg?branch=ci_dev)](https://travis-ci.org/romi/rcom)
+![Build Status](https://github.com/romi/rcom/workflows/CI/badge.svg?branch=ci_dev)
 [![codecov](https://codecov.io/gh/romi/rcom/branch/ci_dev/graph/badge.svg)](https://codecov.io/gh/romi/rcom)
 
 # rcom
