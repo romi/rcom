@@ -53,9 +53,6 @@ namespace rcom {
                              const char *topic)
                 : _handler(handler)
         {
-                if (handler == 0) // You're right, Doug, we should use references.
-                        throw std::runtime_error("Invalid handler");
-                        
                 _hub = registry_open_messagehub(name, topic,
                                                 0, RPCServer_onconnect, this);
                 if (_hub == 0)
