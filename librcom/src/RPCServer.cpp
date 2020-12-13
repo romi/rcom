@@ -48,7 +48,7 @@ namespace rcom {
                 return 0;
         }
         
-        RPCServer::RPCServer(IRPCHandler *handler,
+        RPCServer::RPCServer(IRPCHandler &handler,
                              const char *name,
                              const char *topic)
                 : _handler(handler)
@@ -105,6 +105,6 @@ namespace rcom {
 
         JSON RPCServer::execute(JSON cmd)
         {
-                return _handler->execute(cmd);
+                return _handler.execute(cmd);
         }
 }

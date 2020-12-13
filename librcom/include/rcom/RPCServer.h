@@ -33,7 +33,7 @@ namespace rcom {
         class RPCServer : public IRPCHandler {
         protected:
                 messagehub_t *_hub;
-                IRPCHandler *_handler;
+                IRPCHandler &_handler;
 
                 friend void RPCServer_onmessage(void *userdata,
                                                 messagelink_t *link,
@@ -42,7 +42,7 @@ namespace rcom {
                 void onmessage(messagelink_t *link, json_object_t message);
                 
         public:
-                RPCServer(IRPCHandler *handler, const char *name, const char *topic);
+                RPCServer(IRPCHandler &handler, const char *name, const char *topic);
                 virtual ~RPCServer();
                 
                 JSON execute(JSON cmd) override;
