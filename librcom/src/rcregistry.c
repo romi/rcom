@@ -27,7 +27,6 @@
 
 #include "messagehub_priv.h"
 #include "registry_priv.h"
-#include "../../applications/rcregistry/include/rcregistry_priv.h"
 
 typedef struct _rcregistry_t {
         registry_t *registry;
