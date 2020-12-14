@@ -41,7 +41,7 @@ namespace rcom {
                         registry_close_messagelink(_link);
         }
 
-        void RPCClient::assure_ok(JSON reply)
+        void RPCClient::assure_ok(JSON &reply)
         {
                 r_debug("RPCClient::assure_ok");
                 if (json_isnull(reply.ptr())) {
@@ -59,10 +59,10 @@ namespace rcom {
                 }
         }
 
-        JSON RPCClient::execute(JSON cmd)
+        void RPCClient::execute(JSON &cmd, JSON &reply)
         {
                 r_debug("RPCClient::execute");
-                JSON reply = messagelink_send_command(_link, cmd.ptr());
+                reply = messagelink_send_command(_link, cmd.ptr());
                 
                 char buffer[256];
                 json_tostring(reply.ptr(), buffer, 256);
@@ -70,6 +70,5 @@ namespace rcom {
                         buffer);
                 
                 assure_ok(reply);
-                return reply;
         }
 }

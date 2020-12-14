@@ -66,10 +66,12 @@ namespace rcom {
         }
 
         
-        void RPCServer::onmessage(messagelink_t *link,
-                                  json_object_t message)
+        void RPCServer::onmessage(messagelink_t *link, json_object_t message)
         {
                 r_debug("RPCServer::onmessage");
+                
+                JSON cmd = message;
+                JSON reply;
                 
                 try {
 
@@ -79,7 +81,7 @@ namespace rcom {
                                 buffer);
 
                         
-                        JSON reply = execute(message);
+                        execute(cmd, reply);
 
                         
                         json_tostring(reply.ptr(), buffer, 256);
@@ -93,15 +95,16 @@ namespace rcom {
                         r_err("RPCServer::onmessage: caught exception: %s",
                               e.what());
                         
-                        JSON err = JSON::construct("{\"status\": \"error\", "
-                                                   "\"message\": \"%s\"}",
-                                                   e.what());
-                        messagelink_send_obj(link, err.ptr());
+                        reply = JSON::construct("{\"status\": \"error\", "
+                                                "\"message\": \"%s\"}",
+                                                e.what());
                 }
+                
+                messagelink_send_obj(link, reply.ptr());
         }
 
-        JSON RPCServer::execute(JSON cmd)
+        void RPCServer::execute(JSON &cmd, JSON &result)
         {
-                return _handler.execute(cmd);
+                _handler.execute(cmd, result);
         }
 }

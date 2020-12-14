@@ -34,13 +34,13 @@ namespace rcom {
         protected:
                 messagelink_t *_link;
 
-                void assure_ok(JSON reply);
+                void assure_ok(JSON &reply);
                 
         public:
                 RPCClient(const char *name, const char *topic);
                 virtual ~RPCClient();
 
-                JSON execute(JSON cmd) override;
+                void execute(JSON &cmd, JSON &result) override;
         };
 }
 

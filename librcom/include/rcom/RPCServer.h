@@ -45,7 +45,7 @@ namespace rcom {
                 RPCServer(IRPCHandler &handler, const char *name, const char *topic);
                 virtual ~RPCServer();
                 
-                JSON execute(JSON cmd) override;
+                void execute(JSON &cmd, JSON &result) override;
         };
 }
 
