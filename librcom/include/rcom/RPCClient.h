@@ -24,12 +24,12 @@
 #ifndef __RCOM_RPC_CLIENT_H
 #define __RCOM_RPC_CLIENT_H
 
-#include "IRPCHandler.h"
+#include "IRPCClient.h"
 #include "messagelink.h"
 
 namespace rcom {
         
-        class RPCClient : public IRPCHandler
+        class RPCClient : public IRPCClient
         {
         protected:
                 messagelink_t *_link;

@@ -21,30 +21,21 @@
   <http://www.gnu.org/licenses/>.
 
  */
-
-#ifndef __RCOM_RPC_SERVER_H
-#define __RCOM_RPC_SERVER_H
+#ifndef __RCOM_I_RPC_CLIENT_H
+#define __RCOM_I_RPC_CLIENT_H
 
 #include "IRPCHandler.h"
-#include "messagehub.h"
 
 namespace rcom {
         
-        class RPCServer {
-        protected:
-                messagehub_t *_hub;
-                IRPCHandler &_handler;
-
-                friend void RPCServer_onmessage(void *userdata,
-                                                messagelink_t *link,
-                                                json_object_t message);
-                
-                void onmessage(messagelink_t *link, json_object_t message);
-                
+        class IRPCClient : public IRPCHandler
+        {
         public:
-                RPCServer(IRPCHandler &handler, const char *name, const char *topic);
-                virtual ~RPCServer();
+                virtual ~IRPCClient() override = default;
+
+                virtual bool is_status_ok(JSON &result) = 0;
+                virtual const char *get_error_message(JSON &result) = 0;
         };
 }
 
-#endif // __RCOM_RPC_SERVER_H
+#endif // __RCOM_I_RPC_CLIENT_H

@@ -72,7 +72,7 @@ namespace rcom {
                 r_debug("RPCServer::onmessage");
                 
                 JSON cmd = message;
-                JSON reply;
+                JSON result;
                 
                 try {
 
@@ -82,30 +82,25 @@ namespace rcom {
                                 buffer);
 
                         
-                        execute(cmd, reply);
+                        _handler.execute(cmd, result);
 
                         
-                        json_tostring(reply.ptr(), buffer, 256);
-                        r_debug("RPCServer::onmessage: reply: %s",
+                        json_tostring(result.ptr(), buffer, 256);
+                        r_debug("RPCServer::onmessage: result: %s",
                                 buffer);
 
-                        messagelink_send_obj(link, reply.ptr());
+                        messagelink_send_obj(link, result.ptr());
                         
                 } catch (std::exception& e) {
 
                         r_err("RPCServer::onmessage: caught exception: %s",
                               e.what());
                         
-                        reply = JSON::construct("{\"status\": \"error\", "
+                        result = JSON::construct("{\"status\": \"error\", "
                                                 "\"message\": \"%s\"}",
                                                 e.what());
                 }
                 
-                messagelink_send_obj(link, reply.ptr());
-        }
-
-        void RPCServer::execute(JSON &cmd, JSON &result)
-        {
-                _handler.execute(cmd, result);
+                messagelink_send_obj(link, result.ptr());
         }
 }
