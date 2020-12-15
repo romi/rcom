@@ -424,7 +424,7 @@ static int valid_websocket_key(const char *key)
 {
         int r = 1;
         if (strlen(key) != 24) {
-                r_debug("valid_websocket_key: bad key length");
+                r_debug("valid_websocket_key: bad key length: '%s'", key);
                 r = 0;
         } else {
                 if (key[22] != '=' || key[23] != '=') {
