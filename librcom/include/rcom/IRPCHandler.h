@@ -33,6 +33,8 @@ namespace rcom {
         public:
                 virtual ~IRPCHandler() = default;
                 virtual void execute(JSON &command, JSON &result) = 0;
+                virtual bool is_status_ok(JSON &result) = 0;
+                virtual const char *get_error_message(JSON &result) = 0;
         };
 }
 

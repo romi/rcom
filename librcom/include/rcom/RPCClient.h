@@ -41,9 +41,8 @@ namespace rcom {
                 virtual ~RPCClient();
 
                 void execute(JSON &cmd, JSON &result) override;
-                
-                bool is_status_ok(JSON &reply);
-                const char *get_error_message(JSON &reply);
+                bool is_status_ok(JSON &result) override;
+                const char *get_error_message(JSON &result) override;
         };
 }
 
