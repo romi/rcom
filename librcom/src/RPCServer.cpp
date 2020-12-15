@@ -25,6 +25,7 @@
 #include <stdexcept>
 #include "registry.h"
 #include "RPCServer.h"
+#include "RPCError.h"
 
 namespace rcom {
 
@@ -56,7 +57,7 @@ namespace rcom {
                 _hub = registry_open_messagehub(name, topic,
                                                 0, RPCServer_onconnect, this);
                 if (_hub == 0)
-                        throw std::runtime_error("Failed to create the hub");
+                        throw RPCError("Failed to create the hub");
         }
         
         RPCServer::~RPCServer()

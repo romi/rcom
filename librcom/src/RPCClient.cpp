@@ -24,6 +24,7 @@
 #include <stdexcept>
 #include "registry.h"
 #include "RPCClient.h"
+#include "RPCError.h"
 
 namespace rcom {
         
@@ -32,7 +33,7 @@ namespace rcom {
                 _link = registry_open_messagelink(name, topic,
                                                   (messagelink_onmessage_t) NULL, NULL);
                 if (_link == 0)
-                        throw std::runtime_error("Failed to create the messagelink");
+                        throw RPCError("Failed to create the messagelink");
         }
         
         RPCClient::~RPCClient()
@@ -47,14 +48,14 @@ namespace rcom {
                 if (json_isnull(reply.ptr())) {
                         r_err("RPCClient::assure_ok: "
                               "messagelink_send_command failed");
-                        throw std::runtime_error("RPCClient: "
+                        throw RPCError("RPCClient: "
                                                  "messagelink_send_command failed");
                 } else {
                         const char *status = reply.str("status");
                         if (rstreq(status, "error")) {
                                 const char *message = reply.str("message");
                                 r_err("RPCClient::assure_ok: message: %s", message);
-                                throw std::runtime_error(message);
+                                throw RPCError(message);
                         }
                 }
         }
