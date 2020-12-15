@@ -42,34 +42,53 @@ namespace rcom {
                         registry_close_messagelink(_link);
         }
 
-        void RPCClient::assure_ok(JSON &reply)
+        /** Assure that the received reply is conform to what is
+         * expected: it must have a status field and if the status is
+         * "error" it must have an error message. Anything else will
+         * result in an RPCError being thrown. */
+        void RPCClient::assure_valid_reply(JSON &reply)
         {
-                r_debug("RPCClient::assure_ok");
-                if (json_isnull(reply.ptr())) {
-                        r_err("RPCClient::assure_ok: "
-                              "messagelink_send_command failed");
-                        throw RPCError("RPCClient: "
-                                                 "messagelink_send_command failed");
-                } else {
-                        const char *status = reply.str("status");
-                        if (rstreq(status, "error")) {
-                                const char *message = reply.str("message");
-                                r_err("RPCClient::assure_ok: message: %s", message);
-                                throw RPCError(message);
-                        }
+                if (reply.isnull()) {
+                        r_warn("RPCClient: messagelink_send_command failed");
+                        throw RPCError("RPCClient: failed to send the command");
+                        
+                } else if (!reply.has("status")) {
+                        r_warn("RPCClient: invalid reply: missing status");
+                        throw RPCError("RPCClient: invalid reply: missing status");
+                        
+                } else if (rstreq(reply.str("status"), "error")
+                           && !reply.has("message")) {
+                        r_warn("RPCClient: invalid reply: missing error message");
+                        throw RPCError("RPCClient: invalid reply: missing error message");
                 }
+        }
+
+        bool RPCClient::is_status_ok(JSON &reply)
+        {
+                const char *status = reply.str("status");
+                return rstreq(status, "ok");
+        }
+
+        const char *RPCClient::get_error_message(JSON &reply)
+        {
+                return reply.str("message");
         }
 
         void RPCClient::execute(JSON &cmd, JSON &reply)
         {
                 r_debug("RPCClient::execute");
-                reply = messagelink_send_command(_link, cmd.ptr());
+
+                json_object_t r = messagelink_send_command(_link, cmd.ptr());
+                reply = r; 
+                json_unref(r);
+
+                {
+                        char buffer[256];
+                        json_tostring(reply.ptr(), buffer, 256);
+                        r_debug("RPCClient::execute: reply: %s",
+                                buffer);
+                }
                 
-                char buffer[256];
-                json_tostring(reply.ptr(), buffer, 256);
-                r_debug("RPCClient::execute: reply: %s",
-                        buffer);
-                
-                assure_ok(reply);
+                assure_valid_reply(reply);
         }
 }
