@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.10)
 include_directories(include)
 
 add_executable(rcgen
-                src/rcgen.c)
+        src/rcgen.cpp)
 
 target_link_libraries(rcgen
                         rcom)

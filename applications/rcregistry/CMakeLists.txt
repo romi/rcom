@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.10)
 include_directories(include)
 
 add_executable(rcregistry
-                src/rcregistry_main.c)
+        src/rcregistry_main.cpp)
 
 target_link_libraries(rcregistry
                         rcom)

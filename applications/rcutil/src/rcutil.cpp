@@ -50,8 +50,8 @@ static int restart_node(const char *name)
 static void open_browser(char *url)
 {
         char *argv[4];
-        argv[0] = "/usr/bin/firefox";
-        argv[1] = "-new-tab";
+        argv[0] = const_cast<char*>("/usr/bin/firefox");
+        argv[1] = const_cast<char*>("-new-tab");
         argv[2] = url;
         argv[3] = NULL;
 
@@ -64,7 +64,7 @@ static void open_browser(char *url)
                 return;
         case 0:  break;
 	}
-        
+
         fprintf(stderr, "Starting firefox\n");                
         execv(argv[0], argv);
         perror("monitor: execvp:");

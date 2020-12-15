@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.10)
 include_directories(include)
 
 add_executable(rcutil
-        src/rcutil.c)
+        src/rcutil.cpp)
 
 target_link_libraries(rcutil
                         rcom)
