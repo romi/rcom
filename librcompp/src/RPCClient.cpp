@@ -23,8 +23,8 @@
  */
 #include <stdexcept>
 #include "registry.h"
-#include "RPCClient.h"
-#include "RPCError.h"
+#include "../include/RPCClient.h"
+#include "../include/RPCError.h"
 
 namespace rcom {
         

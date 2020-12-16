@@ -24,7 +24,7 @@
 #ifndef __RCOM_I_RPC_HANDLER_H
 #define __RCOM_I_RPC_HANDLER_H
 
-#include "JSON.h"
+#include "json_cpp.h"
 
 namespace rcom {
         

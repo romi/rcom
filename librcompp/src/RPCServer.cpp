@@ -22,7 +22,6 @@
 
  */
 
-#include <stdexcept>
 #include "registry.h"
 #include "RPCServer.h"
 #include "RPCError.h"

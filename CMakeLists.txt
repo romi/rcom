@@ -142,6 +142,7 @@ endif()
 ###########################################################3
 
 add_subdirectory(librcom)
+add_subdirectory(librcompp)
 add_subdirectory(applications/rcdiscover)
 add_subdirectory(applications/rcregistry)
 add_subdirectory(applications/rcgen)
