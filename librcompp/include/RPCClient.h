@@ -24,25 +24,24 @@
 #ifndef __RCOM_RPC_CLIENT_H
 #define __RCOM_RPC_CLIENT_H
 
-#include "IRPCClient.h"
+#include "IRPCHandler.h"
 #include "messagelink.h"
 
 namespace rcom {
         
-        class RPCClient : public IRPCClient
+        class RPCClient : public IRPCHandler
         {
         protected:
                 messagelink_t *_link;
 
-                void assure_valid_reply(JSON &reply);
+                void check_error(json_object_t retval, RPCError &error);
                 
         public:
                 RPCClient(const char *name, const char *topic);
                 virtual ~RPCClient();
 
-                void execute(JSON &cmd, JSON &result) override;
-                bool is_status_ok(JSON &result) override;
-                const char *get_error_message(JSON &result) override;
+                void execute(const char *method, JSON &params,
+                             JSON &result, RPCError &error) override;
         };
 }
 

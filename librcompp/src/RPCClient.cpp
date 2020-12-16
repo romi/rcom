@@ -23,8 +23,7 @@
  */
 #include <stdexcept>
 #include "registry.h"
-#include "../include/RPCClient.h"
-#include "../include/RPCError.h"
+#include "RPCClient.h"
 
 namespace rcom {
         
@@ -33,7 +32,7 @@ namespace rcom {
                 _link = registry_open_messagelink(name, topic,
                                                   (messagelink_onmessage_t) NULL, NULL);
                 if (_link == 0)
-                        throw RPCError("Failed to create the messagelink");
+                        throw std::runtime_error("Failed to create the messagelink");
         }
         
         RPCClient::~RPCClient()
@@ -42,53 +41,63 @@ namespace rcom {
                         registry_close_messagelink(_link);
         }
 
-        /** Assure that the received reply is conform to what is
-         * expected: it must have a status field and if the status is
-         * "error" it must have an error message. Anything else will
-         * result in an RPCError being thrown. */
-        void RPCClient::assure_valid_reply(JSON &reply)
+        void RPCClient::check_error(json_object_t retval, RPCError &error)
         {
-                if (reply.isnull()) {
-                        r_warn("RPCClient: messagelink_send_command failed");
-                        throw RPCError("RPCClient: failed to send the command");
+                if (json_object_has(retval, "error")) {
                         
-                } else if (!reply.has("status")) {
-                        r_warn("RPCClient: invalid reply: missing status");
-                        throw RPCError("RPCClient: invalid reply: missing status");
+                        json_object_t e = json_object_get(retval, "error");
                         
-                } else if (rstreq(reply.str("status"), "error")
-                           && !reply.has("message")) {
-                        r_warn("RPCClient: invalid reply: missing error message");
-                        throw RPCError("RPCClient: invalid reply: missing error message");
+                        // json_object_get returns json_null() on
+                        // failure.
+                        json_object_t code = json_object_get(e, "code");
+                        json_object_t message = json_object_get(e, "message");
+                        
+                        if (json_isnumber(code) && json_isstring(message)) {
+
+                                error.code = (int) json_number_value(code);
+                                error.message = json_string_value(message);
+                                
+                        } else {
+                                
+                                error.code = RPCError::InvalidResponse;
+                                error.message = "RPCError: Response has invalid error";
+                        }
+                         
+                } else {
+                        error.code = 0;
                 }
         }
 
-        bool RPCClient::is_status_ok(JSON &reply)
-        {
-                const char *status = reply.str("status");
-                return rstreq(status, "ok");
-        }
-
-        const char *RPCClient::get_error_message(JSON &reply)
-        {
-                return reply.str("message");
-        }
-
-        void RPCClient::execute(JSON &cmd, JSON &reply)
+        void RPCClient::execute(const char *method, JSON &params,
+                                JSON &result, RPCError &error) 
         {
                 r_debug("RPCClient::execute");
 
-                json_object_t r = messagelink_send_command(_link, cmd.ptr());
-                reply = r; 
-                json_unref(r);
+                if (method != 0) {
+                        
+                        JSON request = JSON::construct("{\"method\": \"%s\"}", method);
 
-                {
-                        char buffer[256];
-                        json_tostring(reply.ptr(), buffer, 256);
-                        r_debug("RPCClient::execute: reply: %s",
-                                buffer);
-                }
+                        // FIXME: use C++ API?
+                        json_object_set(request.ptr(), "params", params.ptr());
+                        
+                        json_object_t retval = messagelink_send_command(_link,
+                                                                        request.ptr());
+
+                        result = json_object_get(retval, "result");
+                        check_error(retval, error);
+
+                        {
+                                char buffer[256];
+                                json_tostring(retval, buffer, 256);
+                                r_debug("RPCClient::execute: reply: %s",
+                                        buffer);
+                        }
                 
-                assure_valid_reply(reply);
+                        json_unref(retval);
+                        
+                } else {
+                        error.code = RPCError::NullMethod;
+                        error.message = "RPCClient: Null method";
+                }
         }
 }

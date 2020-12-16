@@ -25,6 +25,7 @@
 #define __RCOM_I_RPC_HANDLER_H
 
 #include "json_cpp.h"
+#include "RPCError.h"
 
 namespace rcom {
         
@@ -32,7 +33,9 @@ namespace rcom {
         {
         public:
                 virtual ~IRPCHandler() = default;
-                virtual void execute(JSON &command, JSON &result) = 0;
+                
+                virtual void execute(const char *method, JSON &params,
+                                     JSON &result, RPCError &status) = 0;
         };
 }
 
