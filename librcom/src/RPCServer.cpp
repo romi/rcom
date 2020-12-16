@@ -25,7 +25,6 @@
 #include <stdexcept>
 #include "registry.h"
 #include "RPCServer.h"
-#include "RPCError.h"
 
 namespace rcom {
 
@@ -57,7 +56,7 @@ namespace rcom {
                 _hub = registry_open_messagehub(name, topic,
                                                 0, RPCServer_onconnect, this);
                 if (_hub == 0)
-                        throw RPCError("Failed to create the hub");
+                        throw std::runtime_error("Failed to create the hub");
         }
         
         RPCServer::~RPCServer()
@@ -66,41 +65,92 @@ namespace rcom {
                         registry_close_messagehub(_hub);
         }
 
+        /* Construct the envelope for an error reponse to be sent back
+         * to the client. This is still done "the old way", for now,
+         * using the C JSON API.  */
+        json_object_t RPCServer::construct_response(int code, const char *message)
+        {
+                json_object_t response = json_object_create();
+                
+                if (code != 0) {
+                        json_object_t error = json_object_create();
+                        
+                        json_object_set(response, "error", error);
+                        
+                        json_object_setnum(error, "code", code);
+                        
+                        if (message != 0 && strlen(message) > 0) {
+                                json_object_setstr(error, "message", message);
+                        } else {
+                                json_object_setstr(error, "message", "No message was given");
+                        }
+                        
+                        json_unref(error); // refcount held by response object
+                }
+
+                return response;
+        }
+        
+        /* Construct the envelope for a reponse with results, to be
+         * sent back to the client. This is still done "the old way",
+         * for now, using the C JSON API.  */
+        json_object_t RPCServer::construct_response(RPCError &error, JSON &result)
+        {
+                json_object_t response = construct_response(error.code, error.message.c_str());
+                
+                if (!result.isnull()) {
+                        json_object_set(response, "result", result.ptr());
+                }
+                
+                return response;
+        }
         
         void RPCServer::onmessage(messagelink_t *link, json_object_t message)
         {
                 r_debug("RPCServer::onmessage");
                 
-                JSON cmd = message;
-                JSON result;
-                
-                try {
 
+                {
                         char buffer[256];
                         json_tostring(message, buffer, 256);
                         r_debug("RPCServer::onmessage: message: %s",
                                 buffer);
-
-                        
-                        _handler.execute(cmd, result);
-
-                        
-                        json_tostring(result.ptr(), buffer, 256);
-                        r_debug("RPCServer::onmessage: result: %s",
-                                buffer);
-
-                        messagelink_send_obj(link, result.ptr());
-                        
-                } catch (std::exception& e) {
-
-                        r_err("RPCServer::onmessage: caught exception: %s",
-                              e.what());
-                        
-                        result = JSON::construct("{\"status\": \"error\", "
-                                                "\"message\": \"%s\"}",
-                                                e.what());
                 }
                 
-                messagelink_send_obj(link, result.ptr());
+                json_object_t response;
+                
+                const char *method = json_object_getstr(message, "method");
+
+                if (method != 0) {
+
+                        JSON params = json_object_get(message, "params");
+
+                        try {
+
+                                JSON result;
+                                RPCError error;
+                        
+                                _handler.execute(method, params, result, error);
+
+                                {
+                                        char buffer[256];
+                                        json_tostring(result.ptr(), buffer, 256);
+                                        r_debug("RPCServer::onmessage: result: %s",
+                                                buffer);
+                                }
+                                
+                                response = construct_response(error, result);
+
+                        } catch (std::exception &e) {
+                                response = construct_response(RPCError::InternalError, e.what());
+                        }
+                        
+                } else {
+                        response = construct_response(RPCError::MethodNotFound, "The method is missing");
+                }
+                
+                messagelink_send_obj(link, response);
+
+                json_unref(response);
         }
 }

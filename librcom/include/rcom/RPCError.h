@@ -21,25 +21,29 @@
   <http://www.gnu.org/licenses/>.
 
  */
-#ifndef __RCOM_RPC_ERROR_H
-#define __RCOM_RPC_ERROR_H
+#ifndef __RCOM_I_RPC_ERROR_H
+#define __RCOM_I_RPC_ERROR_H
 
-#include <exception>
+#include <string>
 
 namespace rcom {
-        
-        class RPCError : public std::exception
+                                                      
+        struct RPCError
         {
-        protected:
-                std::string _what;
-                
-        public:
-                RPCError(const char *message) : std::exception(), _what(message) {}
-                
-                virtual const char* what() const noexcept override {
-                        return _what.c_str(); 
-                }
+                enum {
+                        ParseError = -32700,     // Invalid JSON was received by the server.
+                        InvalidRequest = -32600, // The JSON request is not a valid.
+                        MethodNotFound = -32601, // The method does not exist.
+                        InvalidParams = -32602,  // Invalid method parameter(s).
+                        InternalError = -32603,  // Internal error.
+                        
+                        NullMethod = -32000,     // The method was null.
+                        InvalidResponse = -32001, // The JSON response is not a valid.
+                };
+                        
+                int code;
+                std::string message;
         };
 }
 
-#endif // __RCOM_RPC_ERROR_H
+#endif // __RCOM_I_RPC_ERROR_H
