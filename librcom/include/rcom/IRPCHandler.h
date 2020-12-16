@@ -32,7 +32,7 @@ namespace rcom {
         {
         public:
                 virtual ~IRPCHandler() = default;
-                virtual JSON execute(JSON cmd) = 0;
+                virtual void execute(JSON &command, JSON &result) = 0;
         };
 }
 

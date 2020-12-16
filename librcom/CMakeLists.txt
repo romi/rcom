@@ -31,6 +31,8 @@ set(SOURCES
         src/streamerlink.c
         src/multipart_parser.c
         src/dump.c
+        src/RPCServer.cpp
+        src/RPCClient.cpp
   )
 
 add_library( rcom SHARED ${SOURCES})

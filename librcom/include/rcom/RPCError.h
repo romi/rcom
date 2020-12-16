@@ -21,30 +21,25 @@
   <http://www.gnu.org/licenses/>.
 
  */
+#ifndef __RCOM_RPC_ERROR_H
+#define __RCOM_RPC_ERROR_H
 
-#ifndef __RCOM_RPC_SERVER_H
-#define __RCOM_RPC_SERVER_H
-
-#include "IRPCHandler.h"
-#include "messagehub.h"
+#include <exception>
 
 namespace rcom {
         
-        class RPCServer {
+        class RPCError : public std::exception
+        {
         protected:
-                messagehub_t *_hub;
-                IRPCHandler &_handler;
-
-                friend void RPCServer_onmessage(void *userdata,
-                                                messagelink_t *link,
-                                                json_object_t message);
-                
-                void onmessage(messagelink_t *link, json_object_t message);
+                std::string _what;
                 
         public:
-                RPCServer(IRPCHandler &handler, const char *name, const char *topic);
-                virtual ~RPCServer();
+                RPCError(const char *message) : std::exception(), _what(message) {}
+                
+                virtual const char* what() const noexcept override {
+                        return _what.c_str(); 
+                }
         };
 }
 
-#endif // __RCOM_RPC_SERVER_H
+#endif // __RCOM_RPC_ERROR_H

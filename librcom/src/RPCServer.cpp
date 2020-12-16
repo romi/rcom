@@ -25,6 +25,7 @@
 #include <stdexcept>
 #include "registry.h"
 #include "RPCServer.h"
+#include "RPCError.h"
 
 namespace rcom {
 
@@ -48,18 +49,15 @@ namespace rcom {
                 return 0;
         }
         
-        RPCServer::RPCServer(IRPCHandler *handler,
+        RPCServer::RPCServer(IRPCHandler &handler,
                              const char *name,
                              const char *topic)
                 : _handler(handler)
         {
-                if (handler == 0) // You're right, Doug, we should use references.
-                        throw std::runtime_error("Invalid handler");
-                        
                 _hub = registry_open_messagehub(name, topic,
                                                 0, RPCServer_onconnect, this);
                 if (_hub == 0)
-                        throw std::runtime_error("Failed to create the hub");
+                        throw RPCError("Failed to create the hub");
         }
         
         RPCServer::~RPCServer()
@@ -69,10 +67,12 @@ namespace rcom {
         }
 
         
-        void RPCServer::onmessage(messagelink_t *link,
-                                  json_object_t message)
+        void RPCServer::onmessage(messagelink_t *link, json_object_t message)
         {
                 r_debug("RPCServer::onmessage");
+                
+                JSON cmd = message;
+                JSON result;
                 
                 try {
 
@@ -82,29 +82,25 @@ namespace rcom {
                                 buffer);
 
                         
-                        JSON reply = execute(message);
+                        _handler.execute(cmd, result);
 
                         
-                        json_tostring(reply.ptr(), buffer, 256);
-                        r_debug("RPCServer::onmessage: reply: %s",
+                        json_tostring(result.ptr(), buffer, 256);
+                        r_debug("RPCServer::onmessage: result: %s",
                                 buffer);
 
-                        messagelink_send_obj(link, reply.ptr());
+                        messagelink_send_obj(link, result.ptr());
                         
                 } catch (std::exception& e) {
 
                         r_err("RPCServer::onmessage: caught exception: %s",
                               e.what());
                         
-                        JSON err = JSON::construct("{\"status\": \"error\", "
-                                                   "\"message\": \"%s\"}",
-                                                   e.what());
-                        messagelink_send_obj(link, err.ptr());
+                        result = JSON::construct("{\"status\": \"error\", "
+                                                "\"message\": \"%s\"}",
+                                                e.what());
                 }
-        }
-
-        JSON RPCServer::execute(JSON cmd)
-        {
-                return _handler->execute(cmd);
+                
+                messagelink_send_obj(link, result.ptr());
         }
 }
