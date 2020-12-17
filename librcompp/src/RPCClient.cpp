@@ -68,14 +68,14 @@ namespace rcom {
                 }
         }
 
-        void RPCClient::execute(const char *method, JSON &params,
-                                JSON &result, RPCError &error) 
+        void RPCClient::execute(const char *method, JsonCpp &params,
+                                JsonCpp &result, RPCError &error)
         {
                 r_debug("RPCClient::execute");
 
                 if (method != 0) {
                         
-                        JSON request = JSON::construct("{\"method\": \"%s\"}", method);
+                        JsonCpp request = JsonCpp::construct("{\"method\": \"%s\"}", method);
 
                         // FIXME: use C++ API?
                         json_object_set(request.ptr(), "params", params.ptr());

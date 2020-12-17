@@ -42,7 +42,7 @@ namespace rcom {
                 void onmessage(messagelink_t *link, json_object_t message);
 
                 json_object_t construct_response(int code, const char *message);
-                json_object_t construct_response(RPCError &error, JSON &result);
+                json_object_t construct_response(RPCError &error, JsonCpp &result);
                 
         public:
                 RPCServer(IRPCHandler &handler, const char *name, const char *topic);

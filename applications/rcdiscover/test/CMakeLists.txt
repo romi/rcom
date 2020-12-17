@@ -9,8 +9,6 @@ set(SRCS
         src/SerialPortIdentification_tests.cpp
         src/SerialPortDiscover_tests.cpp
         src/SerialPortConfigurationGenerator_tests.cpp
-        ../include/StringUtils.h
-        ../src/StringUtils.cpp
         ../include/ISerialPortConfigurationGenerator.h
         ../include/SerialPortConfigurationGenerator.h
         ../src/SerialPortConfigurationGenerator.cpp
@@ -26,7 +24,7 @@ add_executable(rcom_rcdiscover_unit_tests ${SRCS})
 target_link_libraries(  rcom_rcdiscover_unit_tests
                         gtest
                         gmock
-                        rcom
+                        rpp
                         stdc++fs)
 
 add_test(

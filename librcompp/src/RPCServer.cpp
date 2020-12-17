@@ -56,7 +56,7 @@ namespace rcom {
         {
                 _hub = registry_open_messagehub(name, topic,
                                                 0, RPCServer_onconnect, this);
-                if (_hub == 0)
+                if (_hub == nullptr)
                         throw std::runtime_error("Failed to create the hub");
         }
         
@@ -68,7 +68,7 @@ namespace rcom {
 
         /* Construct the envelope for an error reponse to be sent back
          * to the client. This is still done "the old way", for now,
-         * using the C JSON API.  */
+         * using the C JsonCpp API.  */
         json_object_t RPCServer::construct_response(int code, const char *message)
         {
                 json_object_t response = json_object_create();
@@ -80,7 +80,7 @@ namespace rcom {
                         
                         json_object_setnum(error, "code", code);
                         
-                        if (message != 0 && strlen(message) > 0) {
+                        if (message != nullptr && strlen(message) > 0) {
                                 json_object_setstr(error, "message", message);
                         } else {
                                 json_object_setstr(error, "message", "No message was given");
@@ -94,8 +94,8 @@ namespace rcom {
         
         /* Construct the envelope for a reponse with results, to be
          * sent back to the client. This is still done "the old way",
-         * for now, using the C JSON API.  */
-        json_object_t RPCServer::construct_response(RPCError &error, JSON &result)
+         * for now, using the C JsonCpp API.  */
+        json_object_t RPCServer::construct_response(RPCError &error, JsonCpp &result)
         {
                 json_object_t response = construct_response(error.code, error.message.c_str());
                 
@@ -122,13 +122,13 @@ namespace rcom {
                 
                 const char *method = json_object_getstr(message, "method");
 
-                if (method != 0) {
+                if (method != nullptr) {
 
-                        JSON params = json_object_get(message, "params");
+                        JsonCpp params = json_object_get(message, "params");
 
                         try {
 
-                                JSON result;
+                                JsonCpp result;
                                 RPCError error;
                         
                                 _handler.execute(method, params, result, error);

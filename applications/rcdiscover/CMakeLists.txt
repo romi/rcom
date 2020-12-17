@@ -11,13 +11,11 @@ add_executable(rcdiscover
                 src/SerialPortIdentification.cpp
                 include/SerialPortDiscover.h
                 src/SerialPortDiscover.cpp
-                include/StringUtils.h
-                src/StringUtils.cpp
         )
 
 target_link_libraries( rcdiscover
                         stdc++fs
-                        r)
+                        rpp)
 
 if(BUILD_TESTS)
     add_subdirectory(test)

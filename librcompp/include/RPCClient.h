@@ -40,8 +40,8 @@ namespace rcom {
                 RPCClient(const char *name, const char *topic);
                 virtual ~RPCClient();
 
-                void execute(const char *method, JSON &params,
-                             JSON &result, RPCError &error) override;
+                void execute(const char *method, JsonCpp &params,
+                             JsonCpp &result, RPCError &error) override;
         };
 }
 
