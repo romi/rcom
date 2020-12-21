@@ -14,7 +14,9 @@ set(SOURCES
         include/RegistryEntry.h
         src/RegistryEntry.cpp
         include/UuId.h
-        src/UuId.cpp)
+        src/UuId.cpp
+        include/ILink.h
+        src/MessageLink.cpp)
 
 add_library( rcompp SHARED ${SOURCES})
 

@@ -1,8 +1,9 @@
 #ifndef ROMI_RCOMPP_IREGISTRYENTRY_H
 #define ROMI_RCOMPP_IREGISTRYENTRY_H
 
-
-enum {
+// Likely not needed when we come to use an inherited link class.
+enum RegistryType
+{
     TYPE_MESSAGELINK = 0,
     TYPE_MESSAGEHUB,
     TYPE_SERVICE
