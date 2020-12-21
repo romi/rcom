@@ -11,7 +11,10 @@ set(SOURCES
         include/RPCServer.h
         src/RPCServer.cpp
         src/RPCClient.cpp
-  )
+        include/RegistryEntry.h
+        src/RegistryEntry.cpp
+        include/UuId.h
+        src/UuId.cpp)
 
 add_library( rcompp SHARED ${SOURCES})
 

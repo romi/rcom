@@ -2,7 +2,8 @@ cmake_minimum_required(VERSION 3.10)
 
 
 set(SRCS
-        src/tests_main.cpp)
+        src/tests_main.cpp
+        src/UuId_tests.cpp)
 
 add_executable(rcompp_unit_tests ${SRCS})
 
