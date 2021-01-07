@@ -27,18 +27,33 @@
 
 namespace rcom {
         
-        RPCClient::RPCClient(const char *name, const char *topic)
+        RPCClient::RPCClient(const char *name, const char *topic, double timeout_seconds)
         {
                 _link = registry_open_messagelink(name, topic,
                                                   (messagelink_onmessage_t) NULL, NULL);
                 if (_link == 0)
                         throw std::runtime_error("Failed to create the messagelink");
+                
+                if (timeout_seconds > 0.0)
+                        wait_connection(timeout_seconds);
         }
         
         RPCClient::~RPCClient()
         {
                 if (_link)
                         registry_close_messagelink(_link);
+        }
+
+        void RPCClient::wait_connection(double timeout_seconds)
+        {
+                double start_time = clock_time();
+                double sleep_duration = timeout_seconds > 0.1? 0.1 : timeout_seconds;
+                while (messagelink_is_connected(_link) == 0) {
+                        clock_sleep(sleep_duration);
+                        if (clock_time() - start_time > timeout_seconds)
+                                throw std::runtime_error("RPCClient::wait_connection: "
+                                                         "timeout");
+                }
         }
 
         void RPCClient::check_error(json_object_t retval, RPCError &error)

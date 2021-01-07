@@ -69,6 +69,7 @@ json_object_t messagelink_read(messagelink_t *link);
 json_object_t messagelink_send_command_f(messagelink_t *link, const char *format, ...);
 json_object_t messagelink_send_command(messagelink_t *link, json_object_t command);
 
+int messagelink_is_connected(messagelink_t *link);
         
 #ifdef __cplusplus
 }

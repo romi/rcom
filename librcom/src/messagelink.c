@@ -1666,5 +1666,9 @@ int client_messagelink_connect(messagelink_t *link, addr_t *addr)
         return 0;
 }
 
+int messagelink_is_connected(messagelink_t *link)
+{
+        return link->state == WS_OPEN;
+}
 
 

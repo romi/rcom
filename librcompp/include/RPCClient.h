@@ -34,12 +34,15 @@ namespace rcom {
         protected:
                 messagelink_t *_link;
 
+                void wait_connection(double timeout_seconds);
                 void check_error(json_object_t retval, RPCError &error);
                 
         public:
-                RPCClient(const char *name, const char *topic);
+                RPCClient(const char *name, const char *topic, double timeout_seconds);
                 virtual ~RPCClient();
 
+                /** execute() does not throw exceptions. All errors
+                 * are returnded through the RPCError structure. */
                 void execute(const char *method, JsonCpp &params,
                              JsonCpp &result, RPCError &error) override;
         };
