@@ -11,8 +11,8 @@ class Client:
             print("HEADERS: " + str(self.ws.getheaders()))
             raise Exception("Failed to connect")
 
-    def execute(self, method, params = None):
-        request = { 'method': method, 'params': params }
+    def execute(self, method, **kwargs):
+        request = { 'method': method, 'params': kwargs }
         self.ws.send(json.dumps(request))
         reply = self.ws.recv()
         return json.loads(reply)
