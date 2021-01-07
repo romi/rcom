@@ -2,8 +2,6 @@ import time
 import websocket
 import json
 
-from client import *
-
 class Registry:
     def __init__(self):
         try:
@@ -52,9 +50,6 @@ class Registry:
             if node['name'] == name and node['topic'] == topic:
                 return node['addr']
         return None
-        
-    def connect(self, name, topic, timeout):
-        return Client(self.get_address(name, topic, timeout))
 
             
 

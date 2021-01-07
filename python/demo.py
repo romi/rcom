@@ -1,7 +1,6 @@
-from registry import *
+from client import *
 
-registry = Registry()
-oquam = registry.connect('oquam', 'cnc', 60.0)
+oquam = Client('oquam', 'cnc', 60.0)
 
 oquam.execute('homing')
 
