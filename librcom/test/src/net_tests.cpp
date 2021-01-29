@@ -17,7 +17,9 @@ protected:
 
     void SetUp() override
     {
-        RESET_FAKE(socket());
+        RESET_FAKE(socket);
+        RESET_FAKE(bind);
+        RESET_FAKE(bind);
     }
 
     void TearDown() override

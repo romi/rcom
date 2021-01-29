@@ -1,11 +1,15 @@
 cmake_minimum_required(VERSION 3.10)
 
+include_directories( "${CMAKE_CURRENT_SOURCE_DIR}/mocks" )
 
 set(SRCS
         src/tests_main.cpp
         src/addr_tests.cpp
         src/circular_tests.cpp
-        src/data_tests.cpp)
+        src/data_tests.cpp
+        src/net_tests.cpp
+        mocks/socket.mock.h
+        mocks/socket.mock.c)
 
 add_executable(rcom_unit_tests ${SRCS})
 
