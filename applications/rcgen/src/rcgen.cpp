@@ -137,7 +137,7 @@ int check_com_i(membuf_t *buf __attribute__((unused)), json_object_t obj)
 
 int check_com(membuf_t *buf, json_object_t com)
 {
-        for (int i = 0; i < json_array_length(com); i++) {
+        for (size_t i = 0; i < json_array_length(com); i++) {
                 json_object_t obj = json_array_get(com, i);
                 int err = check_com_i(buf, obj);
                 if (err != 0)
@@ -194,7 +194,7 @@ int print_com_decl_i(membuf_t *buf, const char *name __attribute__((unused)), js
 
 int print_com_decl(membuf_t *buf, const char *name, json_object_t com)
 {
-        for (int i = 0; i < json_array_length(com); i++) {
+        for (size_t i = 0; i < json_array_length(com); i++) {
                 json_object_t obj = json_array_get(com, i);
                 int err = print_com_decl_i(buf, name, obj);
                 if (err != 0)
@@ -441,7 +441,7 @@ int print_new_service(membuf_t *buf,
                 fprintf(stderr, "Expected an array for the resources\n");
                 return -1;
         }
-        for (int i = 0; i < json_array_length(resources); i++) {
+        for (size_t i = 0; i < json_array_length(resources); i++) {
                 json_object_t d = json_array_get(resources, i);
                 if (!json_isobject(d)) {
                         fprintf(stderr, "Invalid resources description\n");
@@ -599,7 +599,7 @@ int print_com_init(membuf_t *buf, const char *name, json_object_t com)
 {
         membuf_printf(buf, "static int init_com()\n{\n");
 
-        for (int i = 0; i < json_array_length(com); i++) {
+        for (size_t i = 0; i < json_array_length(com); i++) {
                 json_object_t obj = json_array_get(com, i);
                 int err = print_com_init_i(buf, name, obj);
                 if (err != 0)
@@ -645,7 +645,7 @@ int print_com_controller_handlers(membuf_t *buf, const char *name __attribute__(
                       "                return;\n"
                       "        }\n");
 
-        for (int i = 0; i < json_array_length(commands); i++) {
+        for (size_t i = 0; i < json_array_length(commands); i++) {
                 json_object_t d = json_array_get(commands, i);
                 if (!json_isobject(d)) {
                         fprintf(stderr, "Invalid commands description\n");
@@ -724,7 +724,7 @@ int print_com_messagehub_handlers(membuf_t *buf, const char *name __attribute__(
 int print_com_handlers(membuf_t *buf, const char *name, json_object_t com)
 {
         int err = 0;
-        for (int i = 0; i < json_array_length(com); i++) {
+        for (size_t i = 0; i < json_array_length(com); i++) {
                 json_object_t obj = json_array_get(com, i);
                 const char *type = json_object_getstr(obj, "type");
                 if (rstreq(type, "controller")) {
@@ -766,7 +766,7 @@ int print_com_cleanup(membuf_t *buf, json_object_t com)
 {
         membuf_printf(buf, "static void cleanup_com()\n{\n");
         
-        for (int i = 0; i < json_array_length(com); i++) {
+        for (size_t i = 0; i < json_array_length(com); i++) {
                 json_object_t obj = json_array_get(com, i);
                 int err = print_com_cleanup_i(buf, obj);
                 if (err != 0)
@@ -990,7 +990,7 @@ int write_cmakelists(const char *exec, const char *codefile,
         membuf_printf(buf, "project(%s)\n", exec);
         
         membuf_printf(buf, "set(SOURCES");
-        for (int i = 0; i < json_array_length(sources); i++) {
+        for (size_t i = 0; i < json_array_length(sources); i++) {
                 const char *s = json_array_getstr(sources, i);
                 if (s == NULL) {
                         fprintf(stderr, "Invalid source file\n");

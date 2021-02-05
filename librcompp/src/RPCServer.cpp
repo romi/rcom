@@ -124,7 +124,7 @@ namespace rcom {
 
                 if (method != nullptr) {
 
-                        JsonCpp params = json_object_get(message, "params");
+                        JsonCpp params(json_object_get(message, "params"));
 
                         try {
 

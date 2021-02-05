@@ -703,7 +703,7 @@ static void _print_message(ws_frame_t *frame, membuf_t* m)
                 printf("masked\n");
                 
         printf("length (7-bits) %d\n", frame->length);        
-        printf("length %d\n", membuf_len(m));
+        printf("length %ld\n", membuf_len(m));
         if (frame->opcode == WS_TEXT)
                 printf("payload: %.*s\n", (int) membuf_len(m), membuf_data(m));
 }
@@ -1321,7 +1321,7 @@ int messagelink_send_str(messagelink_t *link, const char* value)
         return err;
 }
 
-static int32_t messagelink_serialise(messagelink_t *link, const char* s, int32_t len)
+static int32_t messagelink_serialise(messagelink_t *link, const char* s, size_t len)
 {
         membuf_append(link->out, s, len);
         return 0;

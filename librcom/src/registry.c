@@ -206,7 +206,7 @@ list_t *registry_entry_parse_list(json_object_t a)
                 r_err("registry_entry_parse_list: not an array");
                 return NULL;
         }
-        for (int i = 0; i < json_array_length(a); i++) {
+        for (size_t i = 0; i < json_array_length(a); i++) {
                 int err;
                 json_object_t obj = json_array_get(a, i);
                 registry_entry_t *entry = registry_entry_parse(obj, &err);

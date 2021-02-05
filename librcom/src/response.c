@@ -366,7 +366,7 @@ int response_append(response_t *r, const char *data, int len)
 }
 
 // ToDo: Remove return type.
-static int32_t response_serialise(response_t *r, const char *s, int32_t len)
+static int32_t response_serialise(response_t *r, const char *s, size_t len)
 {
         membuf_append(r->body, s, len);
         return 0;

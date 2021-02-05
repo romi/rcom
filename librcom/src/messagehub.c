@@ -435,7 +435,7 @@ int messagehub_broadcast_str(messagehub_t *hub, messagelink_t *exclude, const ch
         return err;
 }
 
-static int32_t messagehub_serialise(messagehub_t *hub, const char* s, int32_t len)
+static int32_t messagehub_serialise(messagehub_t *hub, const char* s, size_t len)
 {
         membuf_append(hub->mem, s, len);
         return 0;

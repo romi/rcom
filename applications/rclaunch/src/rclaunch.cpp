@@ -313,7 +313,7 @@ run_t *run_parse(json_object_t node, const char *default_user)
         /* r->dump = (dump == 1); */
 
         if (json_isarray(args)) {
-                int i;
+                size_t i;
                 json_object_t arg;
                 for (i = 0; i < json_array_length(args); i++) {
                         arg = json_array_get(args, i);
@@ -331,7 +331,7 @@ run_t *run_parse(json_object_t node, const char *default_user)
 
 static list_t *parse_nodes(json_object_t config, const char *default_user)
 {
-        int i;
+        size_t i;
         json_object_t nodes;
         json_object_t node;
         run_t *r;
