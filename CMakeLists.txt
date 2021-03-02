@@ -27,9 +27,9 @@ endif()
 # For now everything is debug. Set Compile options locally to maintain independent library builds.
 set(CMAKE_BUILD_TYPE Debug)
 set(CMAKE_CXX_FLAGS "-Wall -Wextra -Wpedantic -Werror ${PROJECT_SANITISE_FLAGS}")
-set(CMAKE_CXX_FLAGS_DEBUG "-O0")
+#set(CMAKE_CXX_FLAGS_DEBUG "-O0")
 set(CMAKE_C_FLAGS "-Wall -Wextra -Wpedantic -Werror ${PROJECT_SANITISE_FLAGS}")
-set(CMAKE_C_FLAGS_DEBUG "-O0")
+#set(CMAKE_C_FLAGS_DEBUG "-O0")
 
 set (CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${PROJECT_SANITISE_FLAGS}")
 
