@@ -28,8 +28,9 @@
 
 namespace rcom {
                                                       
-        struct RPCError
+        class RPCError
         {
+        public:
                 enum {
                         ParseError = -32700,     // Invalid JSON was received by the server.
                         InvalidRequest = -32600, // The JSON request is not a valid.
@@ -43,6 +44,8 @@ namespace rcom {
                         
                 int code;
                 std::string message;
+        public:
+            RPCError() : code(0), message(){};
         };
 }
 
