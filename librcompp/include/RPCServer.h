@@ -35,6 +35,7 @@ namespace rcom {
                 messagehub_t *_hub;
                 IRPCHandler &_handler;
 
+                // TBD: Friend often indicates a design issue.
                 friend void RPCServer_onmessage(void *userdata,
                                                 messagelink_t *link,
                                                 json_object_t message);
@@ -46,6 +47,8 @@ namespace rcom {
                 
         public:
                 RPCServer(IRPCHandler &handler, const char *name, const char *topic);
+                RPCServer(const RPCServer&) = delete;
+                RPCServer& operator=(const RPCServer&) = delete;
                 virtual ~RPCServer();
         };
 }

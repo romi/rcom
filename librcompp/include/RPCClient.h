@@ -39,6 +39,8 @@ namespace rcom {
                 
         public:
                 RPCClient(const char *name, const char *topic, double timeout_seconds);
+                RPCClient(const RPCClient&) = delete;
+                RPCClient& operator=(const RPCClient&) = delete;
                 virtual ~RPCClient();
 
                 /** execute() does not throw exceptions. All errors
