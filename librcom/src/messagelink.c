@@ -702,8 +702,8 @@ static void _print_message(ws_frame_t *frame, membuf_t* m)
         if (frame->mask) 
                 printf("masked\n");
                 
-        printf("length (7-bits) %d\n", frame->length);        
-        printf("length %ld\n", membuf_len(m));
+        printf("length (7-bits) %d\n", (int) frame->length);        
+        printf("length %d\n", (int) membuf_len(m));
         if (frame->opcode == WS_TEXT)
                 printf("payload: %.*s\n", (int) membuf_len(m), membuf_data(m));
 }
