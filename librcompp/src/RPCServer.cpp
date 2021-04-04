@@ -113,7 +113,7 @@ namespace rcom {
 
                 {
                         char buffer[256];
-                        json_tostring(message, buffer, 256);
+                        json_tostring(message, k_json_compact, buffer, 256);
                         r_debug("RPCServer::onmessage: message: %s",
                                 buffer);
                 }
@@ -135,7 +135,8 @@ namespace rcom {
 
                                 {
                                         char buffer[256];
-                                        json_tostring(result.ptr(), buffer, 256);
+                                        json_tostring(result.ptr(), k_json_compact,
+                                                      buffer, 256);
                                         r_debug("RPCServer::onmessage: result: %s",
                                                 buffer);
                                 }

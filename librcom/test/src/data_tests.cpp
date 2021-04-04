@@ -413,7 +413,7 @@ TEST_F(data_tests, data_serialise_serialises_to_buffer)
     ASSERT_EQ(actual_result, 0);
     ASSERT_EQ(json_tostring_fake.call_count, 1);
     ASSERT_EQ(json_tostring_fake.arg0_val, json_obj);
-    ASSERT_EQ(json_tostring_fake.arg1_val, data->p.data);
+    ASSERT_EQ(json_tostring_fake.arg2_val, data->p.data);
 
     delete_data(data);
     json_unref(json_obj);

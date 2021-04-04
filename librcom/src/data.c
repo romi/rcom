@@ -117,7 +117,7 @@ int data_vprintf(data_t* m, const char* format, va_list ap)
 int data_serialise(data_t* m, json_object_t obj)
 {
         int ret;
-        ret = json_tostring(obj, m->p.data, DATA_MAXLEN);
+        ret = json_tostring(obj, k_json_compact, m->p.data, DATA_MAXLEN);
         if (ret != 0) {
                 r_err("datasource_send: json_tostring failed");
                 return -1;

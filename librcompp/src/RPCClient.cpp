@@ -103,7 +103,7 @@ namespace rcom {
 
                         {
                                 char buffer[256];
-                                json_tostring(retval, buffer, 256);
+                                json_tostring(retval, k_json_compact, buffer, 256);
                                 r_debug("RPCClient::execute: reply: %s",
                                         buffer);
                         }
