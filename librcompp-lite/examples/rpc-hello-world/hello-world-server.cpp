@@ -42,10 +42,9 @@ using namespace rpp;
 class HelloWorldListener : public IMessageListener
 {
 public:
-        virtual ~HelloWorldListener() = default; 
+        ~HelloWorldListener() = default; 
 
-        void onmessage(IWebSocket& websocket,
-                       rpp::MemBuffer& message) override {
+        void onmessage(IWebSocket& websocket, rpp::MemBuffer& message) override {
                 std::cout << "Client says '" << message.tostring() << "'" << std::endl;
                 rpp::MemBuffer reply;
                 reply.append_string("world");
