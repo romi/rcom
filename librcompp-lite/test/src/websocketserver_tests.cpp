@@ -4,7 +4,7 @@
 
 #include "../mocks/ServerSocket.mock.h"
 #include "../mocks/SocketFactory.mock.h"
-#include "../mocks/WebSocketServerListener.mock.h"
+#include "../mocks/MessageListener.mock.h"
 #include "../mocks/WebSocket.mock.h"
 
 using namespace std;
@@ -21,7 +21,7 @@ public:
 protected:
 
         MockSocketFactory factory_;
-        MockWebSocketServerListener listener_;
+        MockMessageListener listener_;
         rpp::MemBuffer read_data_;
         size_t current_read_char_;
 
@@ -73,7 +73,8 @@ TEST_F(websocketserver_tests, new_websocketserver_is_successful)
         unique_ptr<IServerSocket> i_server_socket(server_socket);
 
         // Act
-        unique_ptr<WebSocketServer> server = make_unique<WebSocketServer>(i_server_socket, factory_);
+        unique_ptr<WebSocketServer> server
+                = make_unique<WebSocketServer>(i_server_socket, factory_, listener_);
 
         // Assert
 }
@@ -98,12 +99,11 @@ TEST_F(websocketserver_tests, accepts_new_connections_and_calls_onconnect)
 
         EXPECT_CALL(factory_, new_server_side_websocket(_))
                 .WillOnce(Return(ByMove(unique_ptr<IWebSocket>(websocket))));
-        
-        EXPECT_CALL(listener_, onconnect(_));
 
         // Act
-        unique_ptr<WebSocketServer> server = make_unique<WebSocketServer>(i_server_socket, factory_);
-        server->handle_events(listener_);
+        unique_ptr<WebSocketServer> server
+                = make_unique<WebSocketServer>(i_server_socket, factory_, listener_);
+        server->handle_events();
         
         // Assert
         ASSERT_EQ(server->count_links(), 1);
@@ -128,13 +128,11 @@ TEST_F(websocketserver_tests, close_message_removes_link)
 
         EXPECT_CALL(factory_, new_server_side_websocket(_))
                 .WillOnce(Return(ByMove(unique_ptr<IWebSocket>(websocket))));
-        
-        EXPECT_CALL(listener_, onconnect(_));
 
         // Act
         unique_ptr<WebSocketServer> server
-                = make_unique<WebSocketServer>(i_server_socket, factory_);
-        server->handle_events(listener_);
+                = make_unique<WebSocketServer>(i_server_socket, factory_, listener_);
+        server->handle_events();
         
         // Assert
         ASSERT_EQ(server->count_links(), 0);
@@ -161,12 +159,10 @@ TEST_F(websocketserver_tests, recv_error_closes_and_removes_link)
         EXPECT_CALL(factory_, new_server_side_websocket(_))
                 .WillOnce(Return(ByMove(unique_ptr<IWebSocket>(websocket))));
         
-        EXPECT_CALL(listener_, onconnect(_));
-
         // Act
         unique_ptr<WebSocketServer> server
-                = make_unique<WebSocketServer>(i_server_socket, factory_);
-        server->handle_events(listener_);
+                = make_unique<WebSocketServer>(i_server_socket, factory_, listener_);
+        server->handle_events();
         
         // Assert
         ASSERT_EQ(server->count_links(), 0);
@@ -192,8 +188,8 @@ TEST_F(websocketserver_tests, webserver_logs_error_when_factory_throws_exception
 
         // Act
         unique_ptr<WebSocketServer> server
-                = make_unique<WebSocketServer>(i_server_socket, factory_);
-        server->handle_events(listener_);
+                = make_unique<WebSocketServer>(i_server_socket, factory_, listener_);
+        server->handle_events();
         
         // Assert
         ASSERT_EQ(server->count_links(), 0);
@@ -222,14 +218,13 @@ TEST_F(websocketserver_tests, failed_send_removes_link)
         EXPECT_CALL(factory_, new_server_side_websocket(_))
                 .WillOnce(Return(ByMove(unique_ptr<IWebSocket>(websocket))));
         
-        EXPECT_CALL(listener_, onconnect(_));
         rpp::MemBuffer message;
         message.append_string("abc");
         
         // Act
         unique_ptr<WebSocketServer> server
-                = make_unique<WebSocketServer>(i_server_socket, factory_);
-        server->handle_events(listener_);
+                = make_unique<WebSocketServer>(i_server_socket, factory_, listener_);
+        server->handle_events();
         server->broadcast(message);
         
         // Assert

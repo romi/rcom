@@ -25,7 +25,6 @@
 #define _LIBRCOM_I_MESSAGE_HUB_H_
 
 #include <MemBuffer.h>
-#include "IWebSocketServerListener.h"
 
 namespace rcom {
 
@@ -36,7 +35,7 @@ namespace rcom {
                 
                 virtual std::string& topic() = 0;
                 
-                virtual void handle_events(IWebSocketServerListener& listener) = 0;
+                virtual void handle_events() = 0;
                 virtual void broadcast(rpp::MemBuffer& message) = 0;
         };
 }

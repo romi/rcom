@@ -26,7 +26,7 @@
 
 #include <MemBuffer.h>
 #include "IAddress.h"
-#include "IWebSocketServerListener.h"
+#include "IWebSocket.h"
 
 namespace rcom {
 
@@ -35,7 +35,7 @@ namespace rcom {
         public:
                 virtual ~IWebSocketServer() = default; 
                 
-                virtual void handle_events(IWebSocketServerListener& listener) = 0;
+                virtual void handle_events() = 0;
                 virtual void broadcast(rpp::MemBuffer& message,
                                        IWebSocket::MessageType type = IWebSocket::kTextMessage) = 0;
                 virtual void get_address(IAddress& address) = 0;

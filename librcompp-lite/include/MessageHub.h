@@ -30,7 +30,7 @@
 #include "Clock.h"
 #include "IMessageHub.h"
 #include "IWebSocketServer.h"
-#include "IWebSocketServerListener.h"
+#include "IMessageListener.h"
 
 namespace rcom {
 
@@ -47,11 +47,12 @@ namespace rcom {
                 
         public:
                 
-                MessageHub(const std::string& topic);
+                MessageHub(const std::string& topic,
+                           IMessageListener& listener);
                 virtual ~MessageHub(); 
 
                 std::string& topic() override;
-                void handle_events(IWebSocketServerListener& listener) override;
+                void handle_events() override;
                 void broadcast(rpp::MemBuffer& message) override;
         };
 }

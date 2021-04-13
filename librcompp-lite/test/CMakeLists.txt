@@ -14,7 +14,7 @@ set(SRCS
         src/websocket_tests.cpp
         mocks/ServerSocket.mock.h
         mocks/SocketFactory.mock.h
-        mocks/WebSocketServerListener.mock.h
+        mocks/MessageListener.mock.h
         src/websocketserver_tests.cpp
         src/serversocket_tests.cpp
         )

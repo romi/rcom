@@ -45,8 +45,8 @@ namespace rcom {
 
         //
         
-        RegistryServer::RegistryServer(IWebSocketServer& server, IRegistry& registry)
-                : server_(server), registry_(registry), response_()
+        RegistryServer::RegistryServer(IRegistry& registry)
+                : registry_(registry), response_()
         {
         }
         
@@ -68,17 +68,6 @@ namespace rcom {
         {
                 return registry_.remove(topic);
         }        
-
-        void RegistryServer::handle_events()
-        {
-                server_.handle_events(*this);
-        }
-        
-        void RegistryServer::onconnect(IWebSocket& websocket)
-        {
-                (void) websocket;
-                r_debug("RegistryServer: New Connection");
-        }
         
         void RegistryServer::onmessage(IWebSocket& websocket,
                                        rpp::MemBuffer& message)
@@ -200,10 +189,5 @@ namespace rcom {
                 if (!websocket.send(response_)) {
                         r_err("RegistryServer: IWebSocket.send failed");
                 }
-        }
-        
-        void RegistryServer::onclose(IWebSocket& websocket)
-        {
-                (void) websocket;
         }
 }

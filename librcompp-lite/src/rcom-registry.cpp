@@ -55,15 +55,15 @@ int main()
                 Address address(10101);
                 std::unique_ptr<IServerSocket> server_socket
                         = std::make_unique<ServerSocket>(linux, address);
-                WebSocketServer server(server_socket, factory);
-                RegistryServer registry_server(server, registry);
+                RegistryServer registry_server(registry);
+                WebSocketServer server(server_socket, factory, registry_server);
 
                 quit_on_control_c();
 
                 r_info("Registry server running.");
                 
                 while (!quit) {
-                        registry_server.handle_events();
+                        server.handle_events();
                         clock.sleep(0.050);
                 }
                 

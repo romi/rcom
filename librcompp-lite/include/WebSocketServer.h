@@ -29,6 +29,7 @@
 #include "IAddress.h"
 #include "IServerSocket.h"
 #include "ISocketFactory.h"
+#include "IMessageListener.h"
 
 namespace rcom {
         
@@ -37,16 +38,17 @@ namespace rcom {
         protected:
                 std::unique_ptr<IServerSocket> server_socket_;
                 ISocketFactory& factory_;
+                IMessageListener& listener_;
                 std::vector<std::unique_ptr<IWebSocket>> links_;
                 rpp::MemBuffer message_;
                 std::vector<size_t> to_close_;
                 std::vector<size_t> to_remove_;
                 
-                void handle_new_connections(IWebSocketServerListener& listener);
-                void try_new_connection(IWebSocketServerListener& listener, int sockfd);
-                void handle_new_connection(IWebSocketServerListener& listener, int sockfd);
-                void handle_new_messages(IWebSocketServerListener& listener);
-                void handle_new_messages(size_t index, IWebSocketServerListener& listener);
+                void handle_new_connections();
+                void try_new_connection(int sockfd);
+                void handle_new_connection(int sockfd);
+                void handle_new_messages();
+                void handle_new_messages(size_t index);
                 
                 bool send(size_t index, rpp::MemBuffer& message,
                           IWebSocket::MessageType type);
@@ -56,10 +58,11 @@ namespace rcom {
                 
         public:
                 WebSocketServer(std::unique_ptr<IServerSocket>& server_socket,
-                                ISocketFactory& factory);
+                                ISocketFactory& factory,
+                                IMessageListener& listener);
                 virtual ~WebSocketServer();
 
-                void handle_events(IWebSocketServerListener& listener) override;
+                void handle_events() override;
                 void broadcast(rpp::MemBuffer& message,
                                IWebSocket::MessageType type = IWebSocket::kTextMessage) override;
                 void get_address(IAddress& address) override;

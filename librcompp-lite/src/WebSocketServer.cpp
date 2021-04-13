@@ -29,9 +29,15 @@
 namespace rcom {
         
         WebSocketServer::WebSocketServer(std::unique_ptr<IServerSocket>& server_socket,
-                                         ISocketFactory& factory)
-                : server_socket_(), factory_(factory), links_(), message_(),
-                  to_close_(), to_remove_()
+                                         ISocketFactory& factory,
+                                         IMessageListener& listener)
+                : server_socket_(),
+                  factory_(factory),
+                  listener_(listener),
+                  links_(),
+                  message_(),
+                  to_close_(),
+                  to_remove_()
         {
                 server_socket_ = std::move(server_socket);
         }
@@ -51,48 +57,47 @@ namespace rcom {
                 server_socket_->get_address(address);
         }
         
-        void WebSocketServer::handle_events(IWebSocketServerListener& listener)
+        void WebSocketServer::handle_events()
         {
-                handle_new_connections(listener);
-                handle_new_messages(listener);
+                handle_new_connections();
+                handle_new_messages();
         }
 
-        void WebSocketServer::handle_new_connections(IWebSocketServerListener& listener)
+        void WebSocketServer::handle_new_connections()
         {
                 int sockfd = -1;
                 do {
                         sockfd = server_socket_->accept(0.0);
                         if (sockfd >= 0) {
-                                try_new_connection(listener, sockfd);
+                                try_new_connection(sockfd);
                         }
                 } while (sockfd >= 0);
         }
         
-        void WebSocketServer::try_new_connection(IWebSocketServerListener& listener,
-                                                 int sockfd)
+        void WebSocketServer::try_new_connection(int sockfd)
         {
                 try {
-                        handle_new_connection(listener, sockfd);
+                        handle_new_connection(sockfd);
 
                 } catch (std::runtime_error& rerr) {
                         r_err("WebSocketServer::try_new_connection: %s", rerr.what());
                 }
         }
 
-        void WebSocketServer::handle_new_connection(IWebSocketServerListener& listener,
-                                                    int sockfd)
+        void WebSocketServer::handle_new_connection(int sockfd)
         {
-                // lock
-                IWebSocket& websocket = append(sockfd);
-                listener.onconnect(websocket);
-                // unlock
+                append(sockfd);
+                // // lock
+                // IWebSocket& websocket = append(sockfd);
+                // listener_.onconnect(*this, websocket);
+                // // unlock
         }
 
-        void WebSocketServer::handle_new_messages(IWebSocketServerListener& listener)
+        void WebSocketServer::handle_new_messages()
         {
                 for (size_t i = 0; i < links_.size(); i++) {
                         if (links_[i]->is_connected()) {
-                                handle_new_messages(i, listener);
+                                handle_new_messages(i);
                         }
                 }
                 remove_closed_links();
@@ -110,8 +115,7 @@ namespace rcom {
                 // unlock
         }
         
-        void WebSocketServer::handle_new_messages(size_t index,
-                                                  IWebSocketServerListener& listener)
+        void WebSocketServer::handle_new_messages(size_t index)
         {
                 IWebSocket::RecvStatus status;
 
@@ -119,7 +123,7 @@ namespace rcom {
                 
                 if (status == IWebSocket::kRecvText
                     || status == IWebSocket::kRecvBinary) {
-                        listener.onmessage(*links_[index], message_);
+                        listener_.onmessage(*links_[index], message_);
                                                 
                 } else if (status == IWebSocket::kRecvError) {
                         r_err("WebSocketServer::handle_new_messages: recv failed. "

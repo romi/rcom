@@ -15,8 +15,9 @@ set(SOURCES
     include/IAddress.h
     include/IClock.h
     include/IHttpParserListener.h
-    include/IMessageLink.h
     include/IMessageHub.h
+    include/IMessageLink.h
+    include/IMessageListener.h
     include/IRequest.h
     include/IRequestParser.h
     include/IResponse.h
@@ -24,10 +25,8 @@ set(SOURCES
     include/ISocket.h
     include/ISocketFactory.h
     include/IWebSocketServer.h
-    include/IWebSocketServerListener.h
     include/MessageLink.h
     include/MessageHub.h
-    include/MessageHubListener.h
     include/Rcom.h
     include/RegistryEntry.h
     include/Registry.h
@@ -53,7 +52,6 @@ set(SOURCES
     src/HttpParser.cpp
     src/MessageLink.cpp
     src/MessageHub.cpp
-    src/MessageHubListener.cpp
     src/Rcom.cpp
     src/RegistryEntry.cpp
     src/Registry.cpp

@@ -35,8 +35,12 @@
 
 namespace rcom {
         
-        MessageHub::MessageHub(const std::string& topic)
-                : linux_(), clock_(), factory_(linux_, clock_), server_(), topic_(topic)
+        MessageHub::MessageHub(const std::string& topic, IMessageListener& listener)
+                : linux_(),
+                  clock_(),
+                  factory_(linux_, clock_),
+                  server_(),
+                  topic_(topic)
         {
                 if (!is_valid_topic(topic)) {
                         r_err("MessageHub: Invalid topic: %s", topic.c_str());
@@ -47,7 +51,7 @@ namespace rcom {
                 std::unique_ptr<IServerSocket> server_socket
                         = std::make_unique<ServerSocket>(linux_, address);
                 
-                server_ = std::make_unique<WebSocketServer>(server_socket, factory_);
+                server_ = std::make_unique<WebSocketServer>(server_socket, factory_, listener);
                 
                 if (!register_topic()) {
                         r_err("MessageHub: Registration failed: topic '%s'", topic.c_str());
@@ -81,9 +85,9 @@ namespace rcom {
                 return registry.set(topic_, my_address);
         }
 
-        void MessageHub::handle_events(IWebSocketServerListener& listener)
+        void MessageHub::handle_events()
         {
-                server_->handle_events(listener);
+                server_->handle_events();
         }
 
         void MessageHub::broadcast(rpp::MemBuffer& message)

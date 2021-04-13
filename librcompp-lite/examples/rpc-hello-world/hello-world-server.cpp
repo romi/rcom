@@ -30,7 +30,7 @@
 #include <SocketFactory.h>
 #include <RegistryProxy.h>
 #include <RegistryServer.h>
-#include <MessageHubListener.h>
+#include <IMessageListener.h>
 
 static bool quit = false;
 static void set_quit(int sig, siginfo_t *info, void *ucontext);
@@ -39,16 +39,17 @@ static void quit_on_control_c();
 using namespace rcom;
 using namespace rpp;
 
-class HelloWorldListener : public MessageHubListener
+class HelloWorldListener : public IMessageListener
 {
 public:
         virtual ~HelloWorldListener() = default; 
 
-        void onmessage(IWebSocket& websocket, rpp::MemBuffer& message) override {
+        void onmessage(IWebSocket& websocket,
+                       rpp::MemBuffer& message) override {
                 std::cout << "Client says '" << message.tostring() << "'" << std::endl;
-                message_buffer_.clear();
-                message_buffer_.append_string("world");
-                websocket.send(message_buffer_);
+                rpp::MemBuffer reply;
+                reply.append_string("world");
+                websocket.send(reply);
         }
 };
 
@@ -56,13 +57,13 @@ public:
 int main()
 {
         try {
-                MessageHub message_hub("hello-world");                
                 HelloWorldListener hello_world;
+                MessageHub message_hub("hello-world", hello_world);                
 
                 quit_on_control_c();
         
                 while (!quit) {
-                        message_hub.handle_events(hello_world);
+                        message_hub.handle_events();
                         clock_sleep(0.050);
                 }
                 

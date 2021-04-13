@@ -30,18 +30,17 @@
 #include "ISocketFactory.h"
 #include "IMessageHub.h"
 #include "IWebSocketServer.h"
-#include "IWebSocketServerListener.h"
+#include "IMessageListener.h"
 
 namespace rcom {
 
-        class RegistryServer : public IWebSocketServerListener
+        class RegistryServer : public IMessageListener
         {
         public:
                 static void get_address(IAddress& address);
                 static void set_address(IAddress& address);        
                 
         protected:
-                IWebSocketServer& server_;
                 IRegistry& registry_;
                 rpp::MemBuffer response_;
                 
@@ -60,14 +59,11 @@ namespace rcom {
                 void send_response(IWebSocket& websocket);
                 
         public:
-                RegistryServer(IWebSocketServer& server, IRegistry& registry);
+                RegistryServer(IRegistry& registry);
                 virtual ~RegistryServer() override;
-
-                void handle_events();
-
-                void onconnect(IWebSocket& websocket) override;                
-                void onmessage(IWebSocket& websocket, rpp::MemBuffer& message) override;
-                void onclose(IWebSocket& websocket) override;
+                
+                void onmessage(IWebSocket& websocket,
+                               rpp::MemBuffer& message) override;                
         };
 }
 
