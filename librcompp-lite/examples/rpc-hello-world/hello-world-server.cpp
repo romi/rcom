@@ -24,12 +24,7 @@
 #include <iostream>
 #include <signal.h>
 #include <r.h>
-#include <JsonCpp.h>
 #include <MessageHub.h>
-#include <Linux.h>
-#include <SocketFactory.h>
-#include <RegistryProxy.h>
-#include <RegistryServer.h>
 #include <IMessageListener.h>
 
 static bool quit = false;
@@ -66,8 +61,6 @@ int main()
                         clock_sleep(0.050);
                 }
                 
-        } catch (JSONError& je) {
-                r_err("main: caught JSON error: %s", je.what());
         } catch (std::runtime_error& re) {
                 r_err("main: caught runtime_error: %s", re.what());
         } catch (...) {
