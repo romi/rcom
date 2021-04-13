@@ -1,4 +1,3 @@
-
 cmake_minimum_required(VERSION 2.6)
 project(rcom)
 
@@ -27,9 +26,7 @@ endif()
 # For now everything is debug. Set Compile options locally to maintain independent library builds.
 set(CMAKE_BUILD_TYPE Debug)
 set(CMAKE_CXX_FLAGS "-Wall -Wextra -Wpedantic -Werror ${PROJECT_SANITISE_FLAGS}")
-#set(CMAKE_CXX_FLAGS_DEBUG "-O0")
 set(CMAKE_C_FLAGS "-Wall -Wextra -Wpedantic -Werror ${PROJECT_SANITISE_FLAGS}")
-#set(CMAKE_C_FLAGS_DEBUG "-O0")
 
 set (CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${PROJECT_SANITISE_FLAGS}")
 
@@ -148,6 +145,7 @@ add_subdirectory(applications/rcregistry)
 add_subdirectory(applications/rcgen)
 add_subdirectory(applications/rcutil)
 add_subdirectory(applications/rclaunch)
+add_subdirectory(librcompp-lite)
 
 # Main rcutil apps
 #add_executable(rcreplay src/rcreplay.c)
