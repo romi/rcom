@@ -6,10 +6,7 @@ set(SRCS
         src/tests_main.cpp
         src/addr_tests.cpp
         src/circular_tests.cpp
-        src/data_tests.cpp
-        src/net_tests.cpp
-        mocks/socket.mock.h
-        mocks/socket.mock.c)
+        src/data_tests.cpp)
 
 add_executable(rcom_unit_tests ${SRCS})
 
