@@ -27,7 +27,6 @@ set(SOURCES
     include/IWebSocketServer.h
     include/MessageLink.h
     include/MessageHub.h
-    include/Rcom.h
     include/RegistryEntry.h
     include/Registry.h
     include/RegistryProxy.h
@@ -52,7 +51,6 @@ set(SOURCES
     src/HttpParser.cpp
     src/MessageLink.cpp
     src/MessageHub.cpp
-    src/Rcom.cpp
     src/RegistryEntry.cpp
     src/Registry.cpp
     src/RegistryProxy.cpp
