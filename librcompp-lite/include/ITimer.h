@@ -33,6 +33,7 @@ namespace rcom {
 
                 virtual void set_timeout(double seconds); 
                 virtual bool has_timed_out(); 
+                virtual double get_remaining_time(); 
                 virtual void wait(double minumum_time); 
         };
 }
