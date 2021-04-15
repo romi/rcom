@@ -45,6 +45,11 @@ protected:
                 read_data_.append_string(data);
         }
 
+        void set_no_timeout_data() {
+                EXPECT_CALL(socket_, wait(_))
+                        .WillRepeatedly(Return(kWaitOK));
+        }
+
         void append_read_data(const char *data) {
                 read_data_.append_string(data);
         }
@@ -63,6 +68,7 @@ protected:
 TEST_F(requestparser_tests, successfully_parse_request)
 {
         // Arrange
+        set_no_timeout_data();
         set_read_data("GET / HTTP/1.1\r\n"
                       "Host: 127.0.0.1\r\n"
                       "Connection: Upgrade\r\n"
@@ -99,6 +105,7 @@ TEST_F(requestparser_tests, successfully_parse_request)
 TEST_F(requestparser_tests, request_with_invalid_method_fails)
 {
         // Arrange
+        set_no_timeout_data();
         set_read_data("POST / HTTP/1.1\r\n"
                       "Host: 127.0.0.1\r\n"
                       "Connection: Upgrade\r\n"
@@ -120,6 +127,7 @@ TEST_F(requestparser_tests, request_with_invalid_method_fails)
 TEST_F(requestparser_tests, request_with_invalid_http_version_fails)
 {
         // Arrange
+        set_no_timeout_data();
         set_read_data("GET / HTTP/2\r\n"
                       "Host: 127.0.0.1\r\n"
                       "Connection: Upgrade\r\n"
@@ -141,6 +149,7 @@ TEST_F(requestparser_tests, request_with_invalid_http_version_fails)
 TEST_F(requestparser_tests, request_with_missing_http_version_fails)
 {
         // Arrange
+        set_no_timeout_data();
         set_read_data("GET /\r\n"
                       "Host: 127.0.0.1\r\n"
                       "\r\n");
@@ -158,6 +167,7 @@ TEST_F(requestparser_tests, request_with_missing_http_version_fails)
 TEST_F(requestparser_tests, request_with_invalid_header_fails_1)
 {
         // Arrange
+        set_no_timeout_data();
         set_read_data("GET / HTTP/1.1\r\n"
                       "[Host]: 127.0.0.1\r\n"
                       "\r\n");
@@ -175,6 +185,7 @@ TEST_F(requestparser_tests, request_with_invalid_header_fails_1)
 TEST_F(requestparser_tests, request_with_invalid_header_fails_2)
 {
         // Arrange
+        set_no_timeout_data();
         set_read_data("GET / HTTP/1.1\r\n");
 
         for (size_t i = 0; i < HttpParser::kMaxHeaderNameLength+1; i++)
@@ -196,6 +207,7 @@ TEST_F(requestparser_tests, request_with_invalid_header_fails_2)
 TEST_F(requestparser_tests, request_with_invalid_header_fails_3)
 {
         // Arrange
+        set_no_timeout_data();
         set_read_data("GET / HTTP/1.1\r\n"
                       "Name: ");
 
@@ -217,6 +229,7 @@ TEST_F(requestparser_tests, request_with_invalid_header_fails_3)
 TEST_F(requestparser_tests, request_with_bad_newlines_fails)
 {
         // Arrange
+        set_no_timeout_data();
         set_read_data("GET / HTTP/2\n"
                       "Host: 127.0.0.1\n"
                       "\n");
@@ -234,6 +247,7 @@ TEST_F(requestparser_tests, request_with_bad_newlines_fails)
 TEST_F(requestparser_tests, parsing_response_fails)
 {
         // Arrange
+        set_no_timeout_data();
         set_read_data("HTTP/1.1 101 Switching Protocols\r\n"
                        "Upgrade: websocket\r\n"
                        "Connection: Upgrade\r\n"

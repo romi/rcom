@@ -178,7 +178,6 @@ protected:
                         .WillRepeatedly(ReturnRef(mock_request_));
                 
                 // clock
-                EXPECT_CALL(mock_clock_, sleep(_)).Times(0);
                 EXPECT_CALL(mock_clock_, time())
                         .WillRepeatedly(Return(0.0));
                 
@@ -469,6 +468,10 @@ TEST_F(websocket_tests, successfull_creation_and_delete_of_client_side_websocket
                                       Return(true)));
         
         EXPECT_CALL(*mock_socket, close());
+                
+        EXPECT_CALL(mock_clock_, sleep(_));
+        EXPECT_CALL(mock_clock_, time())
+                .WillRepeatedly(Return(0.0));
 
         r_random_fake.custom_fake = websocket_tests::fake_r_random;
         
@@ -515,6 +518,7 @@ TEST_F(websocket_tests, new_client_side_websocket_throws_error_if_send_fails)
                 .WillOnce(Return(false));
 
         EXPECT_CALL(*mock_socket, close());
+        EXPECT_CALL(mock_clock_, sleep(_));
         
         r_random_fake.custom_fake = websocket_tests::fake_r_random;
                                                            
