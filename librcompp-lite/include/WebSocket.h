@@ -115,8 +115,8 @@ namespace rcom {
 
                 // Implementation shared by client or server sub-classes
                 RecvStatus try_recv(rpp::MemBuffer& message, double timeout);
-                void wait_and_handle_one_message(rpp::MemBuffer& message, double timeout);
-                bool wait_for_message(double timeout);
+                bool wait_and_handle_one_message(rpp::MemBuffer& message, double timeout);
+                bool wait_for_data(double timeout);
                 WaitStatus socket_wait(double timeout);
                 void handle_one_message(rpp::MemBuffer& message);
                 void read_message();

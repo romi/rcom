@@ -40,7 +40,7 @@ namespace rcom {
                 virtual bool recv(rpp::MemBuffer& message, double timeout = 0.0) = 0;
                 virtual bool send(rpp::MemBuffer& message) = 0;
 
-                virtual IWebSocket::RecvStatus recv_status() = 0;
+                virtual RecvStatus recv_status() = 0;
         };
 }
 

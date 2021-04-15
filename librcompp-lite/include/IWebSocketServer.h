@@ -37,7 +37,8 @@ namespace rcom {
                 
                 virtual void handle_events() = 0;
                 virtual void broadcast(rpp::MemBuffer& message,
-                                       IWebSocket::MessageType type = IWebSocket::kTextMessage) = 0;
+                                       IWebSocket* exclude = nullptr,
+                                       MessageType type = kTextMessage) = 0;
                 virtual void get_address(IAddress& address) = 0;
                 virtual size_t count_links() = 0;
         };

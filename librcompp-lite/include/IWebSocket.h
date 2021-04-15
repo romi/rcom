@@ -29,25 +29,25 @@
 #include "WebSocketConstants.h"
 
 namespace rcom {
+                
+        enum MessageType {
+                kTextMessage,
+                kBinaryMessage
+        };
+                
+        enum RecvStatus {
+                kRecvError = -3,
+                kRecvClosed = -2,
+                kRecvTimeOut = -1,
+                kRecvText = 1,
+                kRecvBinary = 2
+        };
 
         class IWebSocket
         {
         protected:
 
         public:
-                
-                enum MessageType {
-                        kTextMessage,
-                        kBinaryMessage
-                };
-                
-                enum RecvStatus {
-                        kRecvError = -3,
-                        kRecvClosed = -2,
-                        kRecvTimeOut = -1,
-                        kRecvText = 1,
-                        kRecvBinary = 2
-                };
                 
                 virtual ~IWebSocket() = default;
 

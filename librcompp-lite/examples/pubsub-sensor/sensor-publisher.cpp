@@ -19,42 +19,64 @@
  */
 #include <iostream>
 #include <signal.h>
+#include <stdlib.h>
 #include <r.h>
 #include <MessageHub.h>
 #include <IMessageListener.h>
 
 static bool quit = false;
-static void set_quit(int sig, siginfo_t *info, void *ucontext);
-static void quit_on_control_c();
+void quit_on_control_c();
 
 using namespace rcom;
 using namespace rpp;
 
-class HelloWorldListener : public IMessageListener
+void initialize_random_generator()
 {
-public:
-        ~HelloWorldListener() = default; 
-
-        void onmessage(IWebSocket& websocket, rpp::MemBuffer& message) override {
-                std::cout << "Client says '" << message.tostring() << "'" << std::endl;
-                rpp::MemBuffer reply;
-                reply.append_string("world");
-                websocket.send(reply);
+        static bool initialized = false;
+        if (!initialized) {
+                time_t t;
+                srand((unsigned) time(&t));
+                initialized = true;
         }
-};
+}
 
+double get_random_value_between(double min, double max)
+{
+        double r;
+        initialize_random_generator();
+        r = (double) rand() / (double) RAND_MAX;
+        return min + r * (max - min);
+}
+
+double get_sensor_value()
+{
+        return get_random_value_between(18.0, 22.0);
+}
+
+void broadcast_sensor_value(MessageHub& hub)
+{
+        double temperature = get_sensor_value();
+        MemBuffer message;
+        message.printf("The temperature is %.1f °C", temperature);
+        hub.broadcast(message);
+}
 
 int main()
 {
         try {
-                HelloWorldListener hello_world;
-                MessageHub message_hub("hello-world", hello_world);                
-
+                MessageHub hub("sensor");                
+                
                 quit_on_control_c();
         
                 while (!quit) {
-                        message_hub.handle_events();
-                        clock_sleep(0.050);
+                        
+                        /* Don't forget to handle the incoming client
+                         * connections. */
+                        hub.handle_events();
+                        
+                        broadcast_sensor_value(hub);
+                        
+                        clock_sleep(1.0);
                 }
                 
         } catch (std::runtime_error& re) {
@@ -64,7 +86,7 @@ int main()
         }
 }
 
-static void set_quit(int sig, siginfo_t *info, void *ucontext)
+void set_quit(int sig, siginfo_t *info, void *ucontext)
 {
         (void) sig;
         (void) info;
@@ -72,7 +94,7 @@ static void set_quit(int sig, siginfo_t *info, void *ucontext)
         quit = true;
 }
 
-static void quit_on_control_c()
+void quit_on_control_c()
 {
         struct sigaction act;
         memset(&act, 0, sizeof(struct sigaction));

@@ -59,9 +59,9 @@ namespace rcom {
                 return socket_->is_connected();
         }
 
-        IWebSocket::RecvStatus WebSocket::recv(rpp::MemBuffer& message, double timeout)
+        RecvStatus WebSocket::recv(rpp::MemBuffer& message, double timeout)
         {
-                IWebSocket::RecvStatus status = kRecvError;
+                RecvStatus status = kRecvError;
                 
                 try {
                         message.clear();
@@ -75,7 +75,7 @@ namespace rcom {
                 return status;
         }
 
-        IWebSocket::RecvStatus WebSocket::try_recv(rpp::MemBuffer& message, double timeout)
+        RecvStatus WebSocket::try_recv(rpp::MemBuffer& message, double timeout)
         {
                 double start_time = clock_.time();
                 double remaining_time = timeout;
@@ -83,16 +83,17 @@ namespace rcom {
                 
                 while (remaining_time >= 0.0) {
                         
-                        wait_and_handle_one_message(message, remaining_time);
+                        if (wait_and_handle_one_message(message, remaining_time)) {
 
-                        if (has_complete_data_message()) {
-                                status = get_message_type();
-                                break;
-                        }
+                                if (has_complete_data_message()) {
+                                        status = get_message_type();
+                                        break;
+                                }
 
-                        if (!is_connected()) {
-                                status = kRecvClosed;
-                                break;
+                                if (!is_connected()) {
+                                        status = kRecvClosed;
+                                        break;
+                                }
                         }
                         
                         remaining_time = compute_remaning_time(start_time, timeout);
@@ -106,13 +107,15 @@ namespace rcom {
                 return timeout - (clock_.time() - start_time);
         }
         
-        void WebSocket::wait_and_handle_one_message(rpp::MemBuffer& message, double timeout)
+        bool WebSocket::wait_and_handle_one_message(rpp::MemBuffer& message, double timeout)
         {
-                if (wait_for_message(timeout)) 
+                bool received_data = wait_for_data(timeout);
+                if (received_data) 
                         handle_one_message(message);
+                return received_data;
         }
         
-        bool WebSocket::wait_for_message(double timeout)
+        bool WebSocket::wait_for_data(double timeout)
         {
                 bool success = false;
                 WaitStatus status = socket_wait(timeout);
@@ -132,7 +135,7 @@ namespace rcom {
                 return socket_->wait(timeout);
         }
         
-        IWebSocket::RecvStatus WebSocket::get_message_type()
+        RecvStatus WebSocket::get_message_type()
         {
                 if (is_text_) {
                         return kRecvText;

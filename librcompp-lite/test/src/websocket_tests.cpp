@@ -668,10 +668,10 @@ TEST_F(websocket_tests, read_fragmented_message_correctly)
         input_append(fragmented_message_c, sizeof(fragmented_message_c));
 
         // Act
-        IWebSocket::RecvStatus status = websocket->recv(message, 1.0);
+        RecvStatus status = websocket->recv(message, 1.0);
 
         // Assert
-        ASSERT_EQ(status, IWebSocket::kRecvText);
+        ASSERT_EQ(status, kRecvText);
         ASSERT_STREQ(message.tostring().c_str(), "abc");
 }
 
@@ -689,10 +689,10 @@ TEST_F(websocket_tests, invalid_fragmented_message_returns_error_1)
         input_append(client_close_reply, sizeof(client_close_reply));
 
         // Act
-        IWebSocket::RecvStatus status = websocket->recv(message, 1.0);
+        RecvStatus status = websocket->recv(message, 1.0);
 
         // ASSERT
-        ASSERT_EQ(status, IWebSocket::kRecvError);
+        ASSERT_EQ(status, kRecvError);
         ASSERT_EQ(output_data_.size(), 2);
         MemBuffer& close_message = output_data_[1];
         ASSERT_EQ(close_message.size(), sizeof(server_1002_close_handshake));
@@ -713,10 +713,10 @@ TEST_F(websocket_tests, invalid_fragmented_message_returns_error_2)
         input_append(client_close_reply, sizeof(client_close_reply));
 
         // Act
-        IWebSocket::RecvStatus status = websocket->recv(message, 1.0);
+        RecvStatus status = websocket->recv(message, 1.0);
 
         // Assert
-        ASSERT_EQ(status, IWebSocket::kRecvError);
+        ASSERT_EQ(status, kRecvError);
         ASSERT_EQ(output_data_.size(), 2);
         MemBuffer& close_message = output_data_[1];
         ASSERT_EQ(close_message.size(), sizeof(server_1002_close_handshake));
@@ -735,10 +735,10 @@ TEST_F(websocket_tests, read_message_of_size_126)
         input_append_random_data(126);
 
         // Act
-        IWebSocket::RecvStatus status = websocket->recv(message, 1.0);
+        RecvStatus status = websocket->recv(message, 1.0);
 
         // Assert
-        ASSERT_EQ(status, IWebSocket::kRecvBinary);
+        ASSERT_EQ(status, kRecvBinary);
         ASSERT_EQ(message.size(), 126);
 }
 
@@ -753,10 +753,10 @@ TEST_F(websocket_tests, read_message_of_size_65536)
         input_append_random_data(65536);
 
         // Act
-        IWebSocket::RecvStatus status = websocket->recv(message, 1.0);
+        RecvStatus status = websocket->recv(message, 1.0);
 
         // Assert
-        ASSERT_EQ(status, IWebSocket::kRecvBinary);
+        ASSERT_EQ(status, kRecvBinary);
         ASSERT_EQ(message.size(), 65536);
 }
 
@@ -787,10 +787,10 @@ TEST_F(websocket_tests, read_too_long_a_message)
         input_append(binary_frame_len_too_long, sizeof(binary_frame_len_too_long));
 
         // Act
-        IWebSocket::RecvStatus status = websocket->recv(message, 1.0);
+        RecvStatus status = websocket->recv(message, 1.0);
 
         // Assert
-        ASSERT_EQ(status, IWebSocket::kRecvError);
+        ASSERT_EQ(status, kRecvError);
         ASSERT_EQ(output_data_.size(), 2);
         MemBuffer& close_message = output_data_[1];
         ASSERT_EQ(close_message.size(), sizeof(server_1009_close_handshake));
@@ -808,10 +808,10 @@ TEST_F(websocket_tests, unmasked_client_message_returns_error)
         input_append(unmasked_text_message, sizeof(unmasked_text_message));
 
         // Act
-        IWebSocket::RecvStatus status = websocket->recv(message, 1.0);
+        RecvStatus status = websocket->recv(message, 1.0);
 
         // Assert
-        ASSERT_EQ(status, IWebSocket::kRecvError);
+        ASSERT_EQ(status, kRecvError);
         ASSERT_EQ(output_data_.size(), 2);
         MemBuffer& close_message = output_data_[1];
         ASSERT_EQ(close_message.size(), sizeof(server_1002_close_handshake));
@@ -834,10 +834,10 @@ TEST_F(websocket_tests, bad_message_opcode_returns_error)
         input_append(invalid_message, sizeof(invalid_message));
 
         // Act
-        IWebSocket::RecvStatus status = websocket->recv(message, 1.0);
+        RecvStatus status = websocket->recv(message, 1.0);
 
         // Assert
-        ASSERT_EQ(status, IWebSocket::kRecvError);
+        ASSERT_EQ(status, kRecvError);
         ASSERT_EQ(output_data_.size(), 2);
         MemBuffer& close_message = output_data_[1];
         ASSERT_EQ(close_message.size(), sizeof(server_1002_close_handshake));
@@ -856,10 +856,10 @@ TEST_F(websocket_tests, politely_replies_to_close_handshake)
         input_append(client_1001_close_handshake, sizeof(client_1001_close_handshake));
 
         // Act
-        IWebSocket::RecvStatus status = websocket->recv(message, 1.0);
+        RecvStatus status = websocket->recv(message, 1.0);
 
         // Assert
-        ASSERT_EQ(status, IWebSocket::kRecvClosed);
+        ASSERT_EQ(status, kRecvClosed);
         ASSERT_EQ(output_data_.size(), 2);
         MemBuffer& close_message = output_data_[1];
         ASSERT_EQ(close_message.size(), sizeof(server_1001_close_handshake));

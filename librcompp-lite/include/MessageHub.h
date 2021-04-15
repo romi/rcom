@@ -34,7 +34,7 @@
 
 namespace rcom {
 
-        class MessageHub : public IMessageHub
+        class MessageHub : public IMessageHub, public IMessageListener
         {
         protected:
                 rpp::Linux linux_;
@@ -49,11 +49,20 @@ namespace rcom {
                 
                 MessageHub(const std::string& topic,
                            IMessageListener& listener);
+
+                /* This constructor is used for publisher-subscriber
+                 * patterns in which the message hub does not expect
+                 * to receive any messages from the subscribers. */
+                MessageHub(const std::string& topic);
                 virtual ~MessageHub(); 
 
                 std::string& topic() override;
                 void handle_events() override;
-                void broadcast(rpp::MemBuffer& message) override;
+                void broadcast(rpp::MemBuffer& message,
+                               IWebSocket* exclude = nullptr,
+                               MessageType type = kTextMessage) override;
+
+                void onmessage(IWebSocket& link, rpp::MemBuffer& message) override;
         };
 }
 

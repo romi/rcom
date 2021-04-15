@@ -54,10 +54,10 @@ protected:
         }
 
 public:
-        IWebSocket::RecvStatus copy_input(rpp::MemBuffer& message, double timeout) {
+        RecvStatus copy_input(rpp::MemBuffer& message, double timeout) {
                 (void) timeout;
                 message.append(read_data_);
-                return IWebSocket::kRecvText;
+                return kRecvText;
         }
 
         void debug_close(CloseCode code) {
@@ -94,7 +94,7 @@ TEST_F(websocketserver_tests, accepts_new_connections_and_calls_onconnect)
                 .WillRepeatedly(Return(true));
         EXPECT_CALL(*websocket, close(_));
         EXPECT_CALL(*websocket, recv(_,_))
-                .WillRepeatedly(Return(IWebSocket::kRecvTimeOut));
+                .WillRepeatedly(Return(kRecvTimeOut));
         set_read_data(client_1001_close_handshake, sizeof(client_1001_close_handshake)); 
 
         EXPECT_CALL(factory_, new_server_side_websocket(_))
@@ -124,7 +124,7 @@ TEST_F(websocketserver_tests, close_message_removes_link)
                 .WillOnce(Return(true))
                 .WillOnce(Return(false));
         EXPECT_CALL(*websocket, recv(_,_))
-                .WillOnce(Return(IWebSocket::kRecvClosed));
+                .WillOnce(Return(kRecvClosed));
 
         EXPECT_CALL(factory_, new_server_side_websocket(_))
                 .WillOnce(Return(ByMove(unique_ptr<IWebSocket>(websocket))));
@@ -153,7 +153,7 @@ TEST_F(websocketserver_tests, recv_error_closes_and_removes_link)
                 .WillOnce(Return(true))
                 .WillOnce(Return(false));
         EXPECT_CALL(*websocket, recv(_,_))
-                .WillOnce(Return(IWebSocket::kRecvError));
+                .WillOnce(Return(kRecvError));
         EXPECT_CALL(*websocket, close(_));
 
         EXPECT_CALL(factory_, new_server_side_websocket(_))
@@ -209,7 +209,7 @@ TEST_F(websocketserver_tests, failed_send_removes_link)
         EXPECT_CALL(*websocket, is_connected())
                 .WillRepeatedly(Return(true));
         EXPECT_CALL(*websocket, recv(_,_))
-                .WillOnce(Return(IWebSocket::kRecvTimeOut));
+                .WillOnce(Return(kRecvTimeOut));
         EXPECT_CALL(*websocket, send(_,_))
                 .WillOnce(Return(false));
         EXPECT_CALL(*websocket, close(_))

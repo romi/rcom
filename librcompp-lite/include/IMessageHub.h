@@ -36,7 +36,9 @@ namespace rcom {
                 virtual std::string& topic() = 0;
                 
                 virtual void handle_events() = 0;
-                virtual void broadcast(rpp::MemBuffer& message) = 0;
+                virtual void broadcast(rpp::MemBuffer& message,
+                                       IWebSocket* exclude = nullptr,
+                                       MessageType type = kTextMessage) = 0;
         };
 }
 

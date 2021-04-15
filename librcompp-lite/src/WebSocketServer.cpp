@@ -117,38 +117,41 @@ namespace rcom {
         
         void WebSocketServer::handle_new_messages(size_t index)
         {
-                IWebSocket::RecvStatus status;
+                RecvStatus status;
 
                 status = links_[index]->recv(message_);
                 
-                if (status == IWebSocket::kRecvText
-                    || status == IWebSocket::kRecvBinary) {
+                if (status == kRecvText
+                    || status == kRecvBinary) {
                         listener_.onmessage(*links_[index], message_);
                                                 
-                } else if (status == IWebSocket::kRecvError) {
+                } else if (status == kRecvError) {
                         r_err("WebSocketServer::handle_new_messages: recv failed. "
                               "Removing link.");
                         close(index, kCloseInternalError);
                         
-                } else if (status == IWebSocket::kRecvClosed) {
+                } else if (status == kRecvClosed) {
                         // Will be removed
                 }
         }
 
         void WebSocketServer::broadcast(rpp::MemBuffer& message,
-                                        IWebSocket::MessageType type)
+                                        IWebSocket* exclude,
+                                        MessageType type)
         {
                 for (size_t i = 0; i < links_.size(); i++) {
-                        if (!send(i, message, type)) {
-                                r_warn("WebSocketServer::broadcast_text: "
-                                       "send failed. Closing connection.");
-                                close(i, kCloseInternalError);
+                        if (exclude != links_[i].get()) {
+                                if (!send(i, message, type)) {
+                                        r_warn("WebSocketServer::broadcast_text: "
+                                               "send failed. Closing connection.");
+                                        close(i, kCloseInternalError);
+                                }
                         }
                 }
         }
 
         bool WebSocketServer::send(size_t index, rpp::MemBuffer& message,
-                                   IWebSocket::MessageType type)
+                                   MessageType type)
         {
                 bool success = true;
                 if (links_[index]->is_connected())

@@ -59,6 +59,11 @@ namespace rcom {
                 }
         }
         
+        MessageHub::MessageHub(const std::string& topic)
+                : MessageHub(topic, *this)
+        {
+        }
+        
         std::string& MessageHub::topic()
         {
                 return topic_;
@@ -90,8 +95,17 @@ namespace rcom {
                 server_->handle_events();
         }
 
-        void MessageHub::broadcast(rpp::MemBuffer& message)
+        void MessageHub::broadcast(rpp::MemBuffer& message,
+                                   IWebSocket* exclude,
+                                   MessageType type)
         {
-                server_->broadcast(message);
+                server_->broadcast(message, exclude, type);
+        }
+
+        void MessageHub::onmessage(IWebSocket& link, rpp::MemBuffer& message)
+        {
+                (void) link;
+                (void) message;
+                r_warn("MessageHub::onmessage: Received unhandled message");
         }
 }

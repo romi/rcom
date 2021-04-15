@@ -27,19 +27,26 @@ static bool quit = false;
 static void set_quit(int sig, siginfo_t *info, void *ucontext);
 static void quit_on_control_c();
 
+using namespace std;
 using namespace rcom;
 using namespace rpp;
 
-class HelloWorldListener : public IMessageListener
+class ChatBus : public IMessageListener
 {
 public:
-        ~HelloWorldListener() = default; 
+        MessageHub *hub_;
+        
+        ChatBus() : hub_(nullptr) {} 
+        ~ChatBus() = default; 
+
+        ChatBus(ChatBus& b) = delete;
+        ChatBus& operator=(const ChatBus& other) = delete;
 
         void onmessage(IWebSocket& websocket, rpp::MemBuffer& message) override {
-                std::cout << "Client says '" << message.tostring() << "'" << std::endl;
-                rpp::MemBuffer reply;
-                reply.append_string("world");
-                websocket.send(reply);
+                cout << "> " << message.tostring() << endl;
+                /* Broadcast the incoming message to all connected
+                 * clients but exclude the sender. */
+                hub_->broadcast(message, &websocket);
         }
 };
 
@@ -47,13 +54,14 @@ public:
 int main()
 {
         try {
-                HelloWorldListener hello_world;
-                MessageHub message_hub("hello-world", hello_world);                
-
+                ChatBus chat;
+                MessageHub chat_hub("chat", chat);                
+                chat.hub_ = &chat_hub;
+                
                 quit_on_control_c();
         
                 while (!quit) {
-                        message_hub.handle_events();
+                        chat_hub.handle_events();
                         clock_sleep(0.050);
                 }
                 

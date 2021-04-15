@@ -18,44 +18,37 @@
 
  */
 #include <iostream>
+#include <memory>
 #include <signal.h>
 #include <r.h>
-#include <MessageHub.h>
-#include <IMessageListener.h>
-
-static bool quit = false;
-static void set_quit(int sig, siginfo_t *info, void *ucontext);
-static void quit_on_control_c();
+#include <MessageLink.h>
 
 using namespace rcom;
 using namespace rpp;
 
-class HelloWorldListener : public IMessageListener
+static void quit_on_control_c();
+static bool quit = false;
+
+static void print_sensor_value(MessageLink& link)
 {
-public:
-        ~HelloWorldListener() = default; 
-
-        void onmessage(IWebSocket& websocket, rpp::MemBuffer& message) override {
-                std::cout << "Client says '" << message.tostring() << "'" << std::endl;
-                rpp::MemBuffer reply;
-                reply.append_string("world");
-                websocket.send(reply);
+        MemBuffer message;
+        if (link.recv(message, 2.0)) {
+                std::cout << message.tostring() << std::endl;
+        } else {
+                r_err("main: receive failed");
         }
-};
-
+}
 
 int main()
 {
-        try {
-                HelloWorldListener hello_world;
-                MessageHub message_hub("hello-world", hello_world);                
-
-                quit_on_control_c();
+        quit_on_control_c();
         
+        try {
+                MessageLink link("sensor");                
+                
                 while (!quit) {
-                        message_hub.handle_events();
-                        clock_sleep(0.050);
-                }
+                        print_sensor_value(link);
+                }                
                 
         } catch (std::runtime_error& re) {
                 r_err("main: caught runtime_error: %s", re.what());

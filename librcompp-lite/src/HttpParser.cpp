@@ -54,11 +54,18 @@ namespace rcom {
                 buffer_.clear();
 
                 while (true) {
-                        success = read_char(socket);
-                        if (!success)
+                        WaitStatus status = socket.wait(1.0);
+                        if (status == kWaitOK) {
+                                success = read_char(socket);
+                                if (!success)
+                                        break;
+                                if (state_ == kBody)
+                                        break;
+                        } else {
+                                r_err("HttpParser: Failed to read the socket (status=%s)",
+                                      status == kWaitTimeout? "timeout" : "error");
                                 break;
-                        if (state_ == kBody)
-                                break;
+                        }
                 }
                 return success;
         }

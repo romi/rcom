@@ -51,7 +51,7 @@ namespace rcom {
                 void handle_new_messages(size_t index);
                 
                 bool send(size_t index, rpp::MemBuffer& message,
-                          IWebSocket::MessageType type);
+                          MessageType type);
                 void close(size_t index, CloseCode code);
                 IWebSocket& append(int sockfd);
                 void remove_closed_links();
@@ -64,7 +64,8 @@ namespace rcom {
 
                 void handle_events() override;
                 void broadcast(rpp::MemBuffer& message,
-                               IWebSocket::MessageType type = IWebSocket::kTextMessage) override;
+                               IWebSocket* exclude = nullptr,
+                               MessageType type = kTextMessage) override;
                 void get_address(IAddress& address) override;
                 size_t count_links() override;
         };

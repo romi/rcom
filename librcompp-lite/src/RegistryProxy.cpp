@@ -130,13 +130,13 @@ namespace rcom {
         bool RegistryProxy::read_response(rpp::MemBuffer& response)
         {
                 bool success = false;
-                IWebSocket::RecvStatus status;
+                RecvStatus status;
                 status = websocket_->recv(response, 2.0);
-                if (status == IWebSocket::kRecvText)
+                if (status == kRecvText)
                         success = true;
-                else if (status == IWebSocket::kRecvTimeOut)
+                else if (status == kRecvTimeOut)
                         r_warn("RegistryProxy::read_response: Time-out");
-                else if (status == IWebSocket::kRecvError)
+                else if (status == kRecvError)
                         r_warn("RegistryProxy::read_response: Error");
                 return success;
         }

@@ -37,7 +37,7 @@ namespace rcom {
                   factory_(linux_, clock_),
                   websocket_(),
                   topic_(topic),
-                  recv_status_(IWebSocket::kRecvText)
+                  recv_status_(kRecvText)
         {
                 if (!is_valid_topic(topic_)) {
                         r_err("MessageLink: Ill-formatted topic string: %s", topic.c_str());
@@ -94,11 +94,11 @@ namespace rcom {
 
         bool MessageLink::obtained_message()
         {
-                return (recv_status_ == IWebSocket::kRecvText
-                        || recv_status_ == IWebSocket::kRecvBinary);
+                return (recv_status_ == kRecvText
+                        || recv_status_ == kRecvBinary);
         }
         
-        IWebSocket::RecvStatus MessageLink::recv_status()
+        RecvStatus MessageLink::recv_status()
         {
                 return recv_status_;
         }

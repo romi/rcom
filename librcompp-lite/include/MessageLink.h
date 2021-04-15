@@ -43,7 +43,7 @@ namespace rcom {
                 SocketFactory factory_;
                 std::unique_ptr<IWebSocket> websocket_;
                 std::string topic_;
-                IWebSocket::RecvStatus recv_status_;
+                RecvStatus recv_status_;
                 
                 bool connect();
                 bool get_remote_address(Address& address);
@@ -57,7 +57,7 @@ namespace rcom {
                 std::string& get_topic() override;                
                 bool recv(rpp::MemBuffer& message, double timeout = 0.0) override;
                 bool send(rpp::MemBuffer& message) override;
-                IWebSocket::RecvStatus recv_status() override;
+                RecvStatus recv_status() override;
         };
 }
 
