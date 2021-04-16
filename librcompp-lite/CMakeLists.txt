@@ -41,7 +41,7 @@ set(SOURCES
     include/WebSocket.h
     include/WebSocketConstants.h
     include/WebSocketServer.h
-        
+    
     src/sha1.cpp
     src/util.cpp
     src/Address.cpp
@@ -65,6 +65,14 @@ set(SOURCES
     src/SocketFactory.cpp
     src/WebSocket.cpp
     src/WebSocketServer.cpp
+
+    include/IRPCClient.h
+    include/IRPCHandler.h
+    include/RPCClient.h
+    include/RPCError.h
+    include/RPCServer.h
+    src/RPCClient.cpp
+    src/RPCServer.cpp
 )
 
 add_library(rcompp-lite SHARED ${SOURCES})
